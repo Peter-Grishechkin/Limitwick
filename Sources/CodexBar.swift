@@ -7,12 +7,12 @@ final class Bars: NSView {
     override func draw(_ dirtyRect: NSRect) {
         for i in 0..<2 {
             let rect = NSRect(x: 1, y: 4 + CGFloat(i) * 8, width: 30, height: 4)
-            NSColor.white.withAlphaComponent(0.22).setFill()
+            NSColor.labelColor.withAlphaComponent(0.25).setFill()
             NSBezierPath(roundedRect: rect, xRadius: 2, yRadius: 2).fill()
             if let value = values[i] {
                 let width = rect.width * max(0, min(1, value / 100))
                 if width > 0 {
-                    (value < 20 ? NSColor.systemRed : NSColor.white).setFill()
+                    (value < 20 ? NSColor.systemRed : NSColor.labelColor).setFill()
                     NSBezierPath(roundedRect: NSRect(x: rect.minX, y: rect.minY, width: max(2, width), height: rect.height), xRadius: 2, yRadius: 2).fill()
                 }
             }
@@ -24,12 +24,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let status = NSStatusBar.system.statusItem(withLength: 34)
     let bars = Bars(frame: NSRect(x: 0, y: 0, width: 32, height: 20))
     let menu = NSMenu()
-    let info = NSMenuItem(title: "Loading…", action: nil, keyEquivalent: "")
-    let resetInfo = NSMenuItem(title: "5-hour reset: —", action: nil, keyEquivalent: "")
+    let state = NSMenuItem(title: "Loading…", action: nil, keyEquivalent: "")
+    let fiveHour = NSMenuItem(title: "5 hours: —", action: nil, keyEquivalent: "")
+    let weekly = NSMenuItem(title: "Week: —", action: nil, keyEquivalent: "")
+    let updated = NSMenuItem(title: "Last updated: —", action: nil, keyEquivalent: "")
+    let refresh = NSMenuItem(title: "Refresh", action: #selector(refreshNow), keyEquivalent: "r")
+    let client = QuotaClient()
     var timer: Timer?
     var running = false
     var lastUpdate: Date?
-    let codexPaths = ["/opt/homebrew/bin/codex", "/usr/local/bin/codex", NSHomeDirectory() + "/.local/bin/codex"]
+    var lastQuota: Quota?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard let button = status.button else { return }
@@ -37,14 +41,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         bars.autoresizingMask = [.minYMargin, .maxYMargin]
         button.addSubview(bars)
         button.toolTip = "Codex: top — 5 hours, bottom — week"
-        info.isEnabled = false
-        menu.addItem(info)
-        resetInfo.isEnabled = false
-        menu.addItem(resetInfo)
+        button.setAccessibilityLabel("Codex usage limits, loading")
+        for item in [state, fiveHour, weekly, updated] { item.isEnabled = false; menu.addItem(item) }
         menu.addItem(.separator())
-        let refreshItem = NSMenuItem(title: "Refresh", action: #selector(refreshNow), keyEquivalent: "r")
-        refreshItem.target = self
-        menu.addItem(refreshItem)
+        refresh.target = self; menu.addItem(refresh)
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Quit Codex Bar", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         status.menu = menu
@@ -53,93 +53,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     @objc func refreshNow() {
         guard !running else { return }
-        guard let path = codexPaths.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
-            info.title = "Codex CLI not found"; resetInfo.title = "5-hour reset: —"; bars.values = [nil, nil]; return
-        }
-        running = true
+        running = true; refresh.isEnabled = false
+        state.title = lastQuota == nil ? "Loading…" : "Updating…"
+        guard let path = QuotaClient.findCLI() else { finish(.failure(QuotaError.cliNotFound)); return }
         DispatchQueue.global(qos: .utility).async {
-            let result = self.fetch(path: path)
-            DispatchQueue.main.async {
-                self.running = false
-                switch result {
-                case .success(let quota):
-                    let values = quota.values
-                    self.bars.values = values
-                    self.lastUpdate = Date()
-                    let a = values[0].map { "\(Int($0.rounded()))%" } ?? "—"
-                    let b = values[1].map { "\(Int($0.rounded()))%" } ?? "—"
-                    self.info.title = "Remaining: 5 hours — \(a), week — \(b)"
-                    if let reset = quota.fiveHourReset {
-                        let formatter = DateFormatter()
-                        formatter.dateStyle = .medium
-                        formatter.timeStyle = .short
-                        self.resetInfo.title = "5-hour reset: \(formatter.string(from: reset))"
-                    } else {
-                        self.resetInfo.title = "5-hour reset: —"
-                    }
-                case .failure:
-                    self.bars.values = [nil, nil]
-                    self.resetInfo.title = "5-hour reset: —"
-                    self.info.title = "No data — check Codex login and network"
-                }
-            }
+            let result = self.client.fetch(path: path)
+            DispatchQueue.main.async { self.finish(result) }
         }
     }
-    enum FetchError: Error { case failed }
-    struct Quota { let values: [Double?]; let fiveHourReset: Date? }
-    func fetch(path: String) -> Result<Quota, Error> {
-        let process = Process(); process.executableURL = URL(fileURLWithPath: path)
-        process.arguments = ["app-server"]
-        let input = Pipe(), output = Pipe()
-        process.standardInput = input; process.standardOutput = output; process.standardError = FileHandle.nullDevice
-        do { try process.run() } catch { return .failure(error) }
-        let timeout = DispatchWorkItem { if process.isRunning { process.terminate() } }
-        DispatchQueue.global().asyncAfter(deadline: .now() + 20, execute: timeout)
-        defer { timeout.cancel(); if process.isRunning { process.terminate() }; try? input.fileHandleForWriting.close(); try? output.fileHandleForReading.close() }
-        func send(_ json: [String: Any]) throws {
-            var data = try JSONSerialization.data(withJSONObject: json); data.append(10)
-            try input.fileHandleForWriting.write(contentsOf: data)
+    func finish(_ result: Result<Quota, Error>) {
+        running = false; refresh.isEnabled = true
+        switch result {
+        case .success(let quota):
+            lastQuota = quota; lastUpdate = Date()
+            state.title = "Up to date"
+        case .failure(let error):
+            state.title = "\(error.localizedDescription)\(lastQuota == nil ? "" : " — showing previous data")"
         }
-        do {
-            try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_bar", "version": "1.0"]]])
-            var buffer = Data()
-            while true {
-                let data = output.fileHandleForReading.availableData
-                if data.isEmpty { break }
-                buffer.append(data)
-                while let newline = buffer.firstIndex(of: 10) {
-                    let line = Data(buffer.prefix(upTo: newline)); buffer.removeSubrange(...newline)
-                    guard let obj = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any], let id = obj["id"] as? Int else { continue }
-                    if id == 1 {
-                        guard obj["result"] != nil else { return .failure(FetchError.failed) }
-                        try send(["method": "initialized", "params": [:]])
-                        try send(["id": 2, "method": "account/rateLimits/read"])
-                    } else if id == 2 {
-                        guard let result = obj["result"] as? [String: Any], let limits = result["rateLimits"] as? [String: Any] else { return .failure(FetchError.failed) }
-                        var values: [Double?] = [nil, nil]
-                        var fiveHourReset: Date?
-                        for key in ["primary", "secondary"] {
-                            guard let window = limits[key] as? [String: Any], let minutes = window["windowDurationMins"] as? Int, let used = window["usedPercent"] as? Double else { continue }
-                            let remaining = max(0, min(100, 100 - used))
-                            if minutes == 300 {
-                                values[0] = remaining
-                                if let timestamp = window["resetsAt"] as? Double, timestamp > 0 {
-                                    fiveHourReset = Date(timeIntervalSince1970: timestamp)
-                                }
-                            }
-                            if minutes == 10080 { values[1] = remaining }
-                        }
-                        if values.allSatisfy({ $0 == nil }) { return .failure(FetchError.failed) }
-                        return .success(Quota(values: values, fiveHourReset: fiveHourReset))
-                    }
-                }
-            }
-        } catch { return .failure(error) }
-        return .failure(FetchError.failed)
+        if let quota = lastQuota {
+            bars.values = [quota.fiveHour?.remaining, quota.weekly?.remaining]
+            fiveHour.title = describe("5 hours", quota.fiveHour)
+            weekly.title = describe("Week", quota.weekly)
+        }
+        if let date = lastUpdate { updated.title = "Last updated: \(format(date))" }
+        status.button?.setAccessibilityLabel("Codex. \(state.title). \(fiveHour.title). \(weekly.title). \(updated.title)")
+    }
+    func describe(_ name: String, _ window: QuotaWindow?) -> String {
+        guard let window = window else { return "\(name): unavailable" }
+        let reset = window.reset.map { " · resets \(format($0))" } ?? " · reset unavailable"
+        return "\(name): \(Int(window.remaining.rounded()))% remaining\(reset)"
+    }
+    func format(_ date: Date) -> String {
+        let formatter = DateFormatter(); formatter.dateStyle = .medium; formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 }
-let app = NSApplication.shared
-let delegate = AppDelegate()
-app.delegate = delegate
-app.setActivationPolicy(.accessory)
-app.run()
+@main struct CodexBarMain {
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = AppDelegate()
+        app.delegate = delegate
+        app.setActivationPolicy(.accessory)
+        app.run()
+    }
+}

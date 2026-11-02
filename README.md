@@ -1,55 +1,41 @@
 # Codex Bar
 
-Codex Bar is a small macOS menu bar app that shows your remaining Codex usage limits. The top bar represents the five-hour limit; the bottom bar represents the weekly limit. A bar turns red when less than 20% remains. Values refresh every three minutes.
+A small macOS menu bar app showing remaining Codex usage. The top bar is the five-hour limit; the bottom bar is the weekly limit. A bar turns red below 20%. Click the bars to see each available reset time and the last successful update.
 
-Click the bars to see the remaining percentages and the five-hour reset time in your Mac's local time zone, refresh the data, or quit. The bars turn gray when data is unavailable.
+The app refreshes every three minutes and can also refresh on demand. If an update fails, it shows the reason and keeps the last values with a notice that they are previous data. An unavailable limit is shown as unavailable.
 
 ## Requirements
 
 - macOS 13 or later.
-- [Codex CLI](https://developers.openai.com/codex/cli/) installed and signed in with your ChatGPT account. The app uses the same account. Installing the Codex app does not necessarily install the CLI separately.
-- Xcode Command Line Tools, only if building from source. If needed, run `xcode-select --install` in Terminal and follow the macOS prompts.
+- Codex CLI, installed and signed in to a ChatGPT account. Check with `codex login status` in Terminal. Installing the Codex app does not necessarily install the CLI.
+- Xcode Command Line Tools to build from source.
 
-## Quick install: Apple Silicon Macs
+## Build and run
 
-1. Open the [latest release](https://github.com/frankydzoro/codex-bar/releases/latest) and download `CodexBar-macOS-Apple-Silicon.zip`.
-2. Unzip the archive and move `CodexBar.app` to Applications.
-3. Open the app. Its two bars appear in the menu bar. Make sure Codex CLI is installed and signed in, as described above.
+From this folder in Terminal:
 
-The app is not signed with an Apple Developer certificate or notarized, so macOS may block its first launch. If you trust the app, open **System Settings → Privacy & Security** and allow it to open. You can also inspect the source and build the app yourself using the instructions below.
+```sh
+./build.sh
+open build/CodexBar.app
+```
 
-## Build from source
+The build is locally signed and is not notarized by Apple. A downloaded archive or extracted folder may carry a macOS quarantine marker and trigger a security warning, including for files built inside it. Only run source you trust; Apple's Privacy & Security settings provide a way to open a trusted app. Alternatively, create a fresh local folder and write the trusted source files there before building. The app appears in the menu bar, not in the Dock.
 
-These steps work on Apple Silicon and Intel Macs with the development tools installed.
+## Tests
 
-1. On the repository page, choose **Code → Download ZIP** and unzip the archive.
-2. Open Terminal, type `cd ` (including the space), drag the extracted project folder into the Terminal window, and press Return.
-3. Build the app:
+```sh
+./Tests/run.sh
+```
 
-   ```sh
-   ./build.sh
-   ```
-
-4. Open the app:
-
-   ```sh
-   open build/CodexBar.app
-   ```
-
-The two bars appear in the menu bar. For regular use, move `CodexBar.app` from the `build` folder to Applications. To start it automatically, add it under **System Settings → General → Login Items**.
+The tests exercise response parsing, missing limits, authentication errors, a nonresponsive server, and a missing executable with a local fake Codex process. They do not change your account.
 
 ## Troubleshooting
 
-If the bars are gray, click them to see the status. Check your internet connection and run `codex login status` in Terminal. If necessary, sign in with `codex login`, then choose **Refresh** in the app menu.
+- **Codex CLI not found:** the app searches its inherited PATH and common Homebrew, local, npm, Volta, and Cargo locations. GUI apps may inherit a shorter PATH than Terminal. Install the CLI in a standard location if necessary.
+- **Login or network error:** run `codex login status` in Terminal, sign in if needed, check the connection, and choose Refresh in the app menu.
+- **Previous data shown:** the last attempt failed. The menu reports the error and the time of the last successful update; retry when the issue is resolved.
+- **Limit unavailable:** the CLI did not return that window. Reset times are shown only when provided by Codex.
 
-The app looks for the CLI at `/opt/homebrew/bin/codex`, `/usr/local/bin/codex`, and `~/.local/bin/codex`. If it is installed elsewhere, update the `codexPaths` list in `Sources/CodexBar.swift` and rebuild.
+Codex Bar runs `codex app-server` and reads `account/rateLimits/read`. It does not ask for your password or store credentials. Codex contacts OpenAI; this app has no separate server. Codex CLI protocol changes can affect compatibility.
 
-The app needs five-hour and weekly limits to be available for your account. If Codex does not return one of those periods, its bar stays gray.
-
-## How it works
-
-The app runs the installed `codex app-server` and requests limits using `account/rateLimits/read`. It does not ask for your password or contain API keys or account details. Codex contacts OpenAI's services to retrieve the data; Codex Bar has no separate server. The Codex API may change. See the [app-server documentation](https://developers.openai.com/codex/app-server/) for details.
-
-## Uninstall
-
-Click the bars and choose **Quit Codex Bar**, then delete the app from Applications or the `build` folder. If you added it to Login Items, remove it there as well.
+To quit, choose Quit Codex Bar from its menu. Delete the app to uninstall it and remove any login item you added manually.

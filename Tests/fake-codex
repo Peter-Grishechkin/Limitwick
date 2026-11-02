@@ -1,0 +1,11 @@
+#!/bin/bash
+if [[ "$FAKE_SCENARIO" == timeout ]]; then exec /bin/sleep 10; fi
+IFS= read -r line
+printf '%s\n' '{"id":1,"result":{}}'
+IFS= read -r line
+IFS= read -r line
+if [[ "$FAKE_SCENARIO" == auth ]]; then
+  printf '%s\n' '{"id":2,"error":{"message":"Not authenticated"}}'
+else
+  printf '%s\n' '{"id":2,"result":{"rateLimits":{"primary":{"windowDurationMins":300,"usedPercent":25},"secondary":{"windowDurationMins":10080,"usedPercent":80}}}}'
+fi
