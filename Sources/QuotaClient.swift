@@ -21,9 +21,9 @@ enum QuotaError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .cliNotFound: return "Codex CLI not found. Install it or add it to your PATH."
-        case .launchFailed: return "Could not start Codex CLI."
-        case .timeout: return "Codex CLI did not respond in time."
-        case .serverError(let message): return "Codex: \(message)"
+        case .launchFailed: return "Could not start Codex CLI. Check its installation and permissions."
+        case .timeout: return "Codex CLI did not respond in time. Check your connection and try Refresh."
+        case .serverError(let message): return message == "Not authenticated" ? "Codex is not signed in. Run codex login in Terminal." : "Codex request failed. Check login and network, then try Refresh."
         case .invalidResponse: return "Unexpected response from Codex CLI. Update the CLI and try again."
         case .noLimits: return "No usable limits available for this account."
         case .disconnected: return "Codex CLI stopped responding. Check login and network."
@@ -105,7 +105,7 @@ final class QuotaClient {
             try input.fileHandleForWriting.write(contentsOf: data)
         }
         do {
-            try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_bar", "version": "1.4.0"]]])
+            try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_bar", "version": "1.6.0"]]])
             var buffer = Data()
             var totalBytes = 0
             var initialized = false

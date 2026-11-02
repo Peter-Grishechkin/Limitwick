@@ -157,17 +157,17 @@ final class CapsuleThemeView: ThemeView {
             let symbolFont = NSFont.systemFont(ofSize: 23, weight: .bold)
             let symbolHeight = (symbol as NSString).size(withAttributes: [.font: symbolFont]).height
             text(symbol, NSRect(x: 21, y: y+(68-symbolHeight)/2, width: 54, height: symbolHeight+1), size: 23, color: p.text, font: symbolFont, alignment: .center)
-            let dateFont = NSFont.systemFont(ofSize: 12)
+            let dateFont = NSFont.systemFont(ofSize: 10)
             let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byWordWrapping
             let dateHeight = ceil((reset as NSString).boundingRect(with: NSSize(width: 125, height: 48), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: dateFont, .paragraphStyle: paragraph]).height)
             let dateRect = NSRect(x: 83, y: y+(68-dateHeight)/2, width: 125, height: dateHeight+1)
-            text(reset, dateRect, size: 12, color: p.text, font: dateFont, wrap: true)
+            text(reset, dateRect, size: 10, color: p.text, font: dateFont, wrap: true)
             if !dark, value != nil, fraction(value) > 0 {
                 // Redraw only the part over the filled capsule in a light color.
                 let filled = NSRect(x: rect.minX, y: rect.minY, width: rect.width * fraction(value), height: rect.height)
                 NSGraphicsContext.saveGraphicsState()
                 NSBezierPath(roundedRect: filled, xRadius: 34, yRadius: 34).addClip()
-                text(reset, dateRect, size: 12, color: .white, font: dateFont, wrap: true)
+                text(reset, dateRect, size: 10, color: .white, font: dateFont, wrap: true)
                 NSGraphicsContext.restoreGraphicsState()
             }
             text(percent(value), NSRect(x: 211, y: y+19, width: 103, height: 36), size: 23, color: p.text, font: .systemFont(ofSize: 23, weight: .bold), alignment: .right)

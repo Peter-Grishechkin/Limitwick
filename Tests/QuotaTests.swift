@@ -42,6 +42,27 @@ import Darwin
         }
         let invalidUsed = try json("{\"rateLimits\":{\"primary\":{\"windowDurationMins\":300,\"usedPercent\":true}}}")
         do { _ = try QuotaParser.parse(invalidUsed); fatalError("invalid percentage accepted") } catch QuotaError.noLimits { }
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        check(ResetText.describe(nil, now: now) == "Reset unavailable", "missing reset")
+        check(ResetText.describe(now.addingTimeInterval(-1), now: now).contains("reset passed"), "past reset")
+        check(ResetText.describe(now.addingTimeInterval(8100), now: now).contains("in 2h 15m"), "relative reset")
+        var schedule = RefreshSchedule()
+        check(schedule.record(success: false) == 360, "first failure backoff")
+        check(schedule.record(success: false) == 720, "second failure backoff")
+        check(schedule.record(success: false) == 1440 && schedule.record(success: false) == 1440, "backoff cap")
+        check(schedule.record(success: true) == 180, "success resets backoff")
+        let old = QuotaWindow(durationMinutes: 300, remaining: 20, reset: now.addingTimeInterval(60))
+        let next = QuotaWindow(durationMinutes: 300, remaining: 90, reset: now.addingTimeInterval(3600))
+        var tracker = NoticeTracker(resets: [:], delivered: [:])
+        check(tracker.evaluate([old], now: now, low: false, reset: false, threshold: 20).isEmpty, "disabled notifications")
+        check(tracker.evaluate([old], now: now, low: true, reset: true, threshold: 20).map(\.kind) == ["low"], "threshold inclusive")
+        check(tracker.evaluate([old], now: now, low: true, reset: true, threshold: 20).isEmpty, "no duplicate")
+        var restored = NoticeTracker(resets: tracker.resets, delivered: tracker.delivered)
+        check(restored.evaluate([old], now: now, low: true, reset: true, threshold: 20).isEmpty, "duplicate after restart")
+        check(restored.evaluate([next], now: now.addingTimeInterval(61), low: true, reset: true, threshold: 20).map(\.kind) == ["reset"], "confirmed reset")
+        check(restored.evaluate([next], now: now.addingTimeInterval(62), low: true, reset: true, threshold: 20).isEmpty, "reset once")
+        let missing = QuotaWindow(durationMinutes: 60, remaining: 0, reset: nil)
+        check(restored.evaluate([missing, old], now: now.addingTimeInterval(120), low: true, reset: true, threshold: 20).isEmpty, "missing and passed reset do not notify")
         let fake = CommandLine.arguments[1]
         func run(_ scenario: String, timeout: TimeInterval = 2) -> Result<Quota, Error> {
             setenv("FAKE_SCENARIO", scenario, 1)

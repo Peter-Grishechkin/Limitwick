@@ -1,6 +1,7 @@
 import AppKit
 import Sparkle
 import Foundation
+import UserNotifications
 
 final class Bars: NSView {
     var values: [Double?] = [nil, nil] { didSet { needsDisplay = true } }
@@ -103,6 +104,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     let updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
     let checkUpdates = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
     var timer: Timer?
+    var schedule = RefreshSchedule()
+    var wakePending = false
+    var pendingNotices = Set<String>()
+    let notices = UNUserNotificationCenter.current()
+    var noticeStatus = NSTextField(wrappingLabelWithString: "")
+    var lowToggle: NSButton?
+    var resetToggle: NSButton?
+    var tracker = NoticeTracker(resets: UserDefaults.standard.dictionary(forKey: "noticeResets") as? [String: Double] ?? [:], delivered: UserDefaults.standard.dictionary(forKey: "noticeDelivered") as? [String: Double] ?? [:])
     var running = false
     var lastUpdate: Date?
     var lastQuota: Quota?
@@ -161,8 +170,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         applyTheme()
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(activeApplicationChanged(_:)), name: NSWorkspace.didActivateApplicationNotification, object: nil)
         layoutPanel(message: "Loading…")
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(didWake(_:)), name: NSWorkspace.didWakeNotification, object: nil)
         refreshNow()
-        timer = Timer.scheduledTimer(withTimeInterval: 180, repeats: true) { [weak self] _ in self?.refreshNow() }
         ageTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in self?.updateAge() }
     }
     func layoutPanel(message: String?) {
@@ -254,33 +263,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     @objc func showSettings() {
         popover.performClose(nil)
         if settingsWindow == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 160),
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 320),
                                   styleMask: [.titled, .closable], backing: .buffered, defer: false)
             window.title = "Settings"
             window.isReleasedWhenClosed = false
             window.center()
             let container = window.contentView!
             let themeLabel = NSTextField(labelWithString: "Theme:")
-            themeLabel.frame = NSRect(x: 24, y: 104, width: 95, height: 22)
-            let themePicker = NSPopUpButton(frame: NSRect(x: 122, y: 99, width: 210, height: 28), pullsDown: false)
+            themeLabel.frame = NSRect(x: 24, y: 264, width: 95, height: 22)
+            let themePicker = NSPopUpButton(frame: NSRect(x: 140, y: 259, width: 210, height: 28), pullsDown: false)
             themePicker.addItems(withTitles: PanelTheme.allCases.map(\.title))
             themePicker.selectItem(at: PanelTheme.allCases.firstIndex(of: selectedTheme) ?? 0)
             themePicker.target = self; themePicker.action = #selector(themeChanged(_:))
             let appearanceLabel = NSTextField(labelWithString: "Appearance:")
-            appearanceLabel.frame = NSRect(x: 24, y: 54, width: 95, height: 22)
-            let appearancePicker = NSPopUpButton(frame: NSRect(x: 122, y: 49, width: 210, height: 28), pullsDown: false)
+            appearanceLabel.frame = NSRect(x: 24, y: 224, width: 95, height: 22)
+            let appearancePicker = NSPopUpButton(frame: NSRect(x: 140, y: 219, width: 210, height: 28), pullsDown: false)
             appearancePicker.addItems(withTitles: AppearanceMode.allCases.map(\.title))
             appearancePicker.selectItem(at: AppearanceMode.allCases.firstIndex(of: appearanceMode) ?? 0)
             appearancePicker.target = self; appearancePicker.action = #selector(appearanceChanged(_:))
             for view in [themeLabel, themePicker, appearanceLabel, appearancePicker] as [NSView] { container.addSubview(view) }
             themePicker.setAccessibilityLabel("Theme")
             appearancePicker.setAccessibilityLabel("Appearance")
+            let low = NSButton(checkboxWithTitle: "Low remaining quota", target: self, action: #selector(noticeSettingChanged(_:)))
+            low.frame = NSRect(x: 24, y: 180, width: 260, height: 24); low.state = UserDefaults.standard.bool(forKey: "noticeLow") ? .on : .off
+            low.identifier = NSUserInterfaceItemIdentifier("noticeLow"); container.addSubview(low); lowToggle = low
+            let reset = NSButton(checkboxWithTitle: "Confirmed quota reset", target: self, action: #selector(noticeSettingChanged(_:)))
+            reset.frame = NSRect(x: 24, y: 150, width: 260, height: 24); reset.state = UserDefaults.standard.bool(forKey: "noticeReset") ? .on : .off
+            reset.identifier = NSUserInterfaceItemIdentifier("noticeReset"); container.addSubview(reset); resetToggle = reset
+            let thresholdLabel = NSTextField(labelWithString: "Low threshold (%):")
+            thresholdLabel.frame = NSRect(x: 24, y: 113, width: 135, height: 22); container.addSubview(thresholdLabel)
+            let threshold = NSStepper(frame: NSRect(x: 220, y: 111, width: 20, height: 24))
+            threshold.minValue = 1; threshold.maxValue = 99; threshold.integerValue = noticeThreshold
+            let field = NSTextField(labelWithString: "\(noticeThreshold)%")
+            field.frame = NSRect(x: 162, y: 113, width: 55, height: 22); field.tag = 501; container.addSubview(field)
+            threshold.target = self; threshold.action = #selector(thresholdChanged(_:)); threshold.setAccessibilityLabel("Low quota threshold percent"); container.addSubview(threshold)
+            noticeStatus.frame = NSRect(x: 24, y: 38, width: 370, height: 58); noticeStatus.maximumNumberOfLines = 3; noticeStatus.font = .systemFont(ofSize: 11); noticeStatus.textColor = .secondaryLabelColor; container.addSubview(noticeStatus)
+            let openSettings = NSButton(title: "Notification Settings…", target: self, action: #selector(openNotificationSettings))
+            openSettings.frame = NSRect(x: 20, y: 8, width: 190, height: 28); container.addSubview(openSettings)
             window.initialFirstResponder = themePicker
             window.appearance = appearanceMode.appearance
             settingsWindow = window
         }
         NSApp.activate(ignoringOtherApps: true)
         settingsWindow?.makeKeyAndOrderFront(nil)
+        updateNoticeStatus()
     }
     @objc func themeChanged(_ sender: NSPopUpButton) {
         guard PanelTheme.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
@@ -293,6 +319,82 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         appearanceMode = AppearanceMode.allCases[sender.indexOfSelectedItem]
         UserDefaults.standard.set(appearanceMode.rawValue, forKey: "appearanceMode")
         applyTheme()
+    }
+    var noticeThreshold: Int {
+        let value = UserDefaults.standard.integer(forKey: "noticeThreshold")
+        return value == 0 ? 20 : min(99, max(1, value))
+    }
+    @objc func thresholdChanged(_ sender: NSStepper) {
+        UserDefaults.standard.set(sender.integerValue, forKey: "noticeThreshold")
+        (settingsWindow?.contentView?.viewWithTag(501) as? NSTextField)?.stringValue = "\(sender.integerValue)%"
+    }
+    @objc func noticeSettingChanged(_ sender: NSButton) {
+        guard let key = sender.identifier?.rawValue else { return }
+        UserDefaults.standard.set(sender.state == .on, forKey: key)
+        if sender.state == .on {
+            notices.requestAuthorization(options: [.alert, .sound]) { [weak self] _, _ in DispatchQueue.main.async { self?.updateNoticeStatus() } }
+        } else { updateNoticeStatus() }
+    }
+    func updateNoticeStatus() {
+        notices.getNotificationSettings { [weak self] settings in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                switch settings.authorizationStatus {
+                case .denied: self.noticeStatus.stringValue = "Notifications are blocked by macOS. Enable Codex Bar in System Settings → Notifications."
+                case .authorized, .provisional, .ephemeral: self.noticeStatus.stringValue = "Notifications are allowed. Reset alerts require a successful refresh."
+                default: self.noticeStatus.stringValue = "Enable an alert above to request notification permission."
+                }
+            }
+        }
+    }
+    @objc func openNotificationSettings() {
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") { NSWorkspace.shared.open(url) }
+    }
+    func processNotices(_ quota: Quota) {
+        let defaults = UserDefaults.standard
+        let candidates = tracker.evaluate(quota.windows, now: Date(), low: defaults.bool(forKey: "noticeLow"), reset: defaults.bool(forKey: "noticeReset"), threshold: noticeThreshold)
+        defaults.set(tracker.resets, forKey: "noticeResets")
+        // Commit delivery only after macOS accepts each request, so denied permission does not consume an alert.
+        for notice in candidates {
+            let key = "\(notice.kind):\(notice.duration):\(Int64(notice.reset))"
+            tracker.delivered.removeValue(forKey: key)
+            guard pendingNotices.insert(key).inserted else { continue }
+            notices.getNotificationSettings { [weak self] settings in
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    let keyEnabled = notice.kind == "low" ? "noticeLow" : "noticeReset"
+                    guard (settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional),
+                          UserDefaults.standard.bool(forKey: keyEnabled), !self.stale,
+                          let current = self.lastQuota?.windows.first(where: { $0.durationMinutes == notice.duration }),
+                          current.reset?.timeIntervalSince1970 == notice.reset, notice.reset > Date().timeIntervalSince1970,
+                          notice.kind != "low" || current.remaining <= Double(self.noticeThreshold) else {
+                        self.pendingNotices.remove(key)
+                        return
+                    }
+                    let content = UNMutableNotificationContent()
+                    content.title = notice.kind == "low" ? "Codex quota running low" : "Codex quota reset"
+                    content.body = "\(notice.duration)-minute limit: \(Int(current.remaining.rounded()))% remaining."
+                    content.sound = .default
+                    self.notices.add(UNNotificationRequest(identifier: key, content: content, trigger: nil)) { error in
+                        DispatchQueue.main.async {
+                            self.pendingNotices.remove(key)
+                            guard error == nil else { return }
+                            self.tracker.delivered[key] = Date().timeIntervalSince1970
+                            UserDefaults.standard.set(self.tracker.delivered, forKey: "noticeDelivered")
+                        }
+                    }
+                }
+            }
+        }
+        defaults.set(tracker.delivered, forKey: "noticeDelivered")
+    }
+    @objc func didWake(_ notification: Notification) {
+        updateAge()
+        if running { wakePending = true } else { refreshNow() }
+    }
+    func scheduleRefresh(after interval: TimeInterval) {
+        timer?.invalidate()
+        timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in self?.refreshNow() }
     }
     @objc func showAbout() {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
@@ -312,6 +414,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
     @objc func refreshNow() {
         guard !running else { return }
+        timer?.invalidate()
         running = true; refresh.isEnabled = false
         requestID += 1
         let currentRequest = requestID
@@ -328,13 +431,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         var message: String?
         switch result {
         case .success(let quota):
+            processNotices(quota)
             lastQuota = quota; lastUpdate = Date()
             state = "Up to date"
             stale = false
             lastFailure = nil
-            let conflicts = quota.conflictingDurations.map { "Conflicting \(durationName($0)) values; unavailable" }
-            let extras = quota.additional.map { "\(durationName($0.durationMinutes)): \(Int($0.remaining.rounded()))% remaining" + ($0.reset.map { " · resets \(format($0))" } ?? " · reset unavailable") }
-            additionalLabel.stringValue = (extras + conflicts).joined(separator: "\n")
+
         case .failure(let error):
             stale = lastQuota != nil
             lastFailure = error.localizedDescription
@@ -350,6 +452,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         updateAge()
         layoutPanel(message: message)
         status.button?.setAccessibilityLabel("Codex. \(state). \(describe("5 hours", lastQuota?.fiveHour)). \(describe("Week", lastQuota?.weekly)). \(updatedLabel.stringValue)")
+        let interval: TimeInterval
+        switch result { case .success: interval = schedule.record(success: true); case .failure: interval = schedule.record(success: false) }
+        if wakePending { wakePending = false; refreshNow() } else { scheduleRefresh(after: interval) }
     }
     func applicationWillTerminate(_ notification: Notification) {
         requestID += 1
@@ -359,9 +464,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         client.cancel()
     }
     func updateAge() {
-        guard let date = lastUpdate else { updatedLabel.stringValue = "Updated: —"; return }
-        let minutes = max(0, Int(Date().timeIntervalSince(date) / 60))
-        updatedLabel.stringValue = minutes == 0 ? "Updated just now" : "Updated \(minutes) min ago"
+        if let date = lastUpdate {
+            let minutes = max(0, Int(Date().timeIntervalSince(date) / 60))
+            updatedLabel.stringValue = minutes == 0 ? "Updated just now" : "Updated \(minutes) min ago"
+        } else { updatedLabel.stringValue = "Updated: —" }
+        if let quota = lastQuota {
+            fiveHourView.update(quota.fiveHour, reset: resetDescription(quota.fiveHour))
+            weeklyView.update(quota.weekly, reset: resetDescription(quota.weekly))
+            let conflicts = quota.conflictingDurations.map { "Conflicting \(durationName($0)) values; unavailable" }
+            let extras = quota.additional.map { "\(durationName($0.durationMinutes)): \(Int($0.remaining.rounded()))% remaining · \(ResetText.describe($0.reset))" }
+            let newText = (extras + conflicts).joined(separator: "\n")
+            if additionalLabel.stringValue != newText { additionalLabel.stringValue = newText; layoutPanel(message: stateLabel.isHidden ? nil : stateLabel.stringValue) }
+        }
         updateThemeData()
     }
     func durationName(_ minutes: Int) -> String {
@@ -370,11 +484,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         return "\(minutes)-minute"
     }
     func resetDescription(_ window: QuotaWindow?) -> String {
-        window?.reset.map { shortReset($0) } ?? "—"
+        ResetText.describe(window?.reset)
     }
     func describe(_ name: String, _ window: QuotaWindow?) -> String {
         guard let window = window else { return "\(name): unavailable" }
-        let reset = window.reset.map { " · resets \(format($0))" } ?? " · reset unavailable"
+        let reset = " · \(ResetText.describe(window.reset))"
         return "\(name): \(Int(window.remaining.rounded()))% remaining\(reset)"
     }
     func shortTime(_ date: Date) -> String {

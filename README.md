@@ -6,6 +6,12 @@ The app refreshes every three minutes and can also refresh on demand. If an upda
 
 Check for Updates uses Sparkle to download and install signed updates and relaunch the app after confirmation. Checks are manual. Version 1.4.2 and older must be upgraded manually once before they can use this feature.
 
+## Refresh and notifications
+
+The panel shows the local reset date and time remaining. If a reset time has passed, wait for a successful refresh to confirm the next one. Codex Bar refreshes after waking and normally every three minutes; repeated failures lengthen the delay to at most 24 minutes. Refresh in the context menu remains available between requests.
+
+Settings can enable separate low-quota and confirmed-reset notifications. Both are off by default. The low threshold defaults to 20% and can be set from 1% to 99%. macOS asks for permission when you enable an alert; if notifications are blocked, use Notification Settings in the app. Alerts require a successful response and a future reset date. Reset alerts arrive only after a refresh confirms a new reset period, so they may be delayed. Delivery markers and reset dates are stored locally and pruned during successful refreshes after 30 days (for reset dates, 30 days after the reset); quota percentages and account identifiers are not stored. Codex Bar cannot reliably detect an account switch, so alerts can be missed or associated with the previous account after switching.
+
 ## Requirements
 
 - macOS 13 or later.
@@ -14,7 +20,7 @@ Check for Updates uses Sparkle to download and install signed updates and relaun
 
 ## Download
 
-Download [Codex Bar v1.5.1 for Apple Silicon](https://github.com/frankydzoro/codex-bar/releases/tag/v1.5.1), unzip the archive, and move CodexBar.app to Applications. The release requires macOS 13 or later and a signed-in Codex CLI.
+Download [Codex Bar v1.6.0 for Apple Silicon](https://github.com/frankydzoro/codex-bar/releases/tag/v1.6.0), unzip the archive, and move CodexBar.app to Applications. The release requires macOS 13 or later and a signed-in Codex CLI.
 
 ## Build and run
 
