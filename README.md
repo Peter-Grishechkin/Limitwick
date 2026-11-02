@@ -2,7 +2,7 @@
 
 A small macOS menu bar app showing remaining Codex usage. The top bar is the five-hour limit; the bottom bar is the weekly limit. A bar turns red below 20%. Click the bars to open two circular indicators showing the remaining percentages, each reset time, and the last successful update.
 
-The app refreshes every three minutes and can also refresh on demand. If an update fails, it shows the reason and keeps the last values with a notice that they are previous data. An unavailable limit is shown as unavailable.
+The app refreshes every three minutes and can also refresh on demand. If an update fails, the bars are dimmed and the panel shows the reason and the age of the previous values. They remain dimmed while a retry is in progress. An unavailable limit is shown as unavailable. Other window durations are listed in the panel with their actual durations; they never replace the five-hour or weekly bars. Conflicting values for the same duration are reported as unavailable. Values are kept only while the app is running.
 
 ## Requirements
 
@@ -27,7 +27,7 @@ The build is locally signed and is not notarized by Apple. A downloaded archive 
 ./Tests/run.sh
 ```
 
-The tests exercise response parsing, missing limits, authentication errors, a nonresponsive server, and a missing executable with a local fake Codex process. They do not change your account.
+The tests exercise response parsing, additional and conflicting windows, malformed or oversized streams, authentication errors, timeout, cancellation, and a missing executable with a local fake Codex process. They do not change your account.
 
 ## Troubleshooting
 

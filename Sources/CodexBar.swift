@@ -3,16 +3,17 @@ import Foundation
 
 final class Bars: NSView {
     var values: [Double?] = [nil, nil] { didSet { needsDisplay = true } }
+    var stale = false { didSet { needsDisplay = true } }
     override var isFlipped: Bool { true }
     override func draw(_ dirtyRect: NSRect) {
         for i in 0..<2 {
             let rect = NSRect(x: 1, y: 4 + CGFloat(i) * 8, width: 30, height: 4)
-            NSColor.labelColor.withAlphaComponent(0.25).setFill()
+            NSColor.labelColor.withAlphaComponent(stale ? 0.12 : 0.25).setFill()
             NSBezierPath(roundedRect: rect, xRadius: 2, yRadius: 2).fill()
             if let value = values[i] {
                 let width = rect.width * max(0, min(1, value / 100))
                 if width > 0 {
-                    (value < 20 ? NSColor.systemRed : NSColor.labelColor).setFill()
+                    (value < 20 ? NSColor.systemRed : NSColor.labelColor).withAlphaComponent(stale ? 0.35 : 1).setFill()
                     NSBezierPath(roundedRect: NSRect(x: rect.minX, y: rect.minY, width: max(2, width), height: rect.height), xRadius: 2, yRadius: 2).fill()
                 }
             }
@@ -93,6 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let weeklyView = QuotaTile(symbol: "W")
     let stateLabel = NSTextField(wrappingLabelWithString: "")
     let updatedLabel = NSTextField(labelWithString: "Last updated: —")
+    let additionalLabel = NSTextField(wrappingLabelWithString: "")
     let refresh = NSButton(title: "Refresh", target: nil, action: nil)
     let quit = NSButton(title: "Quit", target: nil, action: nil)
     let client = QuotaClient()
@@ -101,6 +103,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var lastUpdate: Date?
     var lastQuota: Quota?
     var state = "Loading…"
+    var stale = false
+    var lastFailure: String?
+    var requestID = 0
+    var ageTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard let button = status.button else { return }
@@ -115,6 +121,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         stateLabel.font = .systemFont(ofSize: 12)
         stateLabel.textColor = .secondaryLabelColor
         stateLabel.maximumNumberOfLines = 3
+        additionalLabel.font = .systemFont(ofSize: 12)
+        additionalLabel.textColor = .secondaryLabelColor
         updatedLabel.font = .systemFont(ofSize: 12)
         updatedLabel.textColor = .secondaryLabelColor
         refresh.target = self; refresh.action = #selector(refreshNow)
@@ -127,7 +135,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             button.alignment = .center
             button.font = .systemFont(ofSize: 12)
         }
-        for view in [fiveHourView, weeklyView, stateLabel, updatedLabel, refresh, quit] as [NSView] { content.addSubview(view) }
+        for view in [fiveHourView, weeklyView, stateLabel, additionalLabel, updatedLabel, refresh, quit] as [NSView] { content.addSubview(view) }
         let controller = NSViewController()
         controller.view = content
         popover.contentViewController = controller
@@ -135,10 +143,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         layoutPanel(message: "Loading…")
         refreshNow()
         timer = Timer.scheduledTimer(withTimeInterval: 180, repeats: true) { [weak self] _ in self?.refreshNow() }
+        ageTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in self?.updateAge() }
     }
     func layoutPanel(message: String?) {
-        let extra: CGFloat = message == nil ? 0 : 44
-        let height: CGFloat = 246 + extra
+        let extra: CGFloat = message == nil ? 0 : 56
+        let additionalHeight: CGFloat = additionalLabel.stringValue.isEmpty ? 0 : ceil((additionalLabel.stringValue as NSString).boundingRect(with: NSSize(width: 312, height: 1000), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: additionalLabel.font!]).height) + 12
+        let height: CGFloat = 246 + extra + additionalHeight
         content.frame = NSRect(x: 0, y: 0, width: 340, height: height)
         popover.contentSize = content.frame.size
         fiveHourView.frame.origin = NSPoint(x: 12, y: height - 192)
@@ -146,7 +156,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updatedLabel.frame = NSRect(x: 14, y: 19, width: 135, height: 28)
         stateLabel.isHidden = message == nil
         stateLabel.stringValue = message ?? ""
-        stateLabel.frame = NSRect(x: 14, y: 52, width: 312, height: 40)
+        stateLabel.frame = NSRect(x: 14, y: 52, width: 312, height: 52)
+        additionalLabel.frame = NSRect(x: 14, y: 52 + extra, width: 312, height: additionalHeight)
         refresh.frame = NSRect(x: 165, y: 14, width: 86, height: 32)
         quit.frame = NSRect(x: 255, y: 14, width: 70, height: 32)
     }
@@ -158,12 +169,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func refreshNow() {
         guard !running else { return }
         running = true; refresh.isEnabled = false
-        state = lastQuota == nil ? "Loading…" : "Updating…"
+        requestID += 1
+        let currentRequest = requestID
+        state = lastQuota == nil ? "Loading…" : (stale ? "Updating… Previous attempt: \(lastFailure ?? "failed") — showing previous data" : "Updating…")
         layoutPanel(message: state)
         guard let path = QuotaClient.findCLI() else { finish(.failure(QuotaError.cliNotFound)); return }
         DispatchQueue.global(qos: .utility).async {
             let result = self.client.fetch(path: path)
-            DispatchQueue.main.async { self.finish(result) }
+            DispatchQueue.main.async { if self.requestID == currentRequest { self.finish(result) } }
         }
     }
     func finish(_ result: Result<Quota, Error>) {
@@ -173,8 +186,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .success(let quota):
             lastQuota = quota; lastUpdate = Date()
             state = "Up to date"
+            stale = false
+            lastFailure = nil
+            let conflicts = quota.conflictingDurations.map { "Conflicting \(durationName($0)) values; unavailable" }
+            let extras = quota.additional.map { "\(durationName($0.durationMinutes)): \(Int($0.remaining.rounded()))% remaining" + ($0.reset.map { " · resets \(format($0))" } ?? " · reset unavailable") }
+            additionalLabel.stringValue = (extras + conflicts).joined(separator: "\n")
         case .failure(let error):
-            state = "\(error.localizedDescription)\(lastQuota == nil ? "" : " — showing previous data")"
+            stale = lastQuota != nil
+            lastFailure = error.localizedDescription
+            state = "\(error.localizedDescription)\(stale ? " — showing previous data" : "")"
             message = state
         }
         if let quota = lastQuota {
@@ -182,9 +202,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             fiveHourView.update(quota.fiveHour, reset: resetDescription(quota.fiveHour))
             weeklyView.update(quota.weekly, reset: resetDescription(quota.weekly))
         }
-        if let date = lastUpdate { updatedLabel.stringValue = "Updated \(shortTime(date))" }
+        bars.stale = stale
+        updateAge()
         layoutPanel(message: message)
         status.button?.setAccessibilityLabel("Codex. \(state). \(describe("5 hours", lastQuota?.fiveHour)). \(describe("Week", lastQuota?.weekly)). \(updatedLabel.stringValue)")
+    }
+    func applicationWillTerminate(_ notification: Notification) {
+        requestID += 1
+        timer?.invalidate(); ageTimer?.invalidate()
+        client.cancel()
+    }
+    func updateAge() {
+        guard let date = lastUpdate else { updatedLabel.stringValue = "Updated: —"; return }
+        let minutes = max(0, Int(Date().timeIntervalSince(date) / 60))
+        updatedLabel.stringValue = minutes == 0 ? "Updated just now" : "Updated \(minutes) min ago"
+    }
+    func durationName(_ minutes: Int) -> String {
+        if minutes % 1440 == 0 { return "\(minutes / 1440)-day" }
+        if minutes % 60 == 0 { return "\(minutes / 60)-hour" }
+        return "\(minutes)-minute"
     }
     func resetDescription(_ window: QuotaWindow?) -> String {
         window?.reset.map { shortReset($0) } ?? "—"
