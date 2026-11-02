@@ -1,8 +1,10 @@
 # Codex Bar
 
-A small macOS menu bar app showing remaining Codex usage. The top bar is the five-hour limit; the bottom bar is the weekly limit. A bar turns red below 20%. Click the bars to open two circular indicators showing the remaining percentages, each reset time, and the last successful update. Click outside the panel or switch to another app to close it. Right-click the bars (or use a two-finger click on a trackpad) for Refresh and Quit.
+A small macOS menu bar app showing remaining Codex usage. The top bar is the five-hour limit; the bottom bar is the weekly limit. A bar turns red below 20%. Click the bars to open two circular indicators showing the remaining percentages, each reset time, and the last successful update. Click outside the panel or switch to another app to close it. Right-click the bars (or use a two-finger click on a trackpad) for Refresh, About Codex Bar, Check for Updates, and Quit.
 
 The app refreshes every three minutes and can also refresh on demand. If an update fails, the bars are dimmed and the panel shows the reason and the age of the previous values. They remain dimmed while a retry is in progress. An unavailable limit is shown as unavailable. Other window durations are listed in the panel with their actual durations; they never replace the five-hour or weekly bars. Conflicting values for the same duration are reported as unavailable. Values are kept only while the app is running.
+
+Check for Updates compares the installed version with the latest GitHub release. If a newer version is available, open the release page to download and install it manually. The app does not replace itself.
 
 ## Requirements
 
@@ -12,7 +14,7 @@ The app refreshes every three minutes and can also refresh on demand. If an upda
 
 ## Download
 
-Download [Codex Bar v1.4.1 for Apple Silicon](https://github.com/frankydzoro/codex-bar/releases/tag/v1.4.1), unzip the archive, and move CodexBar.app to Applications. The release requires macOS 13 or later and a signed-in Codex CLI.
+Download [Codex Bar v1.4.2 for Apple Silicon](https://github.com/frankydzoro/codex-bar/releases/tag/v1.4.2), unzip the archive, and move CodexBar.app to Applications. The release requires macOS 13 or later and a signed-in Codex CLI.
 
 ## Build and run
 
@@ -40,6 +42,6 @@ The tests exercise response parsing, additional and conflicting windows, malform
 - **Previous data shown:** the last attempt failed. The limits panel reports the error and the time of the last successful update; retry when the issue is resolved.
 - **Limit unavailable:** the CLI did not return that window. Reset times are shown only when provided by Codex.
 
-Codex Bar runs `codex app-server` and reads `account/rateLimits/read`. It does not ask for your password or store credentials. Codex contacts OpenAI; this app has no separate server. Codex CLI protocol changes can affect compatibility.
+Codex Bar runs `codex app-server` and reads `account/rateLimits/read`. It does not ask for your password or store credentials. Codex contacts OpenAI; update checks contact the GitHub API, and this app has no separate server. Codex CLI protocol changes can affect compatibility.
 
 To quit, choose Quit from the context menu. Delete the app to uninstall it and remove any login item you added manually.

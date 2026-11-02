@@ -99,6 +99,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     let contextMenu = NSMenu()
     let refresh = NSMenuItem(title: "Refresh", action: #selector(refreshNow), keyEquivalent: "r")
     let client = QuotaClient()
+    let updateChecker = UpdateChecker()
+    let checkUpdates = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
     var timer: Timer?
     var running = false
     var lastUpdate: Date?
@@ -132,6 +134,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         refresh.target = self
         contextMenu.autoenablesItems = false
         contextMenu.addItem(refresh)
+        contextMenu.addItem(.separator())
+        let about = NSMenuItem(title: "About Codex Bar", action: #selector(showAbout), keyEquivalent: "")
+        about.target = self
+        contextMenu.addItem(about)
+        checkUpdates.target = self
+        contextMenu.addItem(checkUpdates)
+        contextMenu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quit.target = NSApp
         contextMenu.addItem(quit)
@@ -200,6 +209,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
     func applicationDidResignActive(_ notification: Notification) {
         popover.close()
+    }
+    @objc func showAbout() {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+        let alert = NSAlert()
+        alert.messageText = "Codex Bar"
+        alert.informativeText = "Version \(version)\nGitHub: frankydzoro\n\nA menu bar app for Codex usage limits."
+        alert.addButton(withTitle: "GitHub")
+        alert.addButton(withTitle: "Close")
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn {
+            NSWorkspace.shared.open(URL(string: "https://github.com/frankydzoro/codex-bar")!)
+        }
+    }
+    @objc func checkForUpdates() {
+        guard checkUpdates.isEnabled else { return }
+        checkUpdates.isEnabled = false
+        checkUpdates.title = "Checking for Updates…"
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+        updateChecker.check(currentVersion: version) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                self.checkUpdates.isEnabled = true
+                self.checkUpdates.title = "Check for Updates…"
+                let alert = NSAlert()
+                switch result {
+                case .success(let latest?):
+                    alert.messageText = "Codex Bar \(latest) is available"
+                    alert.informativeText = "You have version \(version). Open GitHub to download and install the new version."
+                    alert.addButton(withTitle: "Open GitHub")
+                    alert.addButton(withTitle: "Later")
+                case .success(nil):
+                    alert.messageText = "Codex Bar is up to date"
+                    alert.informativeText = "You have version \(version)."
+                    alert.addButton(withTitle: "OK")
+                case .failure(let error):
+                    alert.messageText = "Couldn’t check for updates"
+                    alert.informativeText = error.localizedDescription
+                    alert.addButton(withTitle: "OK")
+                    alert.addButton(withTitle: "Open GitHub")
+                }
+                NSApp.activate(ignoringOtherApps: true)
+                let response = alert.runModal()
+                if case .success(.some) = result, response == .alertFirstButtonReturn {
+                    NSWorkspace.shared.open(UpdateChecker.releasesURL)
+                } else if case .failure = result, response == .alertSecondButtonReturn {
+                    NSWorkspace.shared.open(UpdateChecker.releasesURL)
+                }
+            }
+        }
     }
     @objc func refreshNow() {
         guard !running else { return }
