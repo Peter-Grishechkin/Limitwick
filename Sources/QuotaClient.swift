@@ -105,7 +105,7 @@ final class QuotaClient {
             try input.fileHandleForWriting.write(contentsOf: data)
         }
         do {
-            try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_bar", "version": "1.6.0"]]])
+            try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_bar", "version": "1.6.1"]]])
             var buffer = Data()
             var totalBytes = 0
             var initialized = false

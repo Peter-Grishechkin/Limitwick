@@ -373,7 +373,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                     }
                     let content = UNMutableNotificationContent()
                     content.title = notice.kind == "low" ? "Codex quota running low" : "Codex quota reset"
-                    content.body = "\(notice.duration)-minute limit: \(Int(current.remaining.rounded()))% remaining."
+                    content.body = "\(durationName(notice.duration)) limit: \(Int(current.remaining.rounded()))% remaining."
                     content.sound = .default
                     self.notices.add(UNNotificationRequest(identifier: key, content: content, trigger: nil)) { error in
                         DispatchQueue.main.async {
@@ -477,11 +477,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             if additionalLabel.stringValue != newText { additionalLabel.stringValue = newText; layoutPanel(message: stateLabel.isHidden ? nil : stateLabel.stringValue) }
         }
         updateThemeData()
-    }
-    func durationName(_ minutes: Int) -> String {
-        if minutes % 1440 == 0 { return "\(minutes / 1440)-day" }
-        if minutes % 60 == 0 { return "\(minutes / 60)-hour" }
-        return "\(minutes)-minute"
     }
     func resetDescription(_ window: QuotaWindow?) -> String {
         ResetText.describe(window?.reset)

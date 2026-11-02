@@ -43,6 +43,9 @@ import Darwin
         let invalidUsed = try json("{\"rateLimits\":{\"primary\":{\"windowDurationMins\":300,\"usedPercent\":true}}}")
         do { _ = try QuotaParser.parse(invalidUsed); fatalError("invalid percentage accepted") } catch QuotaError.noLimits { }
         let now = Date(timeIntervalSince1970: 1_800_000_000)
+        check(durationName(300) == "5-hour", "five-hour duration label")
+        check(durationName(10080) == "7-day", "weekly duration label")
+        check(durationName(90) == "90-minute", "other duration label")
         check(ResetText.describe(nil, now: now) == "Reset unavailable", "missing reset")
         check(ResetText.describe(now.addingTimeInterval(-1), now: now).contains("reset passed"), "past reset")
         check(ResetText.describe(now.addingTimeInterval(8100), now: now).contains("in 2h 15m"), "relative reset")

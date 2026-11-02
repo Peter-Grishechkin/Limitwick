@@ -1,5 +1,11 @@
 import Foundation
 
+func durationName(_ minutes: Int) -> String {
+    if minutes % 1440 == 0 { return "\(minutes / 1440)-day" }
+    if minutes % 60 == 0 { return "\(minutes / 60)-hour" }
+    return "\(minutes)-minute"
+}
+
 struct ResetText {
     static func describe(_ date: Date?, now: Date = Date()) -> String {
         guard let date = date else { return "Reset unavailable" }
