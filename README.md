@@ -10,6 +10,10 @@ The app refreshes every three minutes and can also refresh on demand. If an upda
 - Codex CLI, installed and signed in to a ChatGPT account. Check with `codex login status` in Terminal. Installing the Codex app does not necessarily install the CLI.
 - Xcode Command Line Tools to build from source.
 
+## Download
+
+Download [Codex Bar v1.4.1 for Apple Silicon](https://github.com/frankydzoro/codex-bar/releases/tag/v1.4.1), unzip the archive, and move CodexBar.app to Applications. The release requires macOS 13 or later and a signed-in Codex CLI.
+
 ## Build and run
 
 From this folder in Terminal:
@@ -33,9 +37,9 @@ The tests exercise response parsing, additional and conflicting windows, malform
 
 - **Codex CLI not found:** the app searches its inherited PATH and common Homebrew, local, npm, Volta, and Cargo locations. GUI apps may inherit a shorter PATH than Terminal. Install the CLI in a standard location if necessary.
 - **Login or network error:** run `codex login status` in Terminal, sign in if needed, check the connection, and choose Refresh in the app menu.
-- **Previous data shown:** the last attempt failed. The menu reports the error and the time of the last successful update; retry when the issue is resolved.
+- **Previous data shown:** the last attempt failed. The limits panel reports the error and the time of the last successful update; retry when the issue is resolved.
 - **Limit unavailable:** the CLI did not return that window. Reset times are shown only when provided by Codex.
 
 Codex Bar runs `codex app-server` and reads `account/rateLimits/read`. It does not ask for your password or store credentials. Codex contacts OpenAI; this app has no separate server. Codex CLI protocol changes can affect compatibility.
 
-To quit, choose Quit Codex Bar from its menu. Delete the app to uninstall it and remove any login item you added manually.
+To quit, choose Quit from the context menu. Delete the app to uninstall it and remove any login item you added manually.
