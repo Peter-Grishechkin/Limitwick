@@ -87,7 +87,7 @@ final class QuotaClient {
             try input.fileHandleForWriting.write(contentsOf: data)
         }
         do {
-            try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_bar", "version": "1.2.1"]]])
+            try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_bar", "version": "1.3.0"]]])
             var buffer = Data()
             while true {
                 let data = output.fileHandleForReading.availableData
