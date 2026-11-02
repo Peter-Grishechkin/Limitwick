@@ -1,4 +1,5 @@
 import AppKit
+import Sparkle
 import Foundation
 
 final class Bars: NSView {
@@ -99,7 +100,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     let contextMenu = NSMenu()
     let refresh = NSMenuItem(title: "Refresh", action: #selector(refreshNow), keyEquivalent: "r")
     let client = QuotaClient()
-    let updateChecker = UpdateChecker()
+    let updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
     let checkUpdates = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
     var timer: Timer?
     var running = false
@@ -223,41 +224,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
     }
     @objc func checkForUpdates() {
-        guard checkUpdates.isEnabled else { return }
-        checkUpdates.isEnabled = false
-        checkUpdates.title = "Checking for Updates…"
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
-        updateChecker.check(currentVersion: version) { [weak self] result in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                self.checkUpdates.isEnabled = true
-                self.checkUpdates.title = "Check for Updates…"
-                let alert = NSAlert()
-                switch result {
-                case .success(let latest?):
-                    alert.messageText = "Codex Bar \(latest) is available"
-                    alert.informativeText = "You have version \(version). Open GitHub to download and install the new version."
-                    alert.addButton(withTitle: "Open GitHub")
-                    alert.addButton(withTitle: "Later")
-                case .success(nil):
-                    alert.messageText = "Codex Bar is up to date"
-                    alert.informativeText = "You have version \(version)."
-                    alert.addButton(withTitle: "OK")
-                case .failure(let error):
-                    alert.messageText = "Couldn’t check for updates"
-                    alert.informativeText = error.localizedDescription
-                    alert.addButton(withTitle: "OK")
-                    alert.addButton(withTitle: "Open GitHub")
-                }
-                NSApp.activate(ignoringOtherApps: true)
-                let response = alert.runModal()
-                if case .success(.some) = result, response == .alertFirstButtonReturn {
-                    NSWorkspace.shared.open(UpdateChecker.releasesURL)
-                } else if case .failure = result, response == .alertSecondButtonReturn {
-                    NSWorkspace.shared.open(UpdateChecker.releasesURL)
-                }
-            }
-        }
+        NSApp.activate(ignoringOtherApps: true)
+        updaterController.checkForUpdates(nil)
     }
     @objc func refreshNow() {
         guard !running else { return }

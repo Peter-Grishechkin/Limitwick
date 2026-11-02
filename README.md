@@ -4,17 +4,17 @@ A small macOS menu bar app showing remaining Codex usage. The top bar is the fiv
 
 The app refreshes every three minutes and can also refresh on demand. If an update fails, the bars are dimmed and the panel shows the reason and the age of the previous values. They remain dimmed while a retry is in progress. An unavailable limit is shown as unavailable. Other window durations are listed in the panel with their actual durations; they never replace the five-hour or weekly bars. Conflicting values for the same duration are reported as unavailable. Values are kept only while the app is running.
 
-Check for Updates compares the installed version with the latest GitHub release. If a newer version is available, open the release page to download and install it manually. The app does not replace itself.
+Check for Updates uses Sparkle to download and install signed updates and relaunch the app after confirmation. Checks are manual. Version 1.4.2 and older must be upgraded manually once before they can use this feature.
 
 ## Requirements
 
 - macOS 13 or later.
 - Codex CLI, installed and signed in to a ChatGPT account. Check with `codex login status` in Terminal. Installing the Codex app does not necessarily install the CLI.
-- Xcode Command Line Tools to build from source.
+- Xcode Command Line Tools and an internet connection for the first source build (to download the pinned Sparkle framework).
 
 ## Download
 
-Download [Codex Bar v1.4.2 for Apple Silicon](https://github.com/frankydzoro/codex-bar/releases/tag/v1.4.2), unzip the archive, and move CodexBar.app to Applications. The release requires macOS 13 or later and a signed-in Codex CLI.
+Download [Codex Bar v1.5.0 for Apple Silicon](https://github.com/frankydzoro/codex-bar/releases/tag/v1.5.0), unzip the archive, and move CodexBar.app to Applications. The release requires macOS 13 or later and a signed-in Codex CLI.
 
 ## Build and run
 
@@ -42,6 +42,12 @@ The tests exercise response parsing, additional and conflicting windows, malform
 - **Previous data shown:** the last attempt failed. The limits panel reports the error and the time of the last successful update; retry when the issue is resolved.
 - **Limit unavailable:** the CLI did not return that window. Reset times are shown only when provided by Codex.
 
-Codex Bar runs `codex app-server` and reads `account/rateLimits/read`. It does not ask for your password or store credentials. Codex contacts OpenAI; update checks contact the GitHub API, and this app has no separate server. Codex CLI protocol changes can affect compatibility.
+Codex Bar runs `codex app-server` and reads `account/rateLimits/read`. It does not ask for your password or store credentials. Codex contacts OpenAI; update checks contact GitHub, and this app has no separate server. Codex CLI protocol changes can affect compatibility.
 
 To quit, choose Quit from the context menu. Delete the app to uninstall it and remove any login item you added manually.
+
+## Publishing updates
+
+Sparkle 2.10.1 is downloaded from its official GitHub release and checked against the SHA-256 in `build.sh`. The appcast is `appcast.xml` on the repository's main branch. Each future release must be signed with the `codex-bar-updates` Sparkle key in the macOS login keychain. Keep a secure backup of the key: ad hoc signed builds cannot rely on Developer ID key rotation if it is lost. Never commit the private key.
+
+Build and test the exact app, create a ZIP preserving framework symlinks with `ditto -c -k --sequesterRsrc --keepParent`, then run `./scripts/prepare-appcast.sh VERSION PATH_TO_RELEASE_ZIP`. Upload that exact ZIP to the GitHub release before publishing the updated appcast on main. Verify the published feed and test installation from a previous Sparkle-enabled version. Version 1.4.2 has no Sparkle updater, so users must install the first Sparkle-enabled version manually.
