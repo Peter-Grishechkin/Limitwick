@@ -1,5 +1,5 @@
 #!/bin/bash
-# Run after building the exact release archive and before committing appcast.xml.
+# Run after publishing the GitHub release and its exact archive, before committing appcast.xml.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 if [ "$#" -ne 2 ]; then
@@ -14,19 +14,22 @@ NAME="CodexBar-$VERSION-macOS-Apple-Silicon.zip"
 [ "$(basename "$ARCHIVE")" = "$NAME" ] || { echo "Expected archive name: $NAME" >&2; exit 2; }
 # Refuse a mislabeled archive before adding an update to the feed.
 PLIST="$(mktemp -t codexbar-release-plist)"
-trap 'rm -f "$PLIST"' EXIT
+NOTES="$(mktemp -t codexbar-release-notes)"
+trap 'rm -f "$PLIST" "$NOTES"' EXIT
 unzip -p "$ARCHIVE" CodexBar.app/Contents/Info.plist > "$PLIST"
 for KEY in CFBundleShortVersionString CFBundleVersion; do
     VALUE="$(/usr/libexec/PlistBuddy -c "Print :$KEY" "$PLIST")"
     [ "$VALUE" = "$VERSION" ] || { echo "$KEY in archive is $VALUE, expected $VERSION" >&2; exit 1; }
 done
+# The public release is the source of truth for what users see before updating.
+gh release view "v$VERSION" --repo frankydzoro/codex-bar --json body --jq .body | python3 scripts/release-changes.py > "$NOTES"
 SIGNER="$PWD/build/sparkle-2.10.1/bin/sign_update"
 [ -x "$SIGNER" ] || { echo "Run ./build.sh first to install Sparkle tools." >&2; exit 1; }
 SIGNATURE="$("$SIGNER" --account codex-bar-updates -p "$ARCHIVE")"
 LENGTH="$(stat -f %z "$ARCHIVE")"
-python3 - "$VERSION" "$NAME" "$SIGNATURE" "$LENGTH" <<'PY'
+python3 - "$VERSION" "$NAME" "$SIGNATURE" "$LENGTH" "$NOTES" <<'PY'
 import datetime, email.utils, os, sys, tempfile, xml.etree.ElementTree as ET
-version, name, signature, length = sys.argv[1:]
+version, name, signature, length, notes_path = sys.argv[1:]
 ns = 'http://www.andymatuschak.org/xml-namespaces/sparkle'
 ET.register_namespace('sparkle', ns)
 path = 'appcast.xml'
@@ -38,6 +41,8 @@ if any(item.findtext(f'{{{ns}}}version') == version for item in channel.findall(
     raise SystemExit('Version already exists in appcast')
 item = ET.Element('item')
 ET.SubElement(item, 'title').text = f'Codex Bar {version}'
+with open(notes_path, encoding='utf-8') as notes:
+    ET.SubElement(item, 'description').text = notes.read().strip()
 ET.SubElement(item, f'{{{ns}}}version').text = version
 ET.SubElement(item, f'{{{ns}}}shortVersionString').text = version
 ET.SubElement(item, f'{{{ns}}}minimumSystemVersion').text = '13.0'

@@ -4,7 +4,7 @@ A small macOS menu bar app showing remaining Codex usage. The top bar is the fiv
 
 The app listens for Codex rate-limit events and requests a fresh snapshot when one arrives. It also refreshes every three minutes and can refresh on demand; event delivery for other Codex sessions is not guaranteed. If an update fails, the bars are dimmed and the panel shows the reason and the age of the previous values. They remain dimmed while a retry is in progress. An unavailable limit is shown as unavailable. Other window durations are listed in the panel with their actual durations; they never replace the five-hour or weekly bars. Conflicting values for the same duration are reported as unavailable. Values are kept only while the app is running.
 
-Check for Updates uses Sparkle to download and install signed updates and relaunch the app after confirmation. Checks are manual. Version 1.4.2 and older must be upgraded manually once before they can use this feature.
+Check for Updates shows the release’s Changes before Sparkle downloads and installs the signed update and relaunches the app after confirmation. Checks are manual. Version 1.4.2 and older must be upgraded manually once before they can use this feature.
 
 ## Themes
 
@@ -41,7 +41,7 @@ Settings can enable separate low-quota and confirmed-reset notifications. Both a
 
 ## Download
 
-Download [Codex Bar v1.7.1 for Apple Silicon](https://github.com/frankydzoro/codex-bar/releases/tag/v1.7.1), unzip the archive, and move CodexBar.app to Applications. The release requires macOS 13 or later and a signed-in Codex CLI.
+Download [Codex Bar v1.7.2 for Apple Silicon](https://github.com/frankydzoro/codex-bar/releases/tag/v1.7.2), unzip the archive, and move CodexBar.app to Applications. The release requires macOS 13 or later and a signed-in Codex CLI.
 
 ## Build and run
 
@@ -77,4 +77,4 @@ To quit, choose Quit from the context menu. Delete the app to uninstall it and r
 
 Sparkle 2.10.1 is downloaded from its official GitHub release and checked against the SHA-256 in `build.sh`. The appcast is `appcast.xml` on the repository's main branch. Each future release must be signed with the `codex-bar-updates` Sparkle key in the macOS login keychain. Keep a secure backup of the key: ad hoc signed builds cannot rely on Developer ID key rotation if it is lost. Never commit the private key.
 
-Build and test the exact app, create a ZIP preserving framework symlinks with `ditto -c -k --sequesterRsrc --keepParent`, then run `./scripts/prepare-appcast.sh VERSION PATH_TO_RELEASE_ZIP`. Upload that exact ZIP to the GitHub release before publishing the updated appcast on main. Verify the published feed and test installation from a previous Sparkle-enabled version. Version 1.4.2 has no Sparkle updater, so users must install the first Sparkle-enabled version manually.
+Build and test the exact app, create a ZIP preserving framework symlinks with `ditto -c -k --sequesterRsrc --keepParent`, publish that exact ZIP in the GitHub release with a non-empty Markdown `## Changes` section, then run `./scripts/prepare-appcast.sh VERSION PATH_TO_RELEASE_ZIP`. The script copies that section into the update prompt. Publish the updated appcast on main after the release is available. Verify the published feed and test installation from a previous Sparkle-enabled version. Version 1.4.2 has no Sparkle updater, so users must install the first Sparkle-enabled version manually.
