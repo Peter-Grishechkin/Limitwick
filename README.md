@@ -6,6 +6,27 @@ The app listens for Codex rate-limit events and requests a fresh snapshot when o
 
 Check for Updates uses Sparkle to download and install signed updates and relaunch the app after confirmation. Checks are manual. Version 1.4.2 and older must be upgraded manually once before they can use this feature.
 
+## Themes
+
+Choose from six panel designs in **Settings → Appearance**. Each theme supports Light, Dark, and Auto modes; Auto follows macOS. The examples below use Dark mode and illustrative quota values.
+
+<table>
+  <tr>
+    <td align="center"><strong>Classic</strong><br><img src="docs/images/classic.png" alt="Classic theme with circular quota indicators" width="340"></td>
+    <td align="center"><strong>Industrial</strong><br><img src="docs/images/industrial.png" alt="Industrial theme with gauges and bars" width="340"></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Dot Matrix</strong><br><img src="docs/images/dots.png" alt="Dot Matrix theme" width="340"></td>
+    <td align="center"><strong>Paper</strong><br><img src="docs/images/paper.png" alt="Paper theme" width="340"></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Capsules</strong><br><img src="docs/images/capsules.png" alt="Capsules theme" width="340"></td>
+    <td align="center"><strong>Terminal</strong><br><img src="docs/images/terminal.png" alt="Terminal theme" width="340"></td>
+  </tr>
+</table>
+
+Right-click the menu bar indicator and choose **Settings** to change the theme, appearance, notification preferences, and low-quota threshold.
+
 ## Refresh and notifications
 
 The panel shows the local reset date and time remaining. If a reset time has passed, wait for a successful refresh to confirm the next one. Codex Bar refreshes after waking and normally every three minutes; repeated failures lengthen the delay to at most 24 minutes. Refresh in the context menu remains available between requests.
