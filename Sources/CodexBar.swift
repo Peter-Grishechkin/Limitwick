@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let bars = Bars(frame: NSRect(x: 0, y: 0, width: 32, height: 20))
     let menu = NSMenu()
     let info = NSMenuItem(title: "Загрузка…", action: nil, keyEquivalent: "")
+    let resetInfo = NSMenuItem(title: "Сброс 5 ч: —", action: nil, keyEquivalent: "")
     var timer: Timer?
     var running = false
     var lastUpdate: Date?
@@ -38,6 +39,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         button.toolTip = "Codex: сверху — 5 часов, снизу — неделя"
         info.isEnabled = false
         menu.addItem(info)
+        resetInfo.isEnabled = false
+        menu.addItem(resetInfo)
         menu.addItem(.separator())
         let refreshItem = NSMenuItem(title: "Обновить", action: #selector(refreshNow), keyEquivalent: "r")
         refreshItem.target = self
@@ -51,7 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func refreshNow() {
         guard !running else { return }
         guard let path = codexPaths.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
-            info.title = "Codex CLI не найден"; bars.values = [nil, nil]; return
+            info.title = "Codex CLI не найден"; resetInfo.title = "Сброс 5 ч: —"; bars.values = [nil, nil]; return
         }
         running = true
         DispatchQueue.global(qos: .utility).async {
@@ -59,21 +62,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             DispatchQueue.main.async {
                 self.running = false
                 switch result {
-                case .success(let values):
+                case .success(let quota):
+                    let values = quota.values
                     self.bars.values = values
                     self.lastUpdate = Date()
                     let a = values[0].map { "\(Int($0.rounded()))%" } ?? "—"
                     let b = values[1].map { "\(Int($0.rounded()))%" } ?? "—"
                     self.info.title = "Осталось: 5 ч — \(a), неделя — \(b)"
+                    if let reset = quota.fiveHourReset {
+                        let formatter = DateFormatter()
+                        formatter.dateStyle = .medium
+                        formatter.timeStyle = .short
+                        self.resetInfo.title = "Сброс 5 ч: \(formatter.string(from: reset))"
+                    } else {
+                        self.resetInfo.title = "Сброс 5 ч: —"
+                    }
                 case .failure:
                     self.bars.values = [nil, nil]
+                    self.resetInfo.title = "Сброс 5 ч: —"
                     self.info.title = "Нет данных — проверьте вход в Codex и сеть"
                 }
             }
         }
     }
     enum FetchError: Error { case failed }
-    func fetch(path: String) -> Result<[Double?], Error> {
+    struct Quota { let values: [Double?]; let fiveHourReset: Date? }
+    func fetch(path: String) -> Result<Quota, Error> {
         let process = Process(); process.executableURL = URL(fileURLWithPath: path)
         process.arguments = ["app-server"]
         let input = Pipe(), output = Pipe()
@@ -103,14 +117,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     } else if id == 2 {
                         guard let result = obj["result"] as? [String: Any], let limits = result["rateLimits"] as? [String: Any] else { return .failure(FetchError.failed) }
                         var values: [Double?] = [nil, nil]
+                        var fiveHourReset: Date?
                         for key in ["primary", "secondary"] {
                             guard let window = limits[key] as? [String: Any], let minutes = window["windowDurationMins"] as? Int, let used = window["usedPercent"] as? Double else { continue }
                             let remaining = max(0, min(100, 100 - used))
-                            if minutes == 300 { values[0] = remaining }
+                            if minutes == 300 {
+                                values[0] = remaining
+                                if let timestamp = window["resetsAt"] as? Double, timestamp > 0 {
+                                    fiveHourReset = Date(timeIntervalSince1970: timestamp)
+                                }
+                            }
                             if minutes == 10080 { values[1] = remaining }
                         }
                         if values.allSatisfy({ $0 == nil }) { return .failure(FetchError.failed) }
-                        return .success(values)
+                        return .success(Quota(values: values, fiveHourReset: fiveHourReset))
                     }
                 }
             }
