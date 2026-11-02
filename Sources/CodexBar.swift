@@ -113,6 +113,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var ageTimer: Timer?
     var globalClickMonitor: Any?
     var localClickMonitor: Any?
+    var themeView: ThemeView?
+    var settingsWindow: NSWindow?
+    var selectedTheme: PanelTheme = PanelTheme(rawValue: UserDefaults.standard.string(forKey: "panelTheme") ?? "") ?? .classic
+    var appearanceMode: AppearanceMode = AppearanceMode(rawValue: UserDefaults.standard.string(forKey: "appearanceMode") ?? "") ?? .auto
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard let button = status.button else { return }
@@ -136,6 +140,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         contextMenu.autoenablesItems = false
         contextMenu.addItem(refresh)
         contextMenu.addItem(.separator())
+        let settings = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
+        settings.target = self
+        contextMenu.addItem(settings)
         let about = NSMenuItem(title: "About Codex Bar", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
         contextMenu.addItem(about)
@@ -151,6 +158,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.contentViewController = controller
         popover.behavior = .transient
         popover.delegate = self
+        applyTheme()
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(activeApplicationChanged(_:)), name: NSWorkspace.didActivateApplicationNotification, object: nil)
         layoutPanel(message: "Loading…")
         refreshNow()
@@ -163,6 +171,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let height: CGFloat = 236 + extra + additionalHeight
         content.frame = NSRect(x: 0, y: 0, width: 340, height: height)
         popover.contentSize = content.frame.size
+        themeView?.frame = content.bounds
         fiveHourView.frame.origin = NSPoint(x: 12, y: height - 192)
         weeklyView.frame.origin = NSPoint(x: 176, y: height - 192)
         updatedLabel.frame = NSRect(x: 14, y: 12, width: 312, height: 20)
@@ -170,6 +179,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         stateLabel.stringValue = message ?? ""
         stateLabel.frame = NSRect(x: 14, y: 42, width: 312, height: 52)
         additionalLabel.frame = NSRect(x: 14, y: 42 + extra, width: 312, height: additionalHeight)
+        updateThemeData()
     }
     @objc func statusItemClicked() {
         guard let button = status.button else { return }
@@ -210,6 +220,79 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
     func applicationDidResignActive(_ notification: Notification) {
         popover.close()
+    }
+    func applyTheme() {
+        themeView?.removeFromSuperview()
+        themeView = selectedTheme.makeView()
+        popover.appearance = appearanceMode.appearance
+        content.appearance = appearanceMode.appearance
+        settingsWindow?.appearance = appearanceMode.appearance
+        fiveHourView.isHidden = themeView != nil
+        weeklyView.isHidden = themeView != nil
+        if let themed = themeView {
+            themed.frame = content.bounds
+            themed.autoresizingMask = [.width, .height]
+            themed.appearanceChanged = { [weak self] in self?.updateThemeColors() }
+            content.addSubview(themed, positioned: .below, relativeTo: nil)
+        }
+        updateThemeColors()
+        updateThemeData()
+    }
+    func updateThemeColors() {
+        let color = themeView?.palette.secondary ?? NSColor.secondaryLabelColor
+        stateLabel.textColor = color
+        updatedLabel.textColor = color
+        additionalLabel.textColor = color
+    }
+    func updateThemeData() {
+        let five = lastQuota?.fiveHour
+        let week = lastQuota?.weekly
+        let summary = "\(describe("5 hours", five)). \(describe("Week", week)). \(state). \(updatedLabel.stringValue). \(additionalLabel.stringValue)"
+        themeView?.data = ThemeData(fiveHour: five?.remaining, weekly: week?.remaining,
+                                    fiveReset: resetDescription(five), weekReset: resetDescription(week), accessibility: summary)
+    }
+    @objc func showSettings() {
+        popover.performClose(nil)
+        if settingsWindow == nil {
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 160),
+                                  styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            window.title = "Settings"
+            window.isReleasedWhenClosed = false
+            window.center()
+            let container = window.contentView!
+            let themeLabel = NSTextField(labelWithString: "Theme:")
+            themeLabel.frame = NSRect(x: 24, y: 104, width: 95, height: 22)
+            let themePicker = NSPopUpButton(frame: NSRect(x: 122, y: 99, width: 210, height: 28), pullsDown: false)
+            themePicker.addItems(withTitles: PanelTheme.allCases.map(\.title))
+            themePicker.selectItem(at: PanelTheme.allCases.firstIndex(of: selectedTheme) ?? 0)
+            themePicker.target = self; themePicker.action = #selector(themeChanged(_:))
+            let appearanceLabel = NSTextField(labelWithString: "Appearance:")
+            appearanceLabel.frame = NSRect(x: 24, y: 54, width: 95, height: 22)
+            let appearancePicker = NSPopUpButton(frame: NSRect(x: 122, y: 49, width: 210, height: 28), pullsDown: false)
+            appearancePicker.addItems(withTitles: AppearanceMode.allCases.map(\.title))
+            appearancePicker.selectItem(at: AppearanceMode.allCases.firstIndex(of: appearanceMode) ?? 0)
+            appearancePicker.target = self; appearancePicker.action = #selector(appearanceChanged(_:))
+            for view in [themeLabel, themePicker, appearanceLabel, appearancePicker] as [NSView] { container.addSubview(view) }
+            themePicker.setAccessibilityLabel("Theme")
+            appearancePicker.setAccessibilityLabel("Appearance")
+            window.initialFirstResponder = themePicker
+            window.appearance = appearanceMode.appearance
+            settingsWindow = window
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        settingsWindow?.makeKeyAndOrderFront(nil)
+    }
+    @objc func themeChanged(_ sender: NSPopUpButton) {
+        guard PanelTheme.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
+        selectedTheme = PanelTheme.allCases[sender.indexOfSelectedItem]
+        UserDefaults.standard.set(selectedTheme.rawValue, forKey: "panelTheme")
+        applyTheme()
+    }
+    @objc func appearanceChanged(_ sender: NSPopUpButton) {
+        guard AppearanceMode.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
+        appearanceMode = AppearanceMode.allCases[sender.indexOfSelectedItem]
+        UserDefaults.standard.set(appearanceMode.rawValue, forKey: "appearanceMode")
+        applyTheme()
     }
     @objc func showAbout() {
         let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
@@ -279,6 +362,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         guard let date = lastUpdate else { updatedLabel.stringValue = "Updated: —"; return }
         let minutes = max(0, Int(Date().timeIntervalSince(date) / 60))
         updatedLabel.stringValue = minutes == 0 ? "Updated just now" : "Updated \(minutes) min ago"
+        updateThemeData()
     }
     func durationName(_ minutes: Int) -> String {
         if minutes % 1440 == 0 { return "\(minutes / 1440)-day" }
