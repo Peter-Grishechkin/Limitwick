@@ -24,8 +24,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let status = NSStatusBar.system.statusItem(withLength: 34)
     let bars = Bars(frame: NSRect(x: 0, y: 0, width: 32, height: 20))
     let menu = NSMenu()
-    let info = NSMenuItem(title: "Загрузка…", action: nil, keyEquivalent: "")
-    let resetInfo = NSMenuItem(title: "Сброс 5 ч: —", action: nil, keyEquivalent: "")
+    let info = NSMenuItem(title: "Loading…", action: nil, keyEquivalent: "")
+    let resetInfo = NSMenuItem(title: "5-hour reset: —", action: nil, keyEquivalent: "")
     var timer: Timer?
     var running = false
     var lastUpdate: Date?
@@ -36,17 +36,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         bars.frame.origin = NSPoint(x: 1, y: (button.bounds.height - 20) / 2)
         bars.autoresizingMask = [.minYMargin, .maxYMargin]
         button.addSubview(bars)
-        button.toolTip = "Codex: сверху — 5 часов, снизу — неделя"
+        button.toolTip = "Codex: top — 5 hours, bottom — week"
         info.isEnabled = false
         menu.addItem(info)
         resetInfo.isEnabled = false
         menu.addItem(resetInfo)
         menu.addItem(.separator())
-        let refreshItem = NSMenuItem(title: "Обновить", action: #selector(refreshNow), keyEquivalent: "r")
+        let refreshItem = NSMenuItem(title: "Refresh", action: #selector(refreshNow), keyEquivalent: "r")
         refreshItem.target = self
         menu.addItem(refreshItem)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Завершить Codex Bar", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: "Quit Codex Bar", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         status.menu = menu
         refreshNow()
         timer = Timer.scheduledTimer(withTimeInterval: 180, repeats: true) { [weak self] _ in self?.refreshNow() }
@@ -54,7 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func refreshNow() {
         guard !running else { return }
         guard let path = codexPaths.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else {
-            info.title = "Codex CLI не найден"; resetInfo.title = "Сброс 5 ч: —"; bars.values = [nil, nil]; return
+            info.title = "Codex CLI not found"; resetInfo.title = "5-hour reset: —"; bars.values = [nil, nil]; return
         }
         running = true
         DispatchQueue.global(qos: .utility).async {
@@ -68,19 +68,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     self.lastUpdate = Date()
                     let a = values[0].map { "\(Int($0.rounded()))%" } ?? "—"
                     let b = values[1].map { "\(Int($0.rounded()))%" } ?? "—"
-                    self.info.title = "Осталось: 5 ч — \(a), неделя — \(b)"
+                    self.info.title = "Remaining: 5 hours — \(a), week — \(b)"
                     if let reset = quota.fiveHourReset {
                         let formatter = DateFormatter()
                         formatter.dateStyle = .medium
                         formatter.timeStyle = .short
-                        self.resetInfo.title = "Сброс 5 ч: \(formatter.string(from: reset))"
+                        self.resetInfo.title = "5-hour reset: \(formatter.string(from: reset))"
                     } else {
-                        self.resetInfo.title = "Сброс 5 ч: —"
+                        self.resetInfo.title = "5-hour reset: —"
                     }
                 case .failure:
                     self.bars.values = [nil, nil]
-                    self.resetInfo.title = "Сброс 5 ч: —"
-                    self.info.title = "Нет данных — проверьте вход в Codex и сеть"
+                    self.resetInfo.title = "5-hour reset: —"
+                    self.info.title = "No data — check Codex login and network"
                 }
             }
         }

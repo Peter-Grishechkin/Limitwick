@@ -1,53 +1,55 @@
 # Codex Bar
 
-Небольшое приложение для macOS показывает остаток лимитов Codex в строке меню. Верхняя полоска — пятичасовой лимит, нижняя — недельный. Если осталось меньше 20%, полоска становится красной. Значения обновляются каждые три минуты.
+Codex Bar is a small macOS menu bar app that shows your remaining Codex usage limits. The top bar represents the five-hour limit; the bottom bar represents the weekly limit. A bar turns red when less than 20% remains. Values refresh every three minutes.
 
-По нажатию на полоски можно увидеть проценты и время сброса пятичасового лимита по местному времени, обновить данные вручную или закрыть приложение. Если данные получить не удалось, полоски становятся серыми.
+Click the bars to see the remaining percentages and the five-hour reset time in your Mac's local time zone, refresh the data, or quit. The bars turn gray when data is unavailable.
 
-## Что понадобится
+## Requirements
 
-- macOS 13 или новее.
-- Установленный [Codex CLI](https://developers.openai.com/codex/cli/) и вход в аккаунт ChatGPT через него. Приложение использует тот же аккаунт. Наличие приложения Codex само по себе не гарантирует, что CLI установлен отдельно.
-- Xcode Command Line Tools. Если они ещё не установлены, выполните в Терминале `xcode-select --install` и следуйте подсказкам macOS.
+- macOS 13 or later.
+- [Codex CLI](https://developers.openai.com/codex/cli/) installed and signed in with your ChatGPT account. The app uses the same account. Installing the Codex app does not necessarily install the CLI separately.
+- Xcode Command Line Tools, only if building from source. If needed, run `xcode-select --install` in Terminal and follow the macOS prompts.
 
-## Быстрая установка для Mac с Apple Silicon
+## Quick install: Apple Silicon Macs
 
-1. Откройте [страницу выпусков](https://github.com/frankydzoro/codex-bar/releases/latest) и скачайте `CodexBar-macOS-Apple-Silicon.zip`.
-2. Распакуйте архив и перенесите `CodexBar.app` в папку «Программы».
-3. Запустите приложение. Оно появится в строке меню. Для работы нужен установленный Codex CLI и вход в аккаунт, как описано выше.
+1. Open the [latest release](https://github.com/frankydzoro/codex-bar/releases/latest) and download `CodexBar-macOS-Apple-Silicon.zip`.
+2. Unzip the archive and move `CodexBar.app` to Applications.
+3. Open the app. Its two bars appear in the menu bar. Make sure Codex CLI is installed and signed in, as described above.
 
-Приложение собрано без сертификата разработчика Apple и не нотариализовано: macOS может остановить первый запуск. В этом случае откройте **Системные настройки → Конфиденциальность и безопасность** и разрешите запуск приложения, если доверяете ему. Исходный код доступен в этом репозитории; также можно собрать приложение самостоятельно по инструкции ниже.
+The app is not signed with an Apple Developer certificate or notarized, so macOS may block its first launch. If you trust the app, open **System Settings → Privacy & Security** and allow it to open. You can also inspect the source and build the app yourself using the instructions below.
 
-## Сборка из исходного кода
+## Build from source
 
-Подходит для Apple Silicon и Intel Mac при наличии инструментов разработки.
+These steps work on Apple Silicon and Intel Macs with the development tools installed.
 
-1. На странице репозитория нажмите **Code → Download ZIP** и распакуйте архив.
-2. Откройте Терминал, введите `cd ` (с пробелом после `cd`), перетащите в окно распакованную папку проекта и нажмите Enter.
-3. Соберите приложение:
+1. On the repository page, choose **Code → Download ZIP** and unzip the archive.
+2. Open Terminal, type `cd ` (including the space), drag the extracted project folder into the Terminal window, and press Return.
+3. Build the app:
 
    ```sh
    ./build.sh
    ```
 
-4. Откройте полученное приложение:
+4. Open the app:
 
    ```sh
    open build/CodexBar.app
    ```
 
-Две полоски появятся в строке меню. Чтобы пользоваться приложением постоянно, перенесите `CodexBar.app` из папки `build` в «Программы». Для автоматического запуска добавьте его в **Системные настройки → Основные → Объекты входа**.
+The two bars appear in the menu bar. For regular use, move `CodexBar.app` from the `build` folder to Applications. To start it automatically, add it under **System Settings → General → Login Items**.
 
-## Если полоски серые
+## Troubleshooting
 
-Нажмите на них: сообщение поможет понять причину. Проверьте подключение к интернету и вход в Codex CLI командой `codex login status`. Если нужно, войдите через `codex login` и нажмите «Обновить» в меню приложения. Оно ищет CLI в `/opt/homebrew/bin/codex`, `/usr/local/bin/codex` и `~/.local/bin/codex`; при другой установке измените список `codexPaths` в `Sources/CodexBar.swift` и пересоберите приложение.
+If the bars are gray, click them to see the status. Check your internet connection and run `codex login status` in Terminal. If necessary, sign in with `codex login`, then choose **Refresh** in the app menu.
 
-Для работы нужны именно доступные аккаунту пятичасовой и недельный лимиты. Если Codex не возвращает один из этих периодов, соответствующая полоска останется серой.
+The app looks for the CLI at `/opt/homebrew/bin/codex`, `/usr/local/bin/codex`, and `~/.local/bin/codex`. If it is installed elsewhere, update the `codexPaths` list in `Sources/CodexBar.swift` and rebuild.
 
-## Как это работает
+The app needs five-hour and weekly limits to be available for your account. If Codex does not return one of those periods, its bar stays gray.
 
-Приложение запускает установленный `codex app-server` и запрашивает лимиты методом `account/rateLimits/read`. Оно не просит вводить пароль и не содержит ключей или данных аккаунта. Для получения данных Codex обращается к сервисам OpenAI; дополнительного сервера у этого приложения нет. API Codex может меняться. Подробнее — в [документации app-server](https://developers.openai.com/codex/app-server/).
+## How it works
 
-## Удаление
+The app runs the installed `codex app-server` and requests limits using `account/rateLimits/read`. It does not ask for your password or contain API keys or account details. Codex contacts OpenAI's services to retrieve the data; Codex Bar has no separate server. The Codex API may change. See the [app-server documentation](https://developers.openai.com/codex/app-server/) for details.
 
-Нажмите на полоски и выберите «Завершить Codex Bar», затем удалите приложение из «Программ» или папки `build`. Если добавляли его в объекты входа, удалите его и оттуда.
+## Uninstall
+
+Click the bars and choose **Quit Codex Bar**, then delete the app from Applications or the `build` folder. If you added it to Login Items, remove it there as well.
