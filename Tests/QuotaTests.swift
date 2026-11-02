@@ -9,6 +9,11 @@ import Darwin
         func json(_ string: String) throws -> [String: Any] {
             try JSONSerialization.jsonObject(with: Data(string.utf8)) as! [String: Any]
         }
+        check(isLowQuota(19, threshold: 20), "below warning threshold")
+        check(isLowQuota(20, threshold: 20), "at warning threshold")
+        check(!isLowQuota(21, threshold: 20), "above warning threshold")
+        check(!isLowQuota(nil, threshold: 20), "missing quota is not warning")
+        check(!isLowQuota(.nan, threshold: 20), "invalid quota is not warning")
         let quota = try QuotaParser.parse(json("""
         {"rateLimits":{"primary":{"windowDurationMins":300,"usedPercent":25,"resetsAt":1700000000},"secondary":{"windowDurationMins":10080,"usedPercent":80,"resetsAt":1700100000}}}
         """))

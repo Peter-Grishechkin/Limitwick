@@ -1,6 +1,6 @@
 # Codex Bar
 
-A small macOS menu bar app showing remaining Codex usage. The top bar is the five-hour limit; the bottom bar is the weekly limit. A bar turns red below 20%. Click the bars to open the limits panel showing the remaining percentages and each reset time. The default Classic theme uses circular indicators. Click outside the panel or switch to another app to close it. Right-click the bars (or use a two-finger click on a trackpad) for Refresh, Settings, About Codex Bar, Check for Updates, and Quit. Settings offers six panel themes and Light, Dark, or Auto appearance. Auto follows macOS; your selection is saved between launches.
+A small macOS menu bar app showing remaining Codex usage. The top bar is the five-hour limit; the bottom bar is the weekly limit. A bar turns red at or below the low-quota threshold, which defaults to 20%. Click the bars to open the limits panel showing the remaining percentages and each reset time. The default Classic theme uses circular indicators. Click outside the panel or switch to another app to close it. Right-click the bars (or use a two-finger click on a trackpad) for Refresh, Settings, About Codex Bar, Check for Updates, and Quit. Settings offers six themes for the panel, menu and windows, and Light, Dark, or Auto appearance. Auto follows macOS; your selection is saved between launches.
 
 The app listens for Codex rate-limit events and requests a fresh snapshot when one arrives. It also refreshes every three minutes and can refresh on demand; event delivery for other Codex sessions is not guaranteed. If an update fails, the bars are dimmed and the panel shows the reason and the age of the previous values. They remain dimmed while a retry is in progress. An unavailable limit is shown as unavailable. Other window durations are listed in the panel with their actual durations; they never replace the five-hour or weekly bars. Conflicting values for the same duration are reported as unavailable. Values are kept only while the app is running.
 
@@ -10,7 +10,7 @@ Check for Updates uses Sparkle to download and install signed updates and relaun
 
 The panel shows the local reset date and time remaining. If a reset time has passed, wait for a successful refresh to confirm the next one. Codex Bar refreshes after waking and normally every three minutes; repeated failures lengthen the delay to at most 24 minutes. Refresh in the context menu remains available between requests.
 
-Settings can enable separate low-quota and confirmed-reset notifications. Both are off by default. The low threshold defaults to 20% and can be set from 1% to 99%. macOS asks for permission when you enable an alert; if notifications are blocked, use Notification Settings in the app. Alerts require a successful response and a future reset date. Reset alerts arrive only after a refresh confirms a new reset period, so they may be delayed. Delivery markers and reset dates are stored locally and pruned during successful refreshes after 30 days (for reset dates, 30 days after the reset); quota percentages and account identifiers are not stored. Codex Bar cannot reliably detect an account switch, so alerts can be missed or associated with the previous account after switching.
+Settings can enable separate low-quota and confirmed-reset notifications. Both are off by default. The low threshold defaults to 20% and can be set from 1% to 99%; it also controls warning colors even when notifications are off. macOS asks for permission when you enable an alert; if notifications are blocked, use Notification Settings in the app. Alerts require a successful response and a future reset date. Reset alerts arrive only after a refresh confirms a new reset period, so they may be delayed. Delivery markers and reset dates are stored locally and pruned during successful refreshes after 30 days (for reset dates, 30 days after the reset); quota percentages and account identifiers are not stored. Codex Bar cannot reliably detect an account switch, so alerts can be missed or associated with the previous account after switching.
 
 ## Requirements
 
@@ -20,7 +20,7 @@ Settings can enable separate low-quota and confirmed-reset notifications. Both a
 
 ## Download
 
-Download [Codex Bar v1.7.0 for Apple Silicon](https://github.com/frankydzoro/codex-bar/releases/tag/v1.7.0), unzip the archive, and move CodexBar.app to Applications. The release requires macOS 13 or later and a signed-in Codex CLI.
+Download [Codex Bar v1.7.1 for Apple Silicon](https://github.com/frankydzoro/codex-bar/releases/tag/v1.7.1), unzip the archive, and move CodexBar.app to Applications. The release requires macOS 13 or later and a signed-in Codex CLI.
 
 ## Build and run
 

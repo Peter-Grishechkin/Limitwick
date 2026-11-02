@@ -6,6 +6,7 @@ import UserNotifications
 final class Bars: NSView {
     var values: [Double?] = [nil, nil] { didSet { needsDisplay = true } }
     var stale = false { didSet { needsDisplay = true } }
+    var warningThreshold = 20 { didSet { needsDisplay = true } }
     override var isFlipped: Bool { true }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
     override func draw(_ dirtyRect: NSRect) {
@@ -16,7 +17,7 @@ final class Bars: NSView {
             if let value = values[i] {
                 let width = rect.width * max(0, min(1, value / 100))
                 if width > 0 {
-                    (value < 20 ? NSColor.systemRed : NSColor.labelColor).withAlphaComponent(stale ? 0.35 : 1).setFill()
+                    (isLowQuota(value, threshold: warningThreshold) ? NSColor.systemRed : NSColor.labelColor).withAlphaComponent(stale ? 0.35 : 1).setFill()
                     NSBezierPath(roundedRect: NSRect(x: rect.minX, y: rect.minY, width: max(2, width), height: rect.height), xRadius: 2, yRadius: 2).fill()
                 }
             }
@@ -45,7 +46,7 @@ final class QuotaTile: NSView {
         resetLabel.font = .systemFont(ofSize: 10.5)
         resetLabel.textColor = .secondaryLabelColor
         resetLabel.alignment = .center
-        resetLabel.maximumNumberOfLines = 2
+        resetLabel.maximumNumberOfLines = 0
         resetLabel.frame = NSRect(x: 6, y: 8, width: 140, height: 34)
         for view in [ring, symbolLabel, valueLabel, resetLabel] as [NSView] { addSubview(view) }
         setAccessibilityElement(true)
@@ -55,6 +56,17 @@ final class QuotaTile: NSView {
     override func draw(_ dirtyRect: NSRect) {
         NSColor.controlBackgroundColor.withAlphaComponent(0.56).setFill()
         NSBezierPath(roundedRect: bounds, xRadius: 14, yRadius: 14).fill()
+    }
+    var extraResetHeight: CGFloat {
+        let style = NSMutableParagraphStyle(); style.lineBreakMode = .byWordWrapping
+        return max(0, ceil((resetLabel.stringValue as NSString).boundingRect(with: NSSize(width: 140, height: 10000), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: resetLabel.font!, .paragraphStyle: style]).height) - 34)
+    }
+    func setExtraHeight(_ extra: CGFloat) {
+        frame.size.height = 180 + extra
+        resetLabel.frame.size.height = 34 + extra
+        ring.frame.origin.y = 77 + extra
+        symbolLabel.frame.origin.y = 99 + extra
+        valueLabel.frame.origin.y = 46 + extra
     }
     func update(_ window: QuotaWindow?, reset: String) {
         ring.value = window?.remaining
@@ -67,6 +79,7 @@ final class QuotaTile: NSView {
 
 final class RingView: NSView {
     var value: Double? { didSet { needsDisplay = true } }
+    var warningThreshold = 20 { didSet { needsDisplay = true } }
     override func draw(_ dirtyRect: NSRect) {
         let rect = bounds.insetBy(dx: 6, dy: 6)
         let track = NSBezierPath(ovalIn: rect)
@@ -83,8 +96,92 @@ final class RingView: NSView {
             path.appendArc(withCenter: NSPoint(x: bounds.midX, y: bounds.midY), radius: rect.width / 2,
                            startAngle: 90, endAngle: 90 - CGFloat(360 * fraction), clockwise: true)
         }
-        NSColor.systemBlue.setStroke()
+        (isLowQuota(value, threshold: warningThreshold) ? NSColor.systemRed : NSColor.systemBlue).setStroke()
         path.stroke()
+    }
+}
+
+// A shared surface lets each window follow the panel's palette and appearance.
+class ThemedSurface: NSView {
+    var paletteProvider: ((NSAppearance) -> ThemePalette)?
+    var onAppearanceChange: (() -> Void)?
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
+        onAppearanceChange?()
+    }
+    override func draw(_ dirtyRect: NSRect) {
+        (paletteProvider?(effectiveAppearance).background ?? .windowBackgroundColor).setFill()
+        bounds.fill()
+    }
+}
+
+final class MenuButton: NSButton {
+    var paletteProvider: (() -> ThemePalette)?
+    var shortcut = ""
+    var dismiss: (() -> Void)?
+    var fontProvider: (() -> NSFont)?
+    var keyboardSelected = false { didSet { needsDisplay = true } }
+    private var hovered = false { didSet { needsDisplay = true } }
+    private var tracking: NSTrackingArea?
+    override var isEnabled: Bool { didSet { needsDisplay = true } }
+    override var acceptsFirstResponder: Bool { true }
+    override var focusRingType: NSFocusRingType { get { .none } set {} }
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let tracking = tracking { removeTrackingArea(tracking) }
+        let area = NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect], owner: self, userInfo: nil)
+        addTrackingArea(area); tracking = area
+    }
+    override func mouseEntered(with event: NSEvent) { hovered = true }
+    override func mouseExited(with event: NSEvent) { hovered = false }
+    override func draw(_ dirtyRect: NSRect) {
+        guard let p = paletteProvider?() else { return }
+        let selected = isEnabled && (hovered || keyboardSelected)
+        let background = p.background.blended(withFraction: selected ? 0.18 : 0.07, of: p.text) ?? p.surface
+        background.setFill()
+        NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 1), xRadius: 6, yRadius: 6).fill()
+        let foreground = isEnabled ? p.text : p.secondary.withAlphaComponent(0.55)
+        let font = fontProvider?() ?? NSFont.systemFont(ofSize: 13, weight: .regular)
+        let shortcutFont = NSFont.systemFont(ofSize: 12, weight: .regular)
+        let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byTruncatingTail
+        (title as NSString).draw(in: NSRect(x: 12, y: (bounds.height - 17) / 2, width: bounds.width - 75, height: 18), withAttributes: [.font: font, .foregroundColor: foreground, .paragraphStyle: paragraph])
+        let right = NSMutableParagraphStyle(); right.alignment = .right
+        (shortcut as NSString).draw(in: NSRect(x: bounds.width - 60, y: (bounds.height - 16) / 2, width: 48, height: 17), withAttributes: [.font: shortcutFont, .foregroundColor: p.secondary, .paragraphStyle: right])
+    }
+    override func keyDown(with event: NSEvent) {
+        guard let siblings = superview?.subviews.compactMap({ $0 as? MenuButton }), let index = siblings.firstIndex(of: self) else { super.keyDown(with: event); return }
+        if event.keyCode == 53 { dismiss?(); return }
+        if event.keyCode == 125 || event.keyCode == 126 {
+            let step = event.keyCode == 125 ? 1 : -1
+            for offset in 1...siblings.count {
+                let next = siblings[(index + step * offset + siblings.count * 2) % siblings.count]
+                if next.isEnabled {
+                    siblings.forEach { $0.keyboardSelected = false }
+                    next.keyboardSelected = true; window?.makeFirstResponder(next); return
+                }
+            }
+        }
+        if event.keyCode == 36 || event.keyCode == 76 || event.keyCode == 49 { performClick(nil); return }
+        super.keyDown(with: event)
+    }
+}
+
+final class MenuView: ThemedSurface {
+    override var acceptsFirstResponder: Bool { true }
+    var dismiss: (() -> Void)?
+    var items: [MenuButton] = []
+    override func cancelOperation(_ sender: Any?) { dismiss?() }
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { dismiss?(); return }
+        if event.keyCode == 125 || event.keyCode == 126 {
+            let candidates = event.keyCode == 125 ? items : items.reversed()
+            if let first = candidates.first(where: { $0.isEnabled }) {
+                first.keyboardSelected = true; window?.makeFirstResponder(first)
+            }
+            return
+        }
+        super.keyDown(with: event)
     }
 }
 
@@ -125,6 +222,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var localClickMonitor: Any?
     var themeView: ThemeView?
     var settingsWindow: NSWindow?
+    var aboutWindow: NSWindow?
+    var menuPopover: NSPopover?
+    var menuRefreshButton: NSButton?
+    var themeSurfaces: [ThemedSurface] = []
     var selectedTheme: PanelTheme = PanelTheme(rawValue: UserDefaults.standard.string(forKey: "panelTheme") ?? "") ?? .classic
     var appearanceMode: AppearanceMode = AppearanceMode(rawValue: UserDefaults.standard.string(forKey: "appearanceMode") ?? "") ?? .auto
 
@@ -141,7 +242,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         stateLabel.font = .systemFont(ofSize: 12)
         stateLabel.textColor = .secondaryLabelColor
-        stateLabel.maximumNumberOfLines = 3
+        stateLabel.maximumNumberOfLines = 0
         additionalLabel.font = .systemFont(ofSize: 12)
         additionalLabel.textColor = .secondaryLabelColor
         updatedLabel.font = .systemFont(ofSize: 12)
@@ -169,6 +270,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.behavior = .transient
         popover.delegate = self
         applyTheme()
+        updateWarningThreshold()
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(activeApplicationChanged(_:)), name: NSWorkspace.didActivateApplicationNotification, object: nil)
         layoutPanel(message: "Loading…")
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(didWake(_:)), name: NSWorkspace.didWakeNotification, object: nil)
@@ -185,28 +287,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         ageTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in self?.updateAge() }
     }
     func layoutPanel(message: String?) {
-        let extra: CGFloat = message == nil ? 0 : 56
-        let additionalHeight: CGFloat = additionalLabel.stringValue.isEmpty ? 0 : ceil((additionalLabel.stringValue as NSString).boundingRect(with: NSSize(width: 312, height: 1000), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: additionalLabel.font!]).height) + 12
-        let height: CGFloat = 236 + extra + additionalHeight
-        content.frame = NSRect(x: 0, y: 0, width: 340, height: height)
-        popover.contentSize = content.frame.size
-        themeView?.frame = content.bounds
-        fiveHourView.frame.origin = NSPoint(x: 12, y: height - 192)
-        weeklyView.frame.origin = NSPoint(x: 176, y: height - 192)
-        updatedLabel.frame = NSRect(x: 14, y: 12, width: 312, height: 20)
+        func measured(_ text: String, font: NSFont) -> CGFloat {
+            guard !text.isEmpty else { return 0 }
+            let style = NSMutableParagraphStyle(); style.lineBreakMode = .byWordWrapping
+            return ceil((text as NSString).boundingRect(with: NSSize(width: 312, height: CGFloat.greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font, .paragraphStyle: style]).height)
+        }
         stateLabel.isHidden = message == nil
         stateLabel.stringValue = message ?? ""
-        stateLabel.frame = NSRect(x: 14, y: 42, width: 312, height: 52)
-        additionalLabel.frame = NSRect(x: 14, y: 42 + extra, width: 312, height: additionalHeight)
+        let stateHeight = measured(stateLabel.stringValue, font: stateLabel.font!)
+        let additionalHeight = measured(additionalLabel.stringValue, font: additionalLabel.font!)
+        updateThemeData()
+        let bottom: CGFloat = themeView?.outerInset ?? 12
+        let tileExtra = max(fiveHourView.extraResetHeight, weeklyView.extraResetHeight)
+        fiveHourView.setExtraHeight(tileExtra); weeklyView.setExtraHeight(tileExtra)
+        let mainHeight = themeView?.preferredContentHeight ?? (192 + tileExtra)
+        let extraHeight = (stateHeight > 0 ? stateHeight + 12 : 0) + (additionalHeight > 0 ? additionalHeight + 12 : 0)
+        let height: CGFloat = mainHeight + bottom + extraHeight
+        // NSPopover positions its content view inside its own chrome. Preserve that origin.
+        content.setFrameSize(NSSize(width: 340, height: height))
+        popover.contentSize = content.frame.size
+        themeView?.frame = content.bounds
+        fiveHourView.frame.origin = NSPoint(x: 12, y: bottom + extraHeight)
+        weeklyView.frame.origin = NSPoint(x: 176, y: bottom + extraHeight)
+        stateLabel.frame = NSRect(x: 14, y: bottom, width: 312, height: stateHeight)
+        additionalLabel.frame = NSRect(x: 14, y: bottom + (stateHeight > 0 ? stateHeight + 12 : 0), width: 312, height: additionalHeight)
         updateThemeData()
     }
     @objc func statusItemClicked() {
         guard let button = status.button else { return }
         if NSApp.currentEvent?.type == .rightMouseUp {
             popover.performClose(nil)
-            contextMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: 0), in: button)
+            showContextMenu(relativeTo: button)
             return
         }
+        menuPopover?.performClose(nil)
         if popover.isShown { popover.performClose(nil) }
         else {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -246,6 +360,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.appearance = appearanceMode.appearance
         content.appearance = appearanceMode.appearance
         settingsWindow?.appearance = appearanceMode.appearance
+        aboutWindow?.appearance = appearanceMode.appearance
+        menuPopover?.appearance = appearanceMode.appearance
+        refreshSurfaces()
+        resizeWindowToContent(settingsWindow)
+        resizeWindowToContent(aboutWindow)
         fiveHourView.isHidden = themeView != nil
         weeklyView.isHidden = themeView != nil
         if let themed = themeView {
@@ -256,6 +375,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
         updateThemeColors()
         updateThemeData()
+        layoutPanel(message: stateLabel.isHidden ? nil : stateLabel.stringValue)
     }
     func updateThemeColors() {
         let color = themeView?.palette.secondary ?? NSColor.secondaryLabelColor
@@ -268,67 +388,138 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let week = lastQuota?.weekly
         let summary = "\(describe("5 hours", five)). \(describe("Week", week)). \(state). \(updatedLabel.stringValue). \(additionalLabel.stringValue)"
         themeView?.data = ThemeData(fiveHour: five?.remaining, weekly: week?.remaining,
-                                    fiveReset: resetDescription(five), weekReset: resetDescription(week), accessibility: summary)
+                                    fiveReset: resetDescription(five), weekReset: resetDescription(week), accessibility: summary, warningThreshold: noticeThreshold)
+    }
+    func palette(for appearance: NSAppearance) -> ThemePalette {
+        if let view = selectedTheme.makeView() {
+            view.appearance = appearance
+            return view.palette
+        }
+        let dark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        return ThemePalette(background: dark ? .init(white: 0.12, alpha: 1) : .init(white: 0.96, alpha: 1), surface: dark ? .init(white: 0.18, alpha: 1) : .white, text: dark ? .white : .black, secondary: dark ? .lightGray : .darkGray, track: .gray, accent: .systemBlue, second: .systemBlue)
+    }
+    func surface(_ view: ThemedSurface) {
+        view.paletteProvider = { [weak self] appearance in
+            self?.palette(for: appearance) ?? ThemePalette(background: .windowBackgroundColor, surface: .controlBackgroundColor, text: .labelColor, secondary: .secondaryLabelColor, track: .separatorColor, accent: .controlAccentColor, second: .controlAccentColor)
+        }
+        view.onAppearanceChange = { [weak self] in self?.refreshSurfaces() }
+        themeSurfaces.append(view)
+    }
+    func refreshSurfaces() {
+        for surface in themeSurfaces {
+            let colors = palette(for: surface.effectiveAppearance)
+            surface.needsDisplay = true
+            func apply(_ view: NSView) {
+                if let item = view as? MenuButton { item.needsDisplay = true }
+                if let text = view as? NSTextField {
+                    text.textColor = text.tag == 902 ? colors.secondary : colors.text
+                    if text.tag == 901 {
+                        text.font = selectedTheme == .paper ? (NSFont(name: "Times New Roman", size: 18) ?? .boldSystemFont(ofSize: 18)) : ((selectedTheme == .terminal || selectedTheme == .industrial || selectedTheme == .dots) ? .monospacedSystemFont(ofSize: 14, weight: .semibold) : .systemFont(ofSize: 16, weight: .semibold))
+                    }
+                }
+                for child in view.subviews { apply(child) }
+            }
+            apply(surface)
+        }
+    }
+    func updateWarningThreshold() {
+        bars.warningThreshold = noticeThreshold
+        fiveHourView.ring.warningThreshold = noticeThreshold
+        weeklyView.ring.warningThreshold = noticeThreshold
+        updateThemeData()
+    }
+    func heading(_ title: String) -> NSTextField {
+        let label = NSTextField(labelWithString: title); label.tag = 901
+        return label
+    }
+    func stack(_ views: [NSView], spacing: CGFloat = 12) -> NSStackView {
+        let stack = NSStackView(views: views)
+        stack.orientation = .vertical; stack.alignment = .leading; stack.spacing = spacing
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        return stack
+    }
+    func install(_ stack: NSStackView, in surface: NSView, width: CGFloat) {
+        surface.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: surface.leadingAnchor, constant: 24),
+            stack.trailingAnchor.constraint(equalTo: surface.trailingAnchor, constant: -24),
+            stack.topAnchor.constraint(equalTo: surface.topAnchor, constant: 22),
+            stack.bottomAnchor.constraint(equalTo: surface.bottomAnchor, constant: -22),
+            surface.widthAnchor.constraint(equalToConstant: width)
+        ])
+    }
+    func makeWindow(title: String, content stack: NSStackView, width: CGFloat) -> NSWindow {
+        let surface = ThemedSurface(); surface.translatesAutoresizingMaskIntoConstraints = false
+        self.surface(surface)
+        install(stack, in: surface, width: width)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: 200), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.title = title; window.isReleasedWhenClosed = false; window.contentView = surface
+        window.appearance = appearanceMode.appearance
+        surface.layoutSubtreeIfNeeded()
+        let size = surface.fittingSize
+        window.setContentSize(NSSize(width: width, height: max(1, size.height)))
+        window.center()
+        refreshSurfaces()
+        return window
+    }
+    func resizeWindowToContent(_ window: NSWindow?) {
+        guard let window = window, let view = window.contentView else { return }
+        view.layoutSubtreeIfNeeded()
+        let height = view.fittingSize.height
+        guard height > 0 else { return }
+        let old = window.frame
+        let frame = window.frameRect(forContentRect: NSRect(x: 0, y: 0, width: view.bounds.width, height: height))
+        window.setFrame(NSRect(x: old.minX, y: old.maxY - frame.height, width: frame.width, height: frame.height), display: true)
     }
     @objc func showSettings() {
-        popover.performClose(nil)
+        popover.performClose(nil); menuPopover?.performClose(nil)
         if settingsWindow == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 320),
-                                  styleMask: [.titled, .closable], backing: .buffered, defer: false)
-            window.title = "Settings"
-            window.isReleasedWhenClosed = false
-            window.center()
-            let container = window.contentView!
-            let themeLabel = NSTextField(labelWithString: "Theme:")
-            themeLabel.frame = NSRect(x: 24, y: 264, width: 95, height: 22)
-            let themePicker = NSPopUpButton(frame: NSRect(x: 140, y: 259, width: 210, height: 28), pullsDown: false)
-            themePicker.addItems(withTitles: PanelTheme.allCases.map(\.title))
+            let themePicker = NSPopUpButton(); themePicker.addItems(withTitles: PanelTheme.allCases.map(\.title))
             themePicker.selectItem(at: PanelTheme.allCases.firstIndex(of: selectedTheme) ?? 0)
-            themePicker.target = self; themePicker.action = #selector(themeChanged(_:))
-            let appearanceLabel = NSTextField(labelWithString: "Appearance:")
-            appearanceLabel.frame = NSRect(x: 24, y: 224, width: 95, height: 22)
-            let appearancePicker = NSPopUpButton(frame: NSRect(x: 140, y: 219, width: 210, height: 28), pullsDown: false)
-            appearancePicker.addItems(withTitles: AppearanceMode.allCases.map(\.title))
+            themePicker.target = self; themePicker.action = #selector(themeChanged(_:)); themePicker.setAccessibilityLabel("Theme")
+            let appearancePicker = NSPopUpButton(); appearancePicker.addItems(withTitles: AppearanceMode.allCases.map(\.title))
             appearancePicker.selectItem(at: AppearanceMode.allCases.firstIndex(of: appearanceMode) ?? 0)
-            appearancePicker.target = self; appearancePicker.action = #selector(appearanceChanged(_:))
-            for view in [themeLabel, themePicker, appearanceLabel, appearancePicker] as [NSView] { container.addSubview(view) }
-            themePicker.setAccessibilityLabel("Theme")
-            appearancePicker.setAccessibilityLabel("Appearance")
+            appearancePicker.target = self; appearancePicker.action = #selector(appearanceChanged(_:)); appearancePicker.setAccessibilityLabel("Appearance")
+            func row(_ title: String, _ control: NSView) -> NSStackView {
+                let label = NSTextField(labelWithString: title); label.widthAnchor.constraint(equalToConstant: 110).isActive = true
+                let row = NSStackView(views: [label, control]); row.orientation = .horizontal; row.alignment = .centerY; row.spacing = 12
+                control.widthAnchor.constraint(equalToConstant: 210).isActive = true
+                return row
+            }
             let low = NSButton(checkboxWithTitle: "Low remaining quota", target: self, action: #selector(noticeSettingChanged(_:)))
-            low.frame = NSRect(x: 24, y: 180, width: 260, height: 24); low.state = UserDefaults.standard.bool(forKey: "noticeLow") ? .on : .off
-            low.identifier = NSUserInterfaceItemIdentifier("noticeLow"); container.addSubview(low); lowToggle = low
+            low.state = UserDefaults.standard.bool(forKey: "noticeLow") ? .on : .off; low.identifier = NSUserInterfaceItemIdentifier("noticeLow"); lowToggle = low
             let reset = NSButton(checkboxWithTitle: "Confirmed quota reset", target: self, action: #selector(noticeSettingChanged(_:)))
-            reset.frame = NSRect(x: 24, y: 150, width: 260, height: 24); reset.state = UserDefaults.standard.bool(forKey: "noticeReset") ? .on : .off
-            reset.identifier = NSUserInterfaceItemIdentifier("noticeReset"); container.addSubview(reset); resetToggle = reset
-            let thresholdLabel = NSTextField(labelWithString: "Low threshold (%):")
-            thresholdLabel.frame = NSRect(x: 24, y: 113, width: 135, height: 22); container.addSubview(thresholdLabel)
-            let threshold = NSStepper(frame: NSRect(x: 220, y: 111, width: 20, height: 24))
-            threshold.minValue = 1; threshold.maxValue = 99; threshold.integerValue = noticeThreshold
-            let field = NSTextField(labelWithString: "\(noticeThreshold)%")
-            field.frame = NSRect(x: 162, y: 113, width: 55, height: 22); field.tag = 501; container.addSubview(field)
-            threshold.target = self; threshold.action = #selector(thresholdChanged(_:)); threshold.setAccessibilityLabel("Low quota threshold percent"); container.addSubview(threshold)
-            noticeStatus.frame = NSRect(x: 24, y: 38, width: 370, height: 58); noticeStatus.maximumNumberOfLines = 3; noticeStatus.font = .systemFont(ofSize: 11); noticeStatus.textColor = .secondaryLabelColor; container.addSubview(noticeStatus)
+            reset.state = UserDefaults.standard.bool(forKey: "noticeReset") ? .on : .off; reset.identifier = NSUserInterfaceItemIdentifier("noticeReset"); resetToggle = reset
+            let threshold = NSStepper(); threshold.minValue = 1; threshold.maxValue = 99; threshold.integerValue = noticeThreshold
+            threshold.target = self; threshold.action = #selector(thresholdChanged(_:)); threshold.setAccessibilityLabel("Low quota threshold percent")
+            let field = NSTextField(labelWithString: "\(noticeThreshold)%"); field.tag = 501
+            let thresholdRow = NSStackView(views: [NSTextField(labelWithString: "Low threshold:"), field, threshold]); thresholdRow.orientation = .horizontal; thresholdRow.spacing = 12
+            noticeStatus.maximumNumberOfLines = 0; noticeStatus.font = .systemFont(ofSize: 11); noticeStatus.tag = 902
+            noticeStatus.widthAnchor.constraint(equalToConstant: 372).isActive = true
             let openSettings = NSButton(title: "Notification Settings…", target: self, action: #selector(openNotificationSettings))
-            openSettings.frame = NSRect(x: 20, y: 8, width: 190, height: 28); container.addSubview(openSettings)
-            window.initialFirstResponder = themePicker
-            window.appearance = appearanceMode.appearance
-            settingsWindow = window
+            let items = [heading("Appearance"), row("Theme", themePicker), row("Mode", appearancePicker), heading("Notifications"), low, reset, thresholdRow, noticeStatus, openSettings] as [NSView]
+            let content = stack(items, spacing: 12)
+            content.setCustomSpacing(22, after: items[2])
+            settingsWindow = makeWindow(title: "Settings", content: content, width: 420)
+            settingsWindow?.initialFirstResponder = themePicker
         }
-        NSApp.activate(ignoringOtherApps: true)
-        settingsWindow?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true); settingsWindow?.makeKeyAndOrderFront(nil)
         updateNoticeStatus()
+        resizeWindowToContent(settingsWindow)
     }
     @objc func themeChanged(_ sender: NSPopUpButton) {
         guard PanelTheme.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
         selectedTheme = PanelTheme.allCases[sender.indexOfSelectedItem]
         UserDefaults.standard.set(selectedTheme.rawValue, forKey: "panelTheme")
         applyTheme()
+        resizeWindowToContent(settingsWindow)
     }
     @objc func appearanceChanged(_ sender: NSPopUpButton) {
         guard AppearanceMode.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
         appearanceMode = AppearanceMode.allCases[sender.indexOfSelectedItem]
         UserDefaults.standard.set(appearanceMode.rawValue, forKey: "appearanceMode")
         applyTheme()
+        resizeWindowToContent(settingsWindow)
     }
     var noticeThreshold: Int {
         let value = UserDefaults.standard.integer(forKey: "noticeThreshold")
@@ -336,6 +527,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
     @objc func thresholdChanged(_ sender: NSStepper) {
         UserDefaults.standard.set(sender.integerValue, forKey: "noticeThreshold")
+        updateWarningThreshold()
         (settingsWindow?.contentView?.viewWithTag(501) as? NSTextField)?.stringValue = "\(sender.integerValue)%"
     }
     @objc func noticeSettingChanged(_ sender: NSButton) {
@@ -354,6 +546,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 case .authorized, .provisional, .ephemeral: self.noticeStatus.stringValue = "Notifications are allowed. Reset alerts require a successful refresh."
                 default: self.noticeStatus.stringValue = "Enable an alert above to request notification permission."
                 }
+                self.resizeWindowToContent(self.settingsWindow)
             }
         }
     }
@@ -407,17 +600,68 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { [weak self] _ in self?.refreshNow() }
     }
     @objc func showAbout() {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
-        let alert = NSAlert()
-        alert.messageText = "Codex Bar"
-        alert.informativeText = "Version \(version)\nGitHub: frankydzoro\n\nA menu bar app for Codex usage limits."
-        alert.addButton(withTitle: "GitHub")
-        alert.addButton(withTitle: "Close")
-        NSApp.activate(ignoringOtherApps: true)
-        if alert.runModal() == .alertFirstButtonReturn {
-            NSWorkspace.shared.open(URL(string: "https://github.com/frankydzoro/codex-bar")!)
+        menuPopover?.performClose(nil); popover.performClose(nil)
+        if aboutWindow == nil {
+            let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+            let title = heading("Codex Bar")
+            let versionLabel = NSTextField(labelWithString: "Version \(version)"); versionLabel.tag = 902
+            let description = NSTextField(wrappingLabelWithString: "A menu bar app for Codex usage limits."); description.widthAnchor.constraint(equalToConstant: 312).isActive = true
+            let github = NSButton(title: "GitHub", target: self, action: #selector(openGitHub))
+            let close = NSButton(title: "Close", target: self, action: #selector(closeAbout))
+            let buttons = NSStackView(views: [github, close]); buttons.orientation = .horizontal; buttons.spacing = 8
+            aboutWindow = makeWindow(title: "About Codex Bar", content: stack([title, versionLabel, description, buttons], spacing: 14), width: 360)
         }
+        NSApp.activate(ignoringOtherApps: true); aboutWindow?.makeKeyAndOrderFront(nil)
     }
+    @objc func openGitHub() { NSWorkspace.shared.open(URL(string: "https://github.com/frankydzoro/codex-bar")!) }
+    @objc func closeAbout() { aboutWindow?.performClose(nil) }
+
+    func showContextMenu(relativeTo button: NSView) {
+        if menuPopover?.isShown == true { menuPopover?.performClose(nil); return }
+        if let old = menuPopover?.contentViewController?.view as? ThemedSurface { themeSurfaces.removeAll { $0 === old } }
+        let menu = NSPopover(); menu.behavior = .transient; menu.appearance = appearanceMode.appearance
+        let view = MenuView(); surface(view)
+        let commands: [(String, Selector, String)] = [("Refresh", #selector(menuRefresh), "r"), ("Settings…", #selector(showSettings), ","), ("About Codex Bar", #selector(showAbout), ""), ("Check for Updates…", #selector(menuUpdates), ""), ("Quit", #selector(menuQuit), "q")]
+        var buttons: [NSView] = []
+        for (title, action, key) in commands {
+            let item = MenuButton(title: title, target: self, action: action)
+            item.isBordered = false; item.setAccessibilityLabel(title)
+            item.shortcut = key.isEmpty ? "" : "⌘\(key.uppercased())"
+            item.dismiss = { [weak menu] in menu?.performClose(nil) }
+            item.fontProvider = { [weak self] in
+                guard let self = self else { return .systemFont(ofSize: 13) }
+                switch self.selectedTheme {
+                case .industrial, .dots, .terminal: return .monospacedSystemFont(ofSize: 12, weight: .regular)
+                case .paper: return NSFont(name: "Times New Roman", size: 14) ?? .systemFont(ofSize: 13)
+                default: return .systemFont(ofSize: 13)
+                }
+            }
+            item.paletteProvider = { [weak self, weak view] in
+                guard let self = self, let view = view else { return ThemePalette(background: .windowBackgroundColor, surface: .controlBackgroundColor, text: .labelColor, secondary: .secondaryLabelColor, track: .separatorColor, accent: .controlAccentColor, second: .controlAccentColor) }
+                return self.palette(for: view.effectiveAppearance)
+            }
+            item.keyEquivalent = key; if !key.isEmpty { item.keyEquivalentModifierMask = .command }
+            item.widthAnchor.constraint(equalToConstant: 220).isActive = true
+            item.heightAnchor.constraint(equalToConstant: 30).isActive = true
+            if title == "Refresh" { item.isEnabled = !running; menuRefreshButton = item }
+            buttons.append(item)
+        }
+        view.items = buttons.compactMap { $0 as? MenuButton }
+        let list = stack(buttons, spacing: 2)
+        list.setCustomSpacing(10, after: buttons[0])
+        list.setCustomSpacing(10, after: buttons[3])
+        install(list, in: view, width: 268)
+        let controller = NSViewController(); controller.view = view; menu.contentViewController = controller
+        view.dismiss = { [weak menu] in menu?.performClose(nil) }
+        menuPopover = menu; refreshSurfaces()
+        view.layoutSubtreeIfNeeded(); menu.contentSize = NSSize(width: 268, height: max(1, view.fittingSize.height))
+        NSApp.activate(ignoringOtherApps: true)
+        menu.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        menu.contentViewController?.view.window?.makeFirstResponder(view)
+    }
+    @objc func menuRefresh() { menuPopover?.performClose(nil); refreshNow() }
+    @objc func menuUpdates() { menuPopover?.performClose(nil); checkForUpdates() }
+    @objc func menuQuit() { menuPopover?.performClose(nil); NSApp.terminate(nil) }
     @objc func checkForUpdates() {
         NSApp.activate(ignoringOtherApps: true)
         updaterController.checkForUpdates(nil)
@@ -425,7 +669,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     @objc func refreshNow() {
         guard !running else { return }
         timer?.invalidate()
-        running = true; refresh.isEnabled = false
+        running = true; refresh.isEnabled = false; menuRefreshButton?.isEnabled = false
         requestID += 1
         let currentRequest = requestID
         state = lastQuota == nil ? "Loading…" : (stale ? "Updating… Previous attempt: \(lastFailure ?? "failed") — showing previous data" : "Updating…")
@@ -437,7 +681,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
     }
     func finish(_ result: Result<Quota, Error>) {
-        running = false; refresh.isEnabled = true
+        running = false; refresh.isEnabled = true; menuRefreshButton?.isEnabled = true
         var message: String?
         switch result {
         case .success(let quota):
@@ -491,7 +735,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             let newText = (extras + conflicts).joined(separator: "\n")
             if additionalLabel.stringValue != newText { additionalLabel.stringValue = newText; layoutPanel(message: stateLabel.isHidden ? nil : stateLabel.stringValue) }
         }
-        updateThemeData()
+        layoutPanel(message: stateLabel.isHidden ? nil : stateLabel.stringValue)
     }
     func resetDescription(_ window: QuotaWindow?) -> String {
         ResetText.describe(window?.reset)

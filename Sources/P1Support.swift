@@ -68,3 +68,9 @@ struct NoticeTracker {
         return result
     }
 }
+
+// The same boundary is used by every quota indicator.
+func isLowQuota(_ value: Double?, threshold: Int) -> Bool {
+    guard let value = value, value.isFinite else { return false }
+    return value <= Double(threshold)
+}
