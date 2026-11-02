@@ -97,6 +97,18 @@ import Darwin
         client.cancel()
         check(done.wait(timeout: .now() + 2) == .success, "cancel finishes promptly")
         if case .success = run("success") {} else { fatalError("repeat after failure") }
+        setenv("FAKE_SCENARIO", "listener", 1)
+        let listener = QuotaListener()
+        let changed = DispatchSemaphore(value: 0)
+        let listenerDone = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async {
+            listener.run(findPath: { fake }, onChange: { changed.signal() })
+            listenerDone.signal()
+        }
+        check(changed.wait(timeout: .now() + 3) == .success, "rate limit event delivered")
+        check(changed.wait(timeout: .now() + 0.2) == .timedOut, "unrelated event ignored")
+        listener.cancel()
+        check(listenerDone.wait(timeout: .now() + 2) == .success, "listener stops promptly")
         print("All quota tests passed")
     }
 }

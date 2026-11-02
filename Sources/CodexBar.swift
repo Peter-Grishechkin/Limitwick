@@ -101,6 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     let contextMenu = NSMenu()
     let refresh = NSMenuItem(title: "Refresh", action: #selector(refreshNow), keyEquivalent: "r")
     let client = QuotaClient()
+    let listener = QuotaListener()
     let updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
     let checkUpdates = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
     var timer: Timer?
@@ -161,7 +162,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let quit = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quit.target = NSApp
         contextMenu.addItem(quit)
-        for view in [fiveHourView, weeklyView, stateLabel, additionalLabel, updatedLabel] as [NSView] { content.addSubview(view) }
+        for view in [fiveHourView, weeklyView, stateLabel, additionalLabel] as [NSView] { content.addSubview(view) }
         let controller = NSViewController()
         controller.view = content
         popover.contentViewController = controller
@@ -172,6 +173,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         layoutPanel(message: "Loading…")
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(didWake(_:)), name: NSWorkspace.didWakeNotification, object: nil)
         refreshNow()
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self = self else { return }
+            self.listener.run(findPath: { QuotaClient.findCLI() }) { [weak self] in
+                DispatchQueue.main.async {
+                    guard let self = self else { return }
+                    if self.running { self.wakePending = true } else { self.refreshNow() }
+                }
+            }
+        }
         ageTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in self?.updateAge() }
     }
     func layoutPanel(message: String?) {
@@ -440,7 +450,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         case .failure(let error):
             stale = lastQuota != nil
             lastFailure = error.localizedDescription
-            state = "\(error.localizedDescription)\(stale ? " — showing previous data" : "")"
+            state = "\(error.localizedDescription)\(stale ? " — showing previous data (\(updatedLabel.stringValue.lowercased()))" : "")"
             message = state
         }
         if let quota = lastQuota {
@@ -462,12 +472,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         NSWorkspace.shared.notificationCenter.removeObserver(self)
         timer?.invalidate(); ageTimer?.invalidate()
         client.cancel()
+        listener.cancel()
     }
     func updateAge() {
         if let date = lastUpdate {
             let minutes = max(0, Int(Date().timeIntervalSince(date) / 60))
             updatedLabel.stringValue = minutes == 0 ? "Updated just now" : "Updated \(minutes) min ago"
         } else { updatedLabel.stringValue = "Updated: —" }
+        if stale, !running, let failure = lastFailure {
+            let message = "\(failure) — showing previous data (\(updatedLabel.stringValue.lowercased()))"
+            if state != message { state = message; layoutPanel(message: message) }
+        }
         if let quota = lastQuota {
             fiveHourView.update(quota.fiveHour, reset: resetDescription(quota.fiveHour))
             weeklyView.update(quota.weekly, reset: resetDescription(quota.weekly))

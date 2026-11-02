@@ -105,7 +105,7 @@ final class QuotaClient {
             try input.fileHandleForWriting.write(contentsOf: data)
         }
         do {
-            try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_bar", "version": "1.6.1"]]])
+            try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_bar", "version": "1.7.0"]]])
             var buffer = Data()
             var totalBytes = 0
             var initialized = false
@@ -149,5 +149,87 @@ final class QuotaClient {
             if ProcessInfo.processInfo.systemUptime >= deadline { return .failure(QuotaError.timeout) }
             return .failure(error)
         }
+    }
+}
+
+// A separate connection listens for changes; the existing client remains the
+// authoritative snapshot and fallback for changes outside this connection.
+final class QuotaListener {
+    private let lock = NSLock()
+    private var process: Process?
+    private var stopped = false
+
+    func cancel() {
+        lock.lock(); defer { lock.unlock() }
+        stopped = true
+        if let process = process, process.isRunning { kill(process.processIdentifier, SIGKILL) }
+    }
+
+    private var isStopped: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return stopped
+    }
+
+    func run(findPath: () -> String?, onChange: @escaping () -> Void) {
+        while !isStopped {
+            if let path = findPath() { listen(path: path, onChange: onChange) }
+            // Retry without a tight loop when CLI is missing or the server exits.
+            for _ in 0..<30 {
+                if isStopped { return }
+                Thread.sleep(forTimeInterval: 1)
+            }
+        }
+    }
+
+    private func listen(path: String, onChange: () -> Void) {
+        let child = Process(), input = Pipe(), output = Pipe()
+        child.executableURL = URL(fileURLWithPath: path)
+        child.arguments = ["app-server"]
+        child.standardInput = input; child.standardOutput = output; child.standardError = FileHandle.nullDevice
+        lock.lock()
+        guard !stopped else { lock.unlock(); return }
+        do { try child.run(); process = child; lock.unlock() }
+        catch { lock.unlock(); return }
+        defer {
+            lock.lock()
+            if child.isRunning { kill(child.processIdentifier, SIGKILL) }
+            lock.unlock()
+            try? input.fileHandleForWriting.close()
+            try? output.fileHandleForReading.close()
+            child.waitUntilExit()
+            lock.lock(); process = nil; lock.unlock()
+        }
+        func send(_ object: [String: Any]) throws {
+            var data = try JSONSerialization.data(withJSONObject: object); data.append(10)
+            try input.fileHandleForWriting.write(contentsOf: data)
+        }
+        do {
+            try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_bar", "version": "1.7.0"]]])
+            var buffer = Data()
+            var initialized = false
+            let deadline = ProcessInfo.processInfo.systemUptime + 20
+            while !isStopped {
+                if !initialized && ProcessInfo.processInfo.systemUptime >= deadline { return }
+                var descriptor = pollfd(fd: output.fileHandleForReading.fileDescriptor, events: Int16(POLLIN | POLLHUP), revents: 0)
+                let ready = poll(&descriptor, 1, 200)
+                if ready < 0 { if errno == EINTR { continue }; return }
+                if ready == 0 { continue }
+                let data = output.fileHandleForReading.availableData
+                if data.isEmpty { return }
+                buffer.append(data)
+                if buffer.count > 1_048_576 { return }
+                while let newline = buffer.firstIndex(of: 10) {
+                    let line = Data(buffer.prefix(upTo: newline)); buffer.removeSubrange(...newline)
+                    guard let object = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any] else { continue }
+                    if !initialized, let id = object["id"] as? Int, id == 1 {
+                        guard object["result"] != nil, object["error"] == nil else { return }
+                        initialized = true
+                        try send(["method": "initialized", "params": [:]])
+                    } else if initialized, object["method"] as? String == "account/rateLimits/updated" {
+                        onChange()
+                    }
+                }
+            }
+        } catch { return }
     }
 }

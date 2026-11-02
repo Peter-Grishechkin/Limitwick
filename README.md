@@ -1,8 +1,8 @@
 # Codex Bar
 
-A small macOS menu bar app showing remaining Codex usage. The top bar is the five-hour limit; the bottom bar is the weekly limit. A bar turns red below 20%. Click the bars to open the limits panel showing the remaining percentages, each reset time, and the last successful update. The default Classic theme uses circular indicators. Click outside the panel or switch to another app to close it. Right-click the bars (or use a two-finger click on a trackpad) for Refresh, Settings, About Codex Bar, Check for Updates, and Quit. Settings offers six panel themes and Light, Dark, or Auto appearance. Auto follows macOS; your selection is saved between launches.
+A small macOS menu bar app showing remaining Codex usage. The top bar is the five-hour limit; the bottom bar is the weekly limit. A bar turns red below 20%. Click the bars to open the limits panel showing the remaining percentages and each reset time. The default Classic theme uses circular indicators. Click outside the panel or switch to another app to close it. Right-click the bars (or use a two-finger click on a trackpad) for Refresh, Settings, About Codex Bar, Check for Updates, and Quit. Settings offers six panel themes and Light, Dark, or Auto appearance. Auto follows macOS; your selection is saved between launches.
 
-The app refreshes every three minutes and can also refresh on demand. If an update fails, the bars are dimmed and the panel shows the reason and the age of the previous values. They remain dimmed while a retry is in progress. An unavailable limit is shown as unavailable. Other window durations are listed in the panel with their actual durations; they never replace the five-hour or weekly bars. Conflicting values for the same duration are reported as unavailable. Values are kept only while the app is running.
+The app listens for Codex rate-limit events and requests a fresh snapshot when one arrives. It also refreshes every three minutes and can refresh on demand; event delivery for other Codex sessions is not guaranteed. If an update fails, the bars are dimmed and the panel shows the reason and the age of the previous values. They remain dimmed while a retry is in progress. An unavailable limit is shown as unavailable. Other window durations are listed in the panel with their actual durations; they never replace the five-hour or weekly bars. Conflicting values for the same duration are reported as unavailable. Values are kept only while the app is running.
 
 Check for Updates uses Sparkle to download and install signed updates and relaunch the app after confirmation. Checks are manual. Version 1.4.2 and older must be upgraded manually once before they can use this feature.
 
@@ -20,7 +20,7 @@ Settings can enable separate low-quota and confirmed-reset notifications. Both a
 
 ## Download
 
-Download [Codex Bar v1.6.1 for Apple Silicon](https://github.com/frankydzoro/codex-bar/releases/tag/v1.6.1), unzip the archive, and move CodexBar.app to Applications. The release requires macOS 13 or later and a signed-in Codex CLI.
+Download [Codex Bar v1.7.0 for Apple Silicon](https://github.com/frankydzoro/codex-bar/releases/tag/v1.7.0), unzip the archive, and move CodexBar.app to Applications. The release requires macOS 13 or later and a signed-in Codex CLI.
 
 ## Build and run
 
