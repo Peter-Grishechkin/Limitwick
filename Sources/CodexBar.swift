@@ -5,6 +5,7 @@ final class Bars: NSView {
     var values: [Double?] = [nil, nil] { didSet { needsDisplay = true } }
     var stale = false { didSet { needsDisplay = true } }
     override var isFlipped: Bool { true }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
     override func draw(_ dirtyRect: NSRect) {
         for i in 0..<2 {
             let rect = NSRect(x: 1, y: 4 + CGFloat(i) * 8, width: 30, height: 4)
@@ -85,7 +86,7 @@ final class RingView: NSView {
     }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     let status = NSStatusBar.system.statusItem(withLength: 34)
     let bars = Bars(frame: NSRect(x: 0, y: 0, width: 32, height: 20))
     let popover = NSPopover()
@@ -95,8 +96,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let stateLabel = NSTextField(wrappingLabelWithString: "")
     let updatedLabel = NSTextField(labelWithString: "Last updated: —")
     let additionalLabel = NSTextField(wrappingLabelWithString: "")
-    let refresh = NSButton(title: "Refresh", target: nil, action: nil)
-    let quit = NSButton(title: "Quit", target: nil, action: nil)
+    let contextMenu = NSMenu()
+    let refresh = NSMenuItem(title: "Refresh", action: #selector(refreshNow), keyEquivalent: "r")
     let client = QuotaClient()
     var timer: Timer?
     var running = false
@@ -107,6 +108,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var lastFailure: String?
     var requestID = 0
     var ageTimer: Timer?
+    var globalClickMonitor: Any?
+    var localClickMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard let button = status.button else { return }
@@ -116,7 +119,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         button.toolTip = "Codex: top — 5 hours, bottom — week"
         button.setAccessibilityLabel("Codex usage limits, loading")
         button.target = self
-        button.action = #selector(togglePopover)
+        button.action = #selector(statusItemClicked)
+        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
 
         stateLabel.font = .systemFont(ofSize: 12)
         stateLabel.textColor = .secondaryLabelColor
@@ -125,21 +129,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         additionalLabel.textColor = .secondaryLabelColor
         updatedLabel.font = .systemFont(ofSize: 12)
         updatedLabel.textColor = .secondaryLabelColor
-        refresh.target = self; refresh.action = #selector(refreshNow)
-        refresh.keyEquivalent = "r"
-        quit.target = NSApp; quit.action = #selector(NSApplication.terminate(_:))
-        quit.keyEquivalent = "q"
-        for button in [refresh, quit] {
-            button.bezelStyle = .rounded
-            button.isBordered = true
-            button.alignment = .center
-            button.font = .systemFont(ofSize: 12)
-        }
-        for view in [fiveHourView, weeklyView, stateLabel, additionalLabel, updatedLabel, refresh, quit] as [NSView] { content.addSubview(view) }
+        refresh.target = self
+        contextMenu.autoenablesItems = false
+        contextMenu.addItem(refresh)
+        let quit = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        quit.target = NSApp
+        contextMenu.addItem(quit)
+        for view in [fiveHourView, weeklyView, stateLabel, additionalLabel, updatedLabel] as [NSView] { content.addSubview(view) }
         let controller = NSViewController()
         controller.view = content
         popover.contentViewController = controller
         popover.behavior = .transient
+        popover.delegate = self
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(activeApplicationChanged(_:)), name: NSWorkspace.didActivateApplicationNotification, object: nil)
         layoutPanel(message: "Loading…")
         refreshNow()
         timer = Timer.scheduledTimer(withTimeInterval: 180, repeats: true) { [weak self] _ in self?.refreshNow() }
@@ -148,23 +150,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func layoutPanel(message: String?) {
         let extra: CGFloat = message == nil ? 0 : 56
         let additionalHeight: CGFloat = additionalLabel.stringValue.isEmpty ? 0 : ceil((additionalLabel.stringValue as NSString).boundingRect(with: NSSize(width: 312, height: 1000), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: additionalLabel.font!]).height) + 12
-        let height: CGFloat = 246 + extra + additionalHeight
+        let height: CGFloat = 236 + extra + additionalHeight
         content.frame = NSRect(x: 0, y: 0, width: 340, height: height)
         popover.contentSize = content.frame.size
         fiveHourView.frame.origin = NSPoint(x: 12, y: height - 192)
         weeklyView.frame.origin = NSPoint(x: 176, y: height - 192)
-        updatedLabel.frame = NSRect(x: 14, y: 19, width: 135, height: 28)
+        updatedLabel.frame = NSRect(x: 14, y: 12, width: 312, height: 20)
         stateLabel.isHidden = message == nil
         stateLabel.stringValue = message ?? ""
-        stateLabel.frame = NSRect(x: 14, y: 52, width: 312, height: 52)
-        additionalLabel.frame = NSRect(x: 14, y: 52 + extra, width: 312, height: additionalHeight)
-        refresh.frame = NSRect(x: 165, y: 14, width: 86, height: 32)
-        quit.frame = NSRect(x: 255, y: 14, width: 70, height: 32)
+        stateLabel.frame = NSRect(x: 14, y: 42, width: 312, height: 52)
+        additionalLabel.frame = NSRect(x: 14, y: 42 + extra, width: 312, height: additionalHeight)
     }
-    @objc func togglePopover() {
+    @objc func statusItemClicked() {
         guard let button = status.button else { return }
+        if NSApp.currentEvent?.type == .rightMouseUp {
+            popover.performClose(nil)
+            contextMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: 0), in: button)
+            return
+        }
         if popover.isShown { popover.performClose(nil) }
-        else { popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY) }
+        else {
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            if popover.isShown { startClickMonitoring() }
+        }
+    }
+    func startClickMonitoring() {
+        stopClickMonitoring()
+        let clicks: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] _ in
+            self?.popover.close()
+        }
+        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: clicks) { [weak self] event in
+            guard let self = self else { return event }
+            if event.window !== self.content.window && event.window !== self.status.button?.window {
+                self.popover.close()
+            }
+            return event
+        }
+    }
+    func stopClickMonitoring() {
+        if let monitor = globalClickMonitor { NSEvent.removeMonitor(monitor); globalClickMonitor = nil }
+        if let monitor = localClickMonitor { NSEvent.removeMonitor(monitor); localClickMonitor = nil }
+    }
+    func popoverDidClose(_ notification: Notification) { stopClickMonitoring() }
+    @objc func activeApplicationChanged(_ notification: Notification) {
+        guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+              app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
+        popover.close()
+    }
+    func applicationDidResignActive(_ notification: Notification) {
+        popover.close()
     }
     @objc func refreshNow() {
         guard !running else { return }
@@ -209,6 +244,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     func applicationWillTerminate(_ notification: Notification) {
         requestID += 1
+        stopClickMonitoring()
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
         timer?.invalidate(); ageTimer?.invalidate()
         client.cancel()
     }

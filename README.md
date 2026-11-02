@@ -1,6 +1,6 @@
 # Codex Bar
 
-A small macOS menu bar app showing remaining Codex usage. The top bar is the five-hour limit; the bottom bar is the weekly limit. A bar turns red below 20%. Click the bars to open two circular indicators showing the remaining percentages, each reset time, and the last successful update.
+A small macOS menu bar app showing remaining Codex usage. The top bar is the five-hour limit; the bottom bar is the weekly limit. A bar turns red below 20%. Click the bars to open two circular indicators showing the remaining percentages, each reset time, and the last successful update. Click outside the panel or switch to another app to close it. Right-click the bars (or use a two-finger click on a trackpad) for Refresh and Quit.
 
 The app refreshes every three minutes and can also refresh on demand. If an update fails, the bars are dimmed and the panel shows the reason and the age of the previous values. They remain dimmed while a retry is in progress. An unavailable limit is shown as unavailable. Other window durations are listed in the panel with their actual durations; they never replace the five-hour or weekly bars. Conflicting values for the same duration are reported as unavailable. Values are kept only while the app is running.
 
