@@ -83,6 +83,14 @@ Codex Bar runs `codex app-server` and reads `account/rateLimits/read`. It does n
 
 To quit, choose Quit from the context menu. Delete the app to uninstall it and remove any login item you added manually.
 
+## License
+
+Codex Bar is licensed under the [MIT License](LICENSE). Use it, change it, and share it. If it's useful to you, please say thanks and give the repository a star. Both are appreciated, but neither is required.
+
+**Español (Latinoamérica):** Codex Bar se distribuye bajo la [licencia MIT](LICENSE). Puedes usarlo, modificarlo y compartirlo. Si te resulta útil, puedes dar las gracias y dejar una estrella al repositorio. Te lo agradecemos, pero no es obligatorio. [Traducción de la licencia](docs/LICENSE.es-419.md).
+
+**Русский:** Codex Bar распространяется по [лицензии MIT](LICENSE). Приложение можно использовать, изменять и распространять. Если оно вам пригодилось, скажите спасибо и поставьте звезду репозиторию. Нам будет приятно, но это не обязательно. [Перевод лицензии](docs/LICENSE.ru.md).
+
 ## Publishing updates
 
 Sparkle 2.10.1 is downloaded from its official GitHub release and checked against the SHA-256 in `build.sh`. The appcast is `appcast.xml` on the repository's main branch. Each future release must be signed with the `codex-bar-updates` Sparkle key in the macOS login keychain. Keep a secure backup of the key: ad hoc signed builds cannot rely on Developer ID key rotation if it is lost. Never commit the private key.
