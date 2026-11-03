@@ -34,9 +34,36 @@ func snapshot(_ view: NSView, pixelScale: CGFloat = scale) -> NSImage {
     return image
 }
 
+// Writes straight (non-premultiplied) RGBA. Fully transparent pixels take the colour of the nearest
+// visible pixel in their row, so viewers that scale without premultiplying do not show a dark fringe.
 func save(_ rep: NSBitmapImageRep, _ name: String) {
-    try! rep.representation(using: .png, properties: [:])!.write(to: output.appendingPathComponent(name))
-    print("Wrote \(name) (\(rep.pixelsWide)×\(rep.pixelsHigh))")
+    let width = rep.pixelsWide, height = rep.pixelsHigh
+    let out = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: width, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 4,
+                               hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                               bitmapFormat: .alphaNonpremultiplied, bytesPerRow: width * 4, bitsPerPixel: 32)!
+    out.size = rep.size
+    let target = out.bitmapData!
+    var pixel = [Int](repeating: 0, count: 4)
+    for y in 0..<height {
+        let row = target + y * width * 4
+        for x in 0..<width {
+            rep.getPixel(&pixel, atX: x, y: y)
+            let alpha = pixel[3]
+            for c in 0..<3 { row[x * 4 + c] = UInt8(alpha == 0 ? 0 : min(255, pixel[c] * 255 / alpha)) }
+            row[x * 4 + 3] = UInt8(alpha)
+        }
+        for pass in [Array(0..<width), Array((0..<width).reversed())] {
+            var last: Int?
+            for x in pass {
+                if row[x * 4 + 3] > 0 { last = x }
+                else if let source = last, pass.first == 0 || row[x * 4] == 0 && row[x * 4 + 1] == 0 && row[x * 4 + 2] == 0 {
+                    for c in 0..<3 { row[x * 4 + c] = row[source * 4 + c] }
+                }
+            }
+        }
+    }
+    try! out.representation(using: .png, properties: [:])!.write(to: output.appendingPathComponent(name))
+    print("Wrote \(name) (\(width)×\(height))")
 }
 
 func label(_ value: String, at point: NSPoint, width: CGFloat, size: CGFloat, weight: NSFont.Weight = .regular, color: NSColor, alignment: NSTextAlignment = .center) {
@@ -75,16 +102,17 @@ func panel(_ theme: PanelTheme, appearance: NSAppearance) -> NSView {
 // Draws a panel image as a floating popover: rounded corners, hairline border and soft shadow.
 func drawFloating(_ image: NSImage, in rect: NSRect, dark: Bool, radius: CGFloat = 12) {
     let shape = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
+    // The shadow comes from the clipped panel itself, so no dark underlay shows through its antialiased corners.
     NSGraphicsContext.saveGraphicsState()
     let shadow = NSShadow()
     shadow.shadowColor = NSColor.black.withAlphaComponent(dark ? 0.55 : 0.22)
     shadow.shadowBlurRadius = 22; shadow.shadowOffset = NSSize(width: 0, height: -8)
     shadow.set()
-    NSColor.black.setFill(); shape.fill()
-    NSGraphicsContext.restoreGraphicsState()
-    NSGraphicsContext.saveGraphicsState()
+    let context = NSGraphicsContext.current!.cgContext
+    context.beginTransparencyLayer(auxiliaryInfo: nil)
     shape.addClip()
     image.draw(in: rect)
+    context.endTransparencyLayer()
     NSGraphicsContext.restoreGraphicsState()
     (dark ? NSColor.white.withAlphaComponent(0.14) : NSColor.black.withAlphaComponent(0.10)).setStroke()
     let border = NSBezierPath(roundedRect: rect.insetBy(dx: 0.25, dy: 0.25), xRadius: radius, yRadius: radius)
@@ -167,7 +195,7 @@ func renderMenuBar() {
                 NSGraphicsContext.saveGraphicsState()
                 shape.addClip()
                 wallpaper(capsule.insetBy(dx: -40, dy: -40), dark: dark)
-                menuBarColor(dark).setFill(); capsule.fill()
+                menuBarColor(dark).setFill(); capsule.fill(using: .sourceOver)
                 NSGraphicsContext.restoreGraphicsState()
                 (dark ? NSColor.white.withAlphaComponent(0.12) : NSColor.black.withAlphaComponent(0.08)).setStroke()
                 shape.lineWidth = 1; shape.stroke()
@@ -186,13 +214,11 @@ func renderHero() {
         let view = panel(.classic, appearance: appearance)
         let image = snapshot(view)
         let item = snapshot(statusItem([72, 46], appearance: appearance))
-        let rep = render(size, appearance: appearance) {
-            let frame = NSRect(origin: .zero, size: size)
-            let window = NSBezierPath(roundedRect: frame, xRadius: 18, yRadius: 18)
-            window.addClip()
+        let frame = NSRect(origin: .zero, size: size)
+        let scene = render(size, appearance: appearance) {
             wallpaper(frame, dark: dark)
             let menuBar = NSRect(x: 0, y: size.height - bar, width: size.width, height: bar)
-            menuBarColor(dark).setFill(); menuBar.fill()
+            menuBarColor(dark).setFill(); menuBar.fill(using: .sourceOver)
             // Right side of the menu bar: Limitwick, generic system items and the clock.
             var x = size.width - 16
             let clock = "Tue Nov 3  9:41"
@@ -216,6 +242,11 @@ func renderHero() {
             // Product name on the left half.
             label("Limitwick", at: NSPoint(x: 48, y: 142), width: 380, size: 40, weight: .bold, color: dark ? .white : NSColor(white: 0.08, alpha: 1), alignment: .left)
             label("Codex and Claude Code limits\nright in your menu bar.", at: NSPoint(x: 50, y: 74), width: 380, size: 19, color: dark ? NSColor(white: 1, alpha: 0.78) : NSColor(white: 0.1, alpha: 0.72), alignment: .left)
+        }
+        // Round the finished opaque scene in one pass, so the corners antialias against a single layer.
+        let rep = render(size, appearance: appearance) {
+            NSBezierPath(roundedRect: frame, xRadius: 18, yRadius: 18).addClip()
+            scene.draw(in: frame)
         }
         save(rep, "hero-\(name).png")
     }
