@@ -333,7 +333,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         stopClickMonitoring()
         let clicks: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
         globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] _ in
-            self?.popover.close()
+            guard let self = self, self.settingsWindow?.isVisible != true else { return }
+            self.popover.close()
         }
         localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [clicks, .keyDown]) { [weak self] event in
             guard let self = self else { return event }
@@ -341,7 +342,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 if event.keyCode == 53 { self.popover.close(); return nil }
                 return event
             }
-            if event.window !== self.content.window && event.window !== self.status.button?.window {
+            if self.settingsWindow?.isVisible != true && event.window !== self.content.window && event.window !== self.status.button?.window {
                 self.popover.close()
             }
             return event
@@ -354,11 +355,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     func popoverDidClose(_ notification: Notification) { stopClickMonitoring() }
     @objc func activeApplicationChanged(_ notification: Notification) {
         guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
-              app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
+              app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
+              settingsWindow?.isVisible != true else { return }
         popover.close()
     }
     func applicationDidResignActive(_ notification: Notification) {
-        popover.close()
+        if settingsWindow?.isVisible != true { popover.close() }
     }
     func applyTheme() {
         themeView?.removeFromSuperview()
