@@ -35,6 +35,8 @@ final class ActivityMonitor {
     private let directory: URL
     var onChange: ((ActivityDisplay?) -> Void)?
     private var shown: ActivityDisplay?
+    private(set) var lastEvent: TimeInterval?
+    static var codexHome: URL { ProcessInfo.processInfo.environment["CODEX_HOME"].map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex") }
 
     init(base: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches/Limitwick/Activity", isDirectory: true)) {
         directory = base.appendingPathComponent("listener-\(getpid())", isDirectory: true)
@@ -51,6 +53,11 @@ final class ActivityMonitor {
         turns.removeAll(); completedUntil = 0; shown = nil
         try? FileManager.default.removeItem(at: directory)
     }
+    // Matches the marker that activity-setup.py uses to find its own handlers.
+    static func hooksInstalled(home: URL = codexHome) -> Bool {
+        guard let text = try? String(contentsOf: home.appendingPathComponent("hooks.json"), encoding: .utf8) else { return false }
+        return text.contains("/useAnimations/activity-hook.py")
+    }
     private func writerIsAlive(_ path: String) -> Bool {
         let fd = open(path, O_RDONLY | O_CLOEXEC)
         guard fd >= 0 else { return false }
@@ -65,6 +72,7 @@ final class ActivityMonitor {
             if let data = try? Data(contentsOf: url), data.count < 4096, let event = try? JSONDecoder().decode(ActivityEvent.self, from: data), abs(event.time - now) < 30 { incoming.append(event) }
             try? FileManager.default.removeItem(at: url)
         }
+        if let latest = incoming.map(\.time).max() { lastEvent = max(lastEvent ?? 0, latest) }
         for event in incoming.sorted(by: { $0.time < $1.time }) {
             guard UUID(uuidString: event.session) != nil, UUID(uuidString: event.turn) != nil, event.home.hasPrefix("/"), !event.home.contains("\0") else { continue }
             let key = event.session + ":" + event.turn

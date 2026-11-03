@@ -70,7 +70,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
     let notices = UNUserNotificationCenter.current()
     var noticeStatus = NSTextField(wrappingLabelWithString: "")
     var lowToggle: NSButton?
-    var claudeHookStatus: NSTextField?
+    var hookStatus: NSTextField?
     var resetToggle: NSButton?
     lazy var noticeService = NoticeService(settings: settings, authorize: { [weak self] completion in
         self?.notices.getNotificationSettings { status in
@@ -320,11 +320,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         layoutStatusBars()
         activityIcon.show(settings.providers.includesCodex ? activityState : nil)
         updateStatusAccessibility()
+        hookStatus?.stringValue = hookStatusText
     }
     func showClaudeActivity(_ state: ActivityDisplay?) {
         claudeActivityState = state
         layoutStatusBars(); claudeActivityIcon.show(settings.providers.includesClaude ? state : nil); updateStatusAccessibility()
-        claudeHookStatus?.stringValue = claudeHookStatusText
+        hookStatus?.stringValue = hookStatusText
     }
     @objc func accessibilityDisplayChanged(_ notification: Notification) { activityIcon.show(activityState); claudeActivityIcon.show(claudeActivityState) }
     func checkUpdateInformation() {

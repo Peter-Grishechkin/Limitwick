@@ -91,9 +91,9 @@ extension AppDelegate {
             noticeStatus.widthAnchor.constraint(equalToConstant: 372).isActive = true
             let openSettings = NSButton(title: "Notification Settings…", target: self, action: #selector(openNotificationSettings))
             let activityToggle = NSButton(checkboxWithTitle: "Show \(settingsProvider.capitalized) activity in menu bar", target: self, action: #selector(activitySettingChanged(_:)))
-            // Claude activity needs hooks; without them the box stays clear, and checking it installs them.
-            let activityWorks = settingsProvider == "codex" || ClaudeActivityMonitor.hooksInstalled()
-            activityToggle.state = settings.activityEnabled(for: settingsProvider) && activityWorks ? .on : .off
+            // Activity needs hooks; without them the box stays clear, and checking it installs them.
+            let hooksInstalled = hooksInstalled(for: settingsProvider)
+            activityToggle.state = settings.activityEnabled(for: settingsProvider) && hooksInstalled ? .on : .off
             var items = [heading("AI services"), row("Show limits", providerPicker)] as [NSView]
             if settings.providers.includesClaude { items += [claudeSetup, claudeButton] }
             if settings.providers == .both { items.append(row("Settings for", editPicker)) }
@@ -105,15 +105,14 @@ extension AppDelegate {
                 warning.font = .systemFont(ofSize: 11); warning.tag = 902; warning.widthAnchor.constraint(equalToConstant: 372).isActive = true
                 items = [heading("Other copies"), warning, NSButton(title: "Show in Finder", target: self, action: #selector(revealOtherCopies))] + items
             }
-            if settingsProvider == "claude" {
-                let help = NSTextField(wrappingLabelWithString: claudeHookStatusText)
-                help.font = .systemFont(ofSize: 11); help.tag = 902; help.widthAnchor.constraint(equalToConstant: 372).isActive = true
-                claudeHookStatus = help
-                let button = ClaudeActivityMonitor.hooksInstalled()
-                    ? NSButton(title: "Remove Claude hooks", target: self, action: #selector(removeClaudeHooks))
-                    : NSButton(title: "Install Claude hooks", target: self, action: #selector(installClaudeHooks))
-                items += [help, button]
-            }
+            let help = NSTextField(wrappingLabelWithString: hookStatusText)
+            help.font = .systemFont(ofSize: 11); help.tag = 902; help.widthAnchor.constraint(equalToConstant: 372).isActive = true
+            hookStatus = help
+            let name = settingsProvider.capitalized
+            let hookButton = hooksInstalled
+                ? NSButton(title: "Remove \(name) hooks", target: self, action: #selector(removeHooks))
+                : NSButton(title: "Install \(name) hooks", target: self, action: #selector(installHooks))
+            items += [help, hookButton]
             items += [heading("Low quota" + scope), row("Warn below", thresholdControl), thresholdHelp, heading("Notifications" + scope), low, reset, noticeStatus, openSettings]
             let content = stack(items, spacing: 12)
             content.setCustomSpacing(22, after: activityToggle)
@@ -130,7 +129,7 @@ extension AppDelegate {
     }
     func reloadSettingsWindow() {
         if let surface = settingsWindow?.contentView { themeSurfaces.removeAll { $0 === surface } }
-        settingsWindow?.close(); settingsWindow = nil; claudeHookStatus = nil; showSettings()
+        settingsWindow?.close(); settingsWindow = nil; hookStatus = nil; showSettings()
     }
     var otherCopies: [URL] {
         // Copies under the pre-2.0 bundle ID still add their widgets to the gallery.
@@ -150,8 +149,7 @@ extension AppDelegate {
             running.filter { !$0.isTerminated }.forEach { $0.forceTerminate() }
             // Hooks are moved off the old bundles first, so open sessions do not call a missing script.
             if ClaudeActivityMonitor.hooksInstalled() { _ = self.claudeHookSetup("refresh") }
-            let codexHome = ProcessInfo.processInfo.environment["CODEX_HOME"].map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex")
-            let codexHooks = (try? String(contentsOf: codexHome.appendingPathComponent("hooks.json"), encoding: .utf8)) ?? ""
+            let codexHooks = (try? String(contentsOf: ActivityMonitor.codexHome.appendingPathComponent("hooks.json"), encoding: .utf8)) ?? ""
             let codexMoved = hooksUseBundles(codexHooks, copies, script: "activity-hook.py") && self.runHookScript("activity-setup.py", "install") == nil
             var removed: [URL] = []
             for url in copies {
@@ -180,10 +178,14 @@ extension AppDelegate {
         if (try? process.run()) != nil { process.waitUntilExit() }
     }
     @objc func revealOtherCopies() { NSWorkspace.shared.activateFileViewerSelecting(otherCopies) }
-    var claudeHookStatusText: String {
-        guard ClaudeActivityMonitor.hooksInstalled() else { return "Claude Code hooks are not installed. Install them to show Claude Code activity in the menu bar." }
-        if !settings.activityEnabled(for: "claude") { return "Claude Code hooks are installed. Turn on activity above to show it in the menu bar." }
-        if claudeActivity.lastEvent != nil { return "Claude Code hooks are installed. Receiving activity from Claude Code." }
+    func hooksInstalled(for provider: String) -> Bool { provider == "codex" ? ActivityMonitor.hooksInstalled() : ClaudeActivityMonitor.hooksInstalled() }
+    // Describes the hooks of the provider whose settings are shown.
+    var hookStatusText: String {
+        let codex = settingsProvider == "codex", name = codex ? "Codex" : "Claude Code"
+        guard hooksInstalled(for: settingsProvider) else { return "\(name) hooks are not installed. Install them to show \(name) activity in the menu bar." }
+        if !settings.activityEnabled(for: settingsProvider) { return "\(name) hooks are installed. Turn on activity above to show it in the menu bar." }
+        if (codex ? activity.lastEvent : claudeActivity.lastEvent) != nil { return "\(name) hooks are installed. Receiving activity from \(name)." }
+        if codex { return "Codex hooks are installed. Waiting for activity: trust them in Codex Settings → Hooks or with /hooks in the Codex CLI, then restart open Codex sessions." }
         return "Claude Code hooks are installed. Waiting for activity: it appears in Claude Code sessions started after installation."
     }
     // Opens Terminal with the official installer when needed, then starts Claude Code to sign in.
@@ -198,8 +200,8 @@ extension AppDelegate {
             NSWorkspace.shared.open(script)
         } catch { NSWorkspace.shared.open(URL(string: "https://code.claude.com")!) }
     }
-    @objc func installClaudeHooks() { runClaudeHookSetup("install") }
-    @objc func removeClaudeHooks() { runClaudeHookSetup("remove") }
+    @objc func installHooks() { runHookSetup("install", for: settingsProvider) }
+    @objc func removeHooks() { runHookSetup("remove", for: settingsProvider) }
     // Returns an error description, or nil on success.
     func claudeHookSetup(_ action: String) -> String? { runHookScript("claude-activity-setup.py", action) }
     func runHookScript(_ script: String, _ action: String) -> String? {
@@ -217,18 +219,22 @@ extension AppDelegate {
         guard ClaudeActivityMonitor.hooksInstalled() else { return }
         DispatchQueue.global(qos: .utility).async { [weak self] in _ = self?.claudeHookSetup("refresh") }
     }
-    @discardableResult func runClaudeHookSetup(_ action: String) -> Bool {
-        let failure = claudeHookSetup(action)
+    @discardableResult func runHookSetup(_ action: String, for provider: String) -> Bool {
+        let codex = provider == "codex", name = codex ? "Codex" : "Claude"
+        let failure = codex ? runHookScript("activity-setup.py", action) : claudeHookSetup(action)
         let alert = NSAlert()
         if let failure = failure {
-            alert.messageText = "Could not update Claude hooks"; alert.informativeText = failure
+            alert.messageText = "Could not update \(name) hooks"; alert.informativeText = failure
         } else if action == "install" {
-            alert.messageText = "Claude hooks installed"
-            alert.informativeText = "Activity appears in Claude Code sessions started from now on. To include a session that is already open, type /exit in it, then run claude --continue to resume the conversation."
-            settings.setActivityEnabled(true, for: "claude"); claudeActivity.start()
+            alert.messageText = "\(name) hooks installed"
+            alert.informativeText = codex
+                ? "Codex runs new hooks only after you trust them: open Codex Settings → Hooks, or type /hooks in the Codex CLI. Then restart open Codex sessions."
+                : "Activity appears in Claude Code sessions started from now on. To include a session that is already open, type /exit in it, then run claude --continue to resume the conversation."
+            settings.setActivityEnabled(true, for: provider)
+            if codex { activity.start() } else { claudeActivity.start() }
         } else {
-            alert.messageText = "Claude hooks removed"
-            alert.informativeText = "New Claude Code sessions no longer send activity. Sessions that are already open stop after they are restarted."
+            alert.messageText = "\(name) hooks removed"
+            alert.informativeText = "New \(codex ? "Codex" : "Claude Code") sessions no longer send activity. Sessions that are already open stop after they are restarted."
         }
         alert.runModal()
         reloadSettingsWindow()
@@ -260,15 +266,16 @@ extension AppDelegate {
     @objc func activitySettingChanged(_ sender: NSButton) {
         let enabled = sender.state == .on
         settings.setActivityEnabled(enabled, for: settingsProvider)
+        if enabled && !hooksInstalled(for: settingsProvider) {
+            // Installing here means hooks exist before the next session starts.
+            guard runHookSetup("install", for: settingsProvider) else { settings.setActivityEnabled(false, for: settingsProvider); reloadSettingsWindow(); return }
+        }
         if settingsProvider == "codex" {
             if enabled { activity.start() } else { activity.stop(); showActivity(nil) }
         } else {
-            if enabled && !ClaudeActivityMonitor.hooksInstalled() {
-                // Installing here means hooks exist before the next Claude Code session starts.
-                guard runClaudeHookSetup("install") else { settings.setActivityEnabled(false, for: "claude"); reloadSettingsWindow(); return }
-            }
             if enabled { claudeActivity.start() } else { claudeActivity.stop(); showClaudeActivity(nil) }
         }
+        hookStatus?.stringValue = hookStatusText
     }
     var noticeThreshold: Int {
         settings.threshold(for: activeProvider)

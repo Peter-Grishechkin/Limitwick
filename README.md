@@ -196,13 +196,17 @@ To uninstall, click **Remove Claude hooks**. Only Limitwick's own entries are ad
 
 ### Codex
 
-The Codex activity checkbox is on by default, but Codex hooks are installed with a Terminal command. Run it after installing the app in Applications:
+1. In **Settings**, choose **Codex** under **Show limits**, or set **Settings for** to **Codex** when both services are shown.
+2. Turn on **Show Codex activity in menu bar**. The box stays clear until the hooks are installed; checking it installs them and confirms. You can also use the **Install Codex hooks** button.
+3. Review and trust the new hooks in **Codex Settings → Hooks** or with `/hooks` in the Codex CLI, then restart Codex sessions. Codex does not run hooks that have not been trusted.
+
+The text below the checkbox shows the same statuses as for Claude Code. *Waiting for activity* means the hooks are installed but no events have arrived yet: trust them in Codex and start a new session.
+
+To uninstall, click **Remove Codex hooks**. Only Limitwick's own entries are added to or removed from `~/.codex/hooks.json` (or `$CODEX_HOME/hooks.json`). The hooks call a script inside the app, so if you move the app, remove and install them again from the new copy. You can also install them from Terminal:
 
 ```sh
 /usr/bin/python3 '/Applications/Limitwick.app/Contents/Resources/useAnimations/activity-setup.py' install
 ```
-
-Next, review and trust the new hooks in **Codex Settings → Hooks** or with `/hooks` in the Codex CLI, then restart Codex sessions. Codex does not run hooks that have not been trusted. To remove them, run the same command with `remove` instead of `install`. If you move the app, run the command again from the new location.
 
 See [how Limitwick works](docs/DETAILS.md) for the limits of activity detection.
 
@@ -303,7 +307,7 @@ Limitwick checks for new versions quietly at launch and once a day. When an upda
 | **Bars are dimmed** | The last refresh failed, so the previous values are shown. The panel dims that service's indicators too and shows the error and how old the data is under its name. |
 | **A limit is missing** | The service did not report that limit. Reset times appear only when the service provides them. |
 | **No activity animation for Claude** | Check the status text on the Claude settings in **Settings**. Install the hooks if needed and start a new Claude Code session. |
-| **No activity animation for Codex** | Make sure the hooks are installed and trusted in Codex, and that the session was started after they were trusted. |
+| **No activity animation for Codex** | Check the status text on the Codex settings in **Settings**. Install the hooks if needed, trust them in Codex, and start a new Codex session. |
 | **Widget gallery shows old widgets after an update** | Another copy of the app, for example a second **Limitwick.app** or **CodexBar.app** in Downloads or Applications, can supply its old widgets. **Settings** lists such copies under **Other copies**. Keep one copy in Applications, move the rest to the Trash, empty the Trash, and log out and back in. Then remove the old widget from the desktop and add a new one from the gallery. |
 | **No notifications** | Turn on the notification type in Settings and allow alerts in **Notification Settings…**. |
 | **macOS blocks the app** | Allow it in **System Settings → Privacy & Security**. The app is not notarized by Apple. |

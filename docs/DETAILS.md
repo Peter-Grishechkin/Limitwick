@@ -28,9 +28,9 @@ The app does not ask for your password or store credentials. Codex contacts Open
 
 ## Codex activity indicator
 
-Limitwick can show activity to the left of its quota bars. Turn it on or off with “Show Codex activity in menu bar” in Settings; it is on by default. Turning it off stops the listener and hides the indicator, but leaves installed Codex hooks in place. This optional integration uses Codex lifecycle hooks. It shows a loading animation while a detected turn is working, a terminal animation while a supported tool is running, and a checkmark briefly when all detected turns have stopped. These events do not establish when an answer is being streamed or whether every kind of user input is pending, so the edit and alert animations are not used yet.
+Limitwick can show activity to the left of its quota bars. Turn it on or off with “Show Codex activity in menu bar” in Settings; it is on by default, but the box stays clear until the hooks are installed, and checking it installs them. Install Codex hooks and Remove Codex hooks run the setup script below; the text under the checkbox shows whether hooks are installed and whether events have arrived. Turning it off stops the listener and hides the indicator, but leaves installed Codex hooks in place. This optional integration uses Codex lifecycle hooks. It shows a loading animation while a detected turn is working, a terminal animation while a supported tool is running, and a checkmark briefly when all detected turns have stopped. These events do not establish when an answer is being streamed or whether every kind of user input is pending, so the edit and alert animations are not used yet.
 
-To enable the integration, run the following command after installing the app in `/Applications` (adjust the app name if needed):
+To install the hooks from Terminal instead, run the following command after installing the app in `/Applications` (adjust the app name if needed):
 
 ```sh
 /usr/bin/python3 '/Applications/Limitwick.app/Contents/Resources/useAnimations/activity-setup.py' install

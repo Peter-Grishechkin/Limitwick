@@ -61,6 +61,12 @@ import Lottie
         precondition(displayed == nil)
         try send("UserPromptSubmit", session1, turn1); precondition(displayed == .working)
         flock(fd1, LOCK_UN); monitor.poll(now: now + 4.1); precondition(displayed == nil)
+        precondition(monitor.lastEvent != nil)
+        precondition(!ActivityMonitor.hooksInstalled(home: home))
+        try #"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/usr/bin/python3 /Applications/Limitwick.app/Contents/Resources/useAnimations/claude-activity-hook.py"}]}]}}"#.write(to: home.appendingPathComponent("hooks.json"), atomically: true, encoding: .utf8)
+        precondition(!ActivityMonitor.hooksInstalled(home: home))
+        try #"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/usr/bin/python3 /Applications/Limitwick.app/Contents/Resources/useAnimations/activity-hook.py"}]}]}}"#.write(to: home.appendingPathComponent("hooks.json"), atomically: true, encoding: .utf8)
+        precondition(ActivityMonitor.hooksInstalled(home: home))
         let claudeBase = root.appendingPathComponent("claude")
         let claude = ClaudeActivityMonitor(base: claudeBase)
         var claudeShown: ActivityDisplay?
