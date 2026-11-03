@@ -2,6 +2,17 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Codex Bar 1.9.1</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Refresh the desktop widget using the current theme when Codex Bar starts, and retain available previous values while fresh limits load.
+- Make the widget image fill its available space and reduce visible borders.
+- Isolate local development builds and widgets from the installed app to avoid conflicting identifiers and shared data.&lt;/div&gt;</description>
+      <sparkle:version>1.9.1</sparkle:version>
+      <sparkle:shortVersionString>1.9.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 04:17:51 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/codex-bar/releases/download/v1.9.1/CodexBar-1.9.1-macOS-Apple-Silicon.zip" sparkle:edSignature="KsUAU1qGLfLNYKr1/So69f33RacUWqfgzEZ0I6BeYZfOQs62Vwk7WXjTfDmdomlePXEAir5CZb97zJV/Os/gAA==" length="1436309" type="application/octet-stream" />
+    </item>
+    <item>
       <title>Codex Bar 1.9.0</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Check for compatible updates quietly at launch and once a day, without automatic update pop-ups.
 - Highlight available updates in the context menu and show the version; selecting it opens Sparkle&amp;#x27;s update window.
