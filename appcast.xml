@@ -2,6 +2,16 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Codex Bar 1.7.2</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Show the release&amp;#x27;s Changes in the update window before installation.
+- Include the GitHub release notes in the update feed when preparing future releases.&lt;/div&gt;</description>
+      <sparkle:version>1.7.2</sparkle:version>
+      <sparkle:shortVersionString>1.7.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Mon, 02 Nov 2026 23:59:52 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/codex-bar/releases/download/v1.7.2/CodexBar-1.7.2-macOS-Apple-Silicon.zip" sparkle:edSignature="g6gPfWBag2bSF7uiIBEFpdDMsRTDW18djV9X8F7uuON9LHVh2xV4+YhIbaD3tdDH2S50qua5OzgNAcLrUp1KAQ==" length="1289837" type="application/octet-stream" />
+    </item>
+    <item>
       <title>Codex Bar 1.7.1</title>
       <sparkle:version>1.7.1</sparkle:version>
       <sparkle:shortVersionString>1.7.1</sparkle:shortVersionString>
