@@ -2,6 +2,20 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.1.1</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Codex activity: Settings now shows whether Codex hooks are installed and whether activity is arriving, with Install Codex hooks and Remove Codex hooks buttons. The Codex activity box stays clear until the hooks are installed; checking it installs them. Previously the box looked enabled even without hooks, and the menu bar showed no activity.
+- After installing Codex hooks, trust them in Codex Settings → Hooks or with `/hooks` in the Codex CLI, then restart open Codex sessions. Codex does not run hooks that have not been trusted.&lt;/div&gt;</description>
+      <sparkle:version>2.1.1</sparkle:version>
+      <sparkle:shortVersionString>2.1.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 22:44:08 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.1.1/Limitwick-2.1.1-macOS-Apple-Silicon.zip" sparkle:edSignature="wUZvbRYtMdAeqdzcx+WTzJnHlq6z34uk4bRNK0cSw6NzQPk2we1xDSxoP5MfqxSEQfHHUSu/KoIbQgFdXTPUDA==" length="3887117" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.1.1</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.1.0</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Red now means only one thing: the remaining quota is below your warning threshold. Themes that used red or orange for the weekly limit use calmer colors instead: blue in Industrial, teal in Capsules, the theme&amp;#x27;s main color in Dot Matrix and Paper.
 - When a refresh fails, the panel, Picture-in-Picture window and widgets dim the previous values, as the menu bar already did. With both services shown, the error and the age of the data appear right under the service name.
