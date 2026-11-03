@@ -15,6 +15,14 @@ Codex Bar is a macOS menu bar app that shows your remaining Codex usage. The upp
 
 The app requires macOS 13 or later. The desktop widget requires macOS 14 or later. The release is locally signed and not notarized by Apple, so macOS may show a security warning. Use Privacy & Security settings to open an app you trust.
 
+### Install with Codex
+
+You can ask Codex to install the app for you. Paste this prompt into Codex:
+
+```text
+Install Codex Bar from https://github.com/frankydzoro/codex-bar. Check that my Mac meets the requirements and that Codex CLI is installed and signed in. Download the Apple Silicon archive from the latest GitHub release, install CodexBar.app in Applications, open it, and verify that it launched. If a step needs my input or macOS blocks the app, explain what I need to do.
+```
+
 ## Use
 
 Click the menu bar indicator to open the panel. Right-click it (or click with two fingers on a trackpad) for Refresh, Picture-in-Picture, Settings, Check for Updates, and Quit. Settings contains the appearance and notification options. Notifications are off by default; the warning threshold defaults to 20% and also controls indicator colors.
