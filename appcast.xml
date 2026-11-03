@@ -2,6 +2,19 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.0.1</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Fixed Claude limits not loading after the update to 2.0.0. Limitwick runs Claude Code in a new folder, and Claude Code asks whether to trust it. Claude Code could reset the answer to &amp;quot;No, exit&amp;quot; right after showing the question, so Limitwick waited until the timeout. Limitwick now repeats the selection until &amp;quot;Yes, I trust this folder&amp;quot; is chosen.&lt;/div&gt;</description>
+      <sparkle:version>2.0.1</sparkle:version>
+      <sparkle:shortVersionString>2.0.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 19:36:01 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.0.1/Limitwick-2.0.1-macOS-Apple-Silicon.zip" sparkle:edSignature="MP6fe4NVfpgvURkUcgnRn/f7gEj3Me4uHc9EIj8+meS0k0OUb8ywk6PZGpezfmBYJC8TXDUjH1J2/OdusjIZDg==" length="3872772" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.0.1</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.0.0</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Limitwick no longer uses the CodexBar identifiers. The bundle ID, app group, widget extension and storage folders now use the Limitwick name.
 - Because the bundle ID changed, Limitwick 2.0 installs as a new app. Version 1.x shows an update notice that links to this page instead of installing it.
