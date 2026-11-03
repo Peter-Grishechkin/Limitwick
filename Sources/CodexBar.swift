@@ -799,16 +799,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if wakePending { wakePending = false; refreshNow() } else { scheduleRefresh(after: interval) }
     }
     func publishWidgetSnapshot() {
-        // Render the same views used by the popup, so every theme stays in sync.
-        content.layoutSubtreeIfNeeded()
-        let bounds = content.bounds
+        // Render specifically for the medium widget; the popup can grow independently.
+        let summary = "\(describe("5 hours", lastQuota?.fiveHour)). \(describe("Week", lastQuota?.weekly)). \(state)"
+        let widget = WidgetThemeView(theme: selectedTheme,
+            data: ThemeData(fiveHour: lastQuota?.fiveHour?.remaining, weekly: lastQuota?.weekly?.remaining,
+                            fiveReset: resetDescription(lastQuota?.fiveHour), weekReset: resetDescription(lastQuota?.weekly),
+                            accessibility: summary, warningThreshold: noticeThreshold),
+            previous: stale || lastQuota == nil, appearance: content.effectiveAppearance)
+        let bounds = widget.bounds
         var image: Data?
-        if bounds.width > 0, bounds.height > 0,
-           let bitmap = content.bitmapImageRepForCachingDisplay(in: bounds) {
-            content.cacheDisplay(in: bounds, to: bitmap)
+        if let bitmap = widget.bitmapImageRepForCachingDisplay(in: bounds) {
+            widget.cacheDisplay(in: bounds, to: bitmap)
             image = bitmap.representation(using: .png, properties: [:])
         }
-        let summary = "\(describe("5 hours", lastQuota?.fiveHour)). \(describe("Week", lastQuota?.weekly)). \(state)"
         WidgetSnapshot(five: lastQuota?.fiveHour?.remaining, week: lastQuota?.weekly?.remaining,
                        fiveReset: lastQuota?.fiveHour?.reset, weekReset: lastQuota?.weekly?.reset,
                        updated: lastUpdate, stale: stale || lastQuota == nil, threshold: noticeThreshold,

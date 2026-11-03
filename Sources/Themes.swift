@@ -120,7 +120,7 @@ final class DotThemeView: ThemeView {
     override var preferredContentHeight: CGFloat { 186 + extraReset }
     override var palette: ThemePalette { dark ? ThemePalette(background: .black, surface: .init(white: 0.10, alpha: 1), text: .white, secondary: .init(white: 0.72, alpha: 1), track: .init(white: 0.27, alpha: 1), accent: .white, second: .systemRed) : ThemePalette(background: .init(white: 0.92, alpha: 1), surface: .white, text: .black, secondary: .init(white: 0.34, alpha: 1), track: .init(white: 0.81, alpha: 1), accent: .black, second: .systemRed) }
     // Three-by-five dot glyphs are rendered locally; no external font is needed.
-    private let glyphs: [Character: [String]] = ["0":["111","101","101","101","111"],"1":["010","110","010","010","111"],"2":["111","001","111","100","111"],"3":["111","001","111","001","111"],"4":["101","101","111","001","001"],"5":["111","100","111","001","111"],"6":["111","100","111","101","111"],"7":["111","001","010","010","010"],"8":["111","101","111","101","111"],"9":["111","101","111","001","111"],"%":["101","001","010","100","101"],"—":["000","000","111","000","000"]]
+    let glyphs: [Character: [String]] = ["0":["111","101","101","101","111"],"1":["010","110","010","010","111"],"2":["111","001","111","100","111"],"3":["111","001","111","001","111"],"4":["101","101","111","001","001"],"5":["111","100","111","001","111"],"6":["111","100","111","101","111"],"7":["111","001","010","010","010"],"8":["111","101","111","101","111"],"9":["111","101","111","001","111"],"%":["101","001","010","100","101"],"—":["000","000","111","000","000"]]
     override func draw(_ dirtyRect: NSRect) {
         background(); let p = palette
         NSGraphicsContext.saveGraphicsState()
