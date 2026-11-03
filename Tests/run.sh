@@ -4,6 +4,10 @@ cd "$(dirname "$0")/.."
 mkdir -p build/module-cache
 swiftc -module-cache-path "$PWD/build/module-cache" Sources/QuotaClient.swift Sources/P1Support.swift Tests/QuotaTests.swift -o build/quota-tests
 build/quota-tests "$PWD/Tests/fake-codex"
+swiftc -module-cache-path "$PWD/build/module-cache" Sources/QuotaClient.swift Sources/P1Support.swift Sources/RefreshCoordinator.swift Tests/RefreshCoordinatorTests.swift -o build/refresh-tests
+build/refresh-tests
+swiftc -module-cache-path "$PWD/build/module-cache" Sources/QuotaClient.swift Sources/P1Support.swift Sources/AppSettings.swift Sources/NoticeService.swift Tests/NoticeServiceTests.swift -o build/notice-tests
+build/notice-tests
 
 swiftc -module-cache-path "$PWD/build/module-cache" Widget/SharedSnapshot.swift Tests/WidgetSnapshotTests.swift -o build/widget-snapshot-tests
 build/widget-snapshot-tests

@@ -54,7 +54,7 @@ fi
 ditto "$SPARKLE_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 ditto "$LOTTIE_DIR/Lottie.xcframework/macos-arm64_x86_64/Lottie.framework" "$APP/Contents/Frameworks/Lottie.framework"
 ditto Resources/useAnimations "$APP/Contents/Resources/useAnimations"
-swiftc ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} -target "$(uname -m)-apple-macosx13.0" -module-cache-path "$PWD/build/module-cache" -F "$APP/Contents/Frameworks" -framework Sparkle -framework Lottie -Xlinker -rpath -Xlinker '@executable_path/../Frameworks' Sources/QuotaClient.swift Sources/P1Support.swift Sources/Activity.swift Sources/Themes.swift Sources/WidgetTheme.swift Widget/SharedSnapshot.swift Sources/CodexBar.swift -o "$APP/Contents/MacOS/CodexBar"
+swiftc ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} -target "$(uname -m)-apple-macosx13.0" -module-cache-path "$PWD/build/module-cache" -F "$APP/Contents/Frameworks" -framework Sparkle -framework Lottie -Xlinker -rpath -Xlinker '@executable_path/../Frameworks' Sources/QuotaClient.swift Sources/P1Support.swift Sources/AppSettings.swift Sources/NoticeService.swift Sources/RefreshCoordinator.swift Sources/Activity.swift Sources/Themes.swift Sources/WidgetTheme.swift Widget/SharedSnapshot.swift Sources/InterfaceViews.swift Sources/PanelInterface.swift Sources/ThemeInterface.swift Sources/SettingsInterface.swift Sources/MenuInterface.swift Sources/CodexBar.swift -o "$APP/Contents/MacOS/CodexBar"
 WIDGET="$APP/Contents/PlugIns/CodexWidget.appex"
 cp Widget/Info.plist "$WIDGET/Contents/Info.plist"
 if [ "$CONFIGURATION" = development ]; then

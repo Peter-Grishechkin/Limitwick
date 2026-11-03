@@ -59,6 +59,31 @@ enum QuotaParser {
     }
 }
 
+// Each client owns its connection; only process setup and message framing are shared.
+private final class AppServerConnection {
+    let process = Process()
+    let input = Pipe()
+    let output = Pipe()
+    init(path: String) {
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = ["app-server"]
+        process.standardInput = input; process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+    }
+    func send(_ object: [String: Any]) throws {
+        var data = try JSONSerialization.data(withJSONObject: object); data.append(10)
+        try input.fileHandleForWriting.write(contentsOf: data)
+    }
+    func initialize() throws {
+        try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_bar", "version": "1.7.0"]]])
+    }
+    func close() {
+        try? input.fileHandleForWriting.close()
+        try? output.fileHandleForReading.close()
+        process.waitUntilExit()
+    }
+}
+
 final class QuotaClient {
     let timeout: TimeInterval
     private let lock = NSLock()
@@ -81,11 +106,8 @@ final class QuotaClient {
     }
 
     func fetch(path: String) -> Result<Quota, Error> {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: path)
-        process.arguments = ["app-server"]
-        let input = Pipe(), output = Pipe()
-        process.standardInput = input; process.standardOutput = output; process.standardError = FileHandle.nullDevice
+        let connection = AppServerConnection(path: path)
+        let process = connection.process, output = connection.output
         lock.lock()
         if cancelled || active != nil { lock.unlock(); return .failure(QuotaError.cancelled) }
         do { try process.run(); active = process; lock.unlock() }
@@ -94,18 +116,12 @@ final class QuotaClient {
             lock.lock()
             if process.isRunning { kill(process.processIdentifier, SIGKILL) }
             lock.unlock()
-            try? input.fileHandleForWriting.close()
-            try? output.fileHandleForReading.close()
-            process.waitUntilExit()
+            connection.close()
             lock.lock(); active = nil; lock.unlock()
         }
         let deadline = ProcessInfo.processInfo.systemUptime + max(0, timeout)
-        func send(_ json: [String: Any]) throws {
-            var data = try JSONSerialization.data(withJSONObject: json); data.append(10)
-            try input.fileHandleForWriting.write(contentsOf: data)
-        }
         do {
-            try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_bar", "version": "1.7.0"]]])
+            try connection.initialize()
             var buffer = Data()
             var totalBytes = 0
             var initialized = false
@@ -134,8 +150,8 @@ final class QuotaClient {
                     if !initialized {
                         guard obj["result"] != nil else { throw QuotaError.invalidResponse }
                         initialized = true
-                        try send(["method": "initialized", "params": [:]])
-                        try send(["id": 2, "method": "account/rateLimits/read"])
+                        try connection.send(["method": "initialized", "params": [:]])
+                        try connection.send(["id": 2, "method": "account/rateLimits/read"])
                     } else {
                         guard let result = obj["result"] as? [String: Any] else { throw QuotaError.invalidResponse }
                         guard ProcessInfo.processInfo.systemUptime < deadline else { throw QuotaError.timeout }
@@ -182,10 +198,8 @@ final class QuotaListener {
     }
 
     private func listen(path: String, onChange: () -> Void) {
-        let child = Process(), input = Pipe(), output = Pipe()
-        child.executableURL = URL(fileURLWithPath: path)
-        child.arguments = ["app-server"]
-        child.standardInput = input; child.standardOutput = output; child.standardError = FileHandle.nullDevice
+        let connection = AppServerConnection(path: path)
+        let child = connection.process, output = connection.output
         lock.lock()
         guard !stopped else { lock.unlock(); return }
         do { try child.run(); process = child; lock.unlock() }
@@ -194,17 +208,11 @@ final class QuotaListener {
             lock.lock()
             if child.isRunning { kill(child.processIdentifier, SIGKILL) }
             lock.unlock()
-            try? input.fileHandleForWriting.close()
-            try? output.fileHandleForReading.close()
-            child.waitUntilExit()
+            connection.close()
             lock.lock(); process = nil; lock.unlock()
         }
-        func send(_ object: [String: Any]) throws {
-            var data = try JSONSerialization.data(withJSONObject: object); data.append(10)
-            try input.fileHandleForWriting.write(contentsOf: data)
-        }
         do {
-            try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_bar", "version": "1.7.0"]]])
+            try connection.initialize()
             var buffer = Data()
             var initialized = false
             let deadline = ProcessInfo.processInfo.systemUptime + 20
@@ -224,7 +232,7 @@ final class QuotaListener {
                     if !initialized, let id = object["id"] as? Int, id == 1 {
                         guard object["result"] != nil, object["error"] == nil else { return }
                         initialized = true
-                        try send(["method": "initialized", "params": [:]])
+                        try connection.send(["method": "initialized", "params": [:]])
                     } else if initialized, object["method"] as? String == "account/rateLimits/updated" {
                         onChange()
                     }
