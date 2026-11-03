@@ -1,0 +1,15 @@
+#!/bin/bash
+printf 'Claude Code ready\r\n'
+if [[ "${FAKE_CLAUDE_SCENARIO:-}" == 'login' ]]; then
+  printf 'Not authenticated. Run /login\r\n'
+  exit 0
+fi
+while IFS= read -r input; do
+  if [[ "$input" == '/usage' ]]; then
+    if [[ "${FAKE_CLAUDE_SCENARIO:-}" == 'error' ]]; then
+      printf '\033[2J\033[HFailed to load usage\r\n'
+      continue
+    fi
+    printf '\033[2J\033[HCurrent session\r\n  23%% used\r\n  Resets 11:59pm (UTC)\r\n\r\nCurrent week (all models)\r\n  41%% used\r\n  Resets Dec 3, 11:59pm (UTC)\r\n'
+  fi
+done

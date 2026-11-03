@@ -8,6 +8,7 @@ struct ThemeData {
     var weekReset: String
     var accessibility: String
     var warningThreshold: Int = 20
+    var providerName: String? = nil
 }
 
 enum PanelTheme: String, CaseIterable {
@@ -229,7 +230,7 @@ final class TerminalThemeView: ThemeView {
         let bold = NSFont.monospacedSystemFont(ofSize: 11, weight: .semibold)
         // A console readout: prompt, fixed-width rows and text-based progress bars.
         text(">", NSRect(x: 17, y: 14, width: 12, height: 18), size: 11, color: p.accent, font: bold)
-        text("CODEX / LIMITS", NSRect(x: 30, y: 14, width: 270, height: 18), size: 11, color: p.text, font: bold)
+        text("\(data.providerName?.uppercased() ?? "CODEX") / LIMITS", NSRect(x: 30, y: 14, width: 270, height: 18), size: 11, color: p.text, font: bold)
         line(NSPoint(x: 17, y: 36), NSPoint(x: 323, y: 36), p.track)
         for (i, value, reset) in [(0, data.fiveHour, data.fiveReset), (1, data.weekly, data.weekReset)] {
             let y = CGFloat(48 + i*59) + (i == 1 ? extra(data.fiveReset) : 0)

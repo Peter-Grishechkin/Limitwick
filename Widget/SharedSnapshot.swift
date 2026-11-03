@@ -19,6 +19,11 @@ struct WidgetSnapshot: Codable {
     var panelImage: Data? = nil
     var accessibility: String? = nil
     var appVersion: String? = nil
+    var provider: String? = nil
+    var claudeFive: Double? = nil
+    var claudeWeek: Double? = nil
+    var claudeFiveReset: Date? = nil
+    var claudeWeekReset: Date? = nil
 
     static func read() -> WidgetSnapshot? {
         guard let data = UserDefaults(suiteName: group)?.data(forKey: key) else { return nil }

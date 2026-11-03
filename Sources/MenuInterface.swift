@@ -22,7 +22,7 @@ extension AppDelegate {
     func showContextMenu(relativeTo button: NSView) {
         if menuPopover?.isShown == true { menuPopover?.performClose(nil); return }
         if let old = menuPopover?.contentViewController?.view as? ThemedSurface { themeSurfaces.removeAll { $0 === old } }
-        let menu = NSPopover(); menu.behavior = .transient; menu.appearance = appearanceMode.appearance
+        let menu = NSPopover(); menu.behavior = .transient; menu.appearance = nil
         let view = MenuView(); surface(view)
         let desktopTitle = desktopWindow?.isVisible == true ? "Hide Picture-in-Picture" : "Show Picture-in-Picture"
         var commands: [(String, Selector, String)] = [("Refresh", #selector(menuRefresh), "r"), (desktopTitle, #selector(toggleDesktopWindow), ""), ("Settings…", #selector(showSettings), ","), ("About Codex Bar", #selector(showAbout), "")]
@@ -84,7 +84,7 @@ extension AppDelegate {
             window.isMovableByWindowBackground = true
             window.hidesOnDeactivate = false
             window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
-            window.appearance = appearanceMode.appearance
+            window.appearance = settings.providers == .both ? nil : appearanceMode.appearance
             window.isOpaque = false
             window.backgroundColor = .clear
             window.hasShadow = true
@@ -95,7 +95,7 @@ extension AppDelegate {
                 label.font = .systemFont(ofSize: 12)
                 label.maximumNumberOfLines = 0
             }
-            for view in [desktopFive, desktopWeek, desktopState, desktopAdditional] as [NSView] { desktopContent.addSubview(view) }
+            for view in [desktopFive, desktopWeek, desktopState, desktopAdditional, multiDesktop] as [NSView] { desktopContent.addSubview(view) }
             window.contentView = desktopContent
             desktopWindow = window
             if !window.setFrameUsingName("DesktopWindow") { window.center() }
@@ -107,15 +107,27 @@ extension AppDelegate {
     }
     func syncDesktop() {
         guard let window = desktopWindow else { return }
-        desktopContent.appearance = appearanceMode.appearance
+        desktopContent.appearance = settings.providers == .both ? nil : appearanceMode.appearance
         desktopContent.layer?.backgroundColor = palette(for: desktopContent.effectiveAppearance).background.cgColor
-        desktopFive.isHidden = desktopTheme != nil; desktopWeek.isHidden = desktopTheme != nil
-        desktopFive.update(lastQuota?.fiveHour, reset: resetDescription(lastQuota?.fiveHour))
-        desktopWeek.update(lastQuota?.weekly, reset: resetDescription(lastQuota?.weekly))
+        let dual = settings.providers == .both
+        multiDesktop.isHidden = !dual
+        multiDesktop.frame = multiPanel.frame
+        if dual {
+            let height = providersDesktop.configureSeparately(presentations, systemAppearance: desktopContent.effectiveAppearance) { provider in
+                (theme(for: provider), mode(for: provider), settings.threshold(for: provider))
+            }
+            providersDesktop.frame = NSRect(x: 0, y: 0, width: 340, height: height)
+            if multiDesktop.documentView !== providersDesktop { multiDesktop.documentView = providersDesktop }
+            multiDesktop.drawsBackground = false; multiDesktop.hasVerticalScroller = true; multiDesktop.autohidesScrollers = true
+        }
+        desktopTheme?.isHidden = dual
+        desktopFive.isHidden = dual || desktopTheme != nil; desktopWeek.isHidden = dual || desktopTheme != nil
+        desktopFive.update(displayQuota?.fiveHour, reset: resetDescription(displayQuota?.fiveHour))
+        desktopWeek.update(displayQuota?.weekly, reset: resetDescription(displayQuota?.weekly))
         desktopFive.ring.warningThreshold = noticeThreshold; desktopWeek.ring.warningThreshold = noticeThreshold
         desktopFive.frame = fiveHourView.frame; desktopWeek.frame = weeklyView.frame
-        desktopState.stringValue = stateLabel.stringValue; desktopState.isHidden = stateLabel.isHidden; desktopState.frame = stateLabel.frame
-        desktopAdditional.stringValue = additionalLabel.stringValue; desktopAdditional.frame = additionalLabel.frame
+        desktopState.stringValue = stateLabel.stringValue; desktopState.isHidden = dual || stateLabel.isHidden; desktopState.frame = stateLabel.frame
+        desktopAdditional.stringValue = additionalLabel.stringValue; desktopAdditional.isHidden = dual; desktopAdditional.frame = additionalLabel.frame
         let secondary = desktopTheme?.palette.secondary ?? NSColor.secondaryLabelColor
         desktopState.textColor = secondary; desktopAdditional.textColor = secondary
         if let theme = desktopTheme {

@@ -5,12 +5,12 @@ extension AppDelegate {
     func applyTheme() {
         themeView?.removeFromSuperview()
         themeView = selectedTheme.makeView()
-        popover.appearance = appearanceMode.appearance
-        content.appearance = appearanceMode.appearance
-        settingsWindow?.appearance = appearanceMode.appearance
-        aboutWindow?.appearance = appearanceMode.appearance
-        menuPopover?.appearance = appearanceMode.appearance
-        desktopWindow?.appearance = appearanceMode.appearance
+        popover.appearance = settings.providers == .both ? nil : appearanceMode.appearance
+        content.appearance = settings.providers == .both ? nil : appearanceMode.appearance
+        settingsWindow?.appearance = nil
+        aboutWindow?.appearance = nil
+        menuPopover?.appearance = nil
+        desktopWindow?.appearance = settings.providers == .both ? nil : appearanceMode.appearance
         desktopTheme?.removeFromSuperview()
         desktopTheme = selectedTheme.makeView()
         if let themed = desktopTheme { desktopContent.addSubview(themed, positioned: .below, relativeTo: nil) }
@@ -36,11 +36,11 @@ extension AppDelegate {
         additionalLabel.textColor = color
     }
     func updateThemeData() {
-        let five = lastQuota?.fiveHour
-        let week = lastQuota?.weekly
+        let five = displayQuota?.fiveHour
+        let week = displayQuota?.weekly
         let summary = "\(describe("5 hours", five)). \(describe("Week", week)). \(state). \(updatedLabel.stringValue). \(additionalLabel.stringValue)"
         themeView?.data = ThemeData(fiveHour: five?.remaining, weekly: week?.remaining,
-                                    fiveReset: resetDescription(five), weekReset: resetDescription(week), accessibility: summary, warningThreshold: noticeThreshold)
+                                    fiveReset: resetDescription(five), weekReset: resetDescription(week), accessibility: summary, warningThreshold: noticeThreshold, providerName: activeProvider.capitalized)
     }
     func palette(for appearance: NSAppearance) -> ThemePalette {
         if let view = selectedTheme.makeView() {
@@ -75,7 +75,8 @@ extension AppDelegate {
         }
     }
     func updateWarningThreshold() {
-        bars.warningThreshold = noticeThreshold
+        bars.warningThreshold = settings.threshold(for: settings.providers == .claude ? "claude" : "codex")
+        claudeBars.warningThreshold = settings.threshold(for: "claude")
         fiveHourView.ring.warningThreshold = noticeThreshold
         weeklyView.ring.warningThreshold = noticeThreshold
         updateThemeData()

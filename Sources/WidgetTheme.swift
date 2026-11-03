@@ -120,7 +120,7 @@ final class WidgetThemeView: ThemeView {
     private func drawTerminal() {
         let p = palette, mono = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular), bold = NSFont.monospacedSystemFont(ofSize: 10, weight: .semibold)
         text(">", NSRect(x: 17, y: 10, width: 12, height: 16), size: 10, color: p.accent, font: bold)
-        text("CODEX / LIMITS", NSRect(x: 30, y: 10, width: 270, height: 16), size: 10, color: p.text, font: bold)
+        text("\(data.providerName?.uppercased() ?? "CODEX") / LIMITS", NSRect(x: 30, y: 10, width: 270, height: 16), size: 10, color: p.text, font: bold)
         line(NSPoint(x: 17, y: 29), NSPoint(x: 323, y: 29), p.track)
         for (i, value, date) in items {
             let y = CGFloat(38 + i*57)

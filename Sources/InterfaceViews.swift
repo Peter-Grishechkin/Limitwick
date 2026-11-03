@@ -192,3 +192,178 @@ final class UpdateBadge: NSView {
         NSBezierPath(ovalIn: bounds).fill()
     }
 }
+
+// Compact marks distinguish providers without changing the existing quota bars.
+func drawProviderMark(_ provider: String, in rect: NSRect, color: NSColor) {
+    NSGraphicsContext.saveGraphicsState()
+    color.setStroke()
+    let center = NSPoint(x: rect.midX, y: rect.midY), radius = min(rect.width, rect.height) * 0.43
+    let path = NSBezierPath(); path.lineWidth = max(1, radius * 0.24); path.lineCapStyle = .round
+    if provider == "Claude" {
+        for i in 0..<8 {
+            let angle = CGFloat(i) * .pi / 4
+            path.move(to: NSPoint(x: center.x + cos(angle) * radius * 0.22, y: center.y + sin(angle) * radius * 0.22))
+            path.line(to: NSPoint(x: center.x + cos(angle) * radius, y: center.y + sin(angle) * radius))
+        }
+    } else {
+        for i in 0..<6 {
+            let a = CGFloat(i) * .pi / 3, b = a + .pi * 0.68
+            path.move(to: NSPoint(x: center.x + cos(a) * radius, y: center.y + sin(a) * radius))
+            path.line(to: NSPoint(x: center.x + cos(b) * radius * 0.65, y: center.y + sin(b) * radius * 0.65))
+        }
+    }
+    path.stroke(); NSGraphicsContext.restoreGraphicsState()
+}
+
+final class ProviderMark: NSView {
+    var provider = "Codex" { didSet { needsDisplay = true } }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func draw(_ dirtyRect: NSRect) { drawProviderMark(provider, in: bounds, color: .labelColor) }
+}
+
+struct ProviderPresentation {
+    let name: String
+    let quota: Quota?
+    let stale: Bool
+    let status: String
+    let updated: Date?
+}
+
+// The dual panel reuses the same theme and quota tiles as a single-provider panel.
+final class ThemedProvidersView: NSView {
+    override var isFlipped: Bool { true }
+    var backgroundColor = NSColor.windowBackgroundColor
+    private var currentTheme: PanelTheme = .classic
+    override func draw(_ dirtyRect: NSRect) { backgroundColor.setFill(); bounds.fill() }
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        let sample = currentTheme.makeView()
+        sample?.appearance = effectiveAppearance
+        backgroundColor = sample?.palette.background ?? .windowBackgroundColor
+        for label in subviews.compactMap({ $0 as? NSTextField }) {
+            label.textColor = label.tag == 1 ? (sample?.palette.text ?? .labelColor) : (sample?.palette.secondary ?? .secondaryLabelColor)
+        }
+        needsDisplay = true
+    }
+
+    func configureSeparately(_ providers: [ProviderPresentation], systemAppearance: NSAppearance, configuration: (String) -> (PanelTheme, AppearanceMode, Int)) -> CGFloat {
+        subviews.forEach { $0.removeFromSuperview() }
+        backgroundColor = .windowBackgroundColor
+        var y: CGFloat = 0
+        for item in providers {
+            let (theme, mode, threshold) = configuration(item.name.lowercased())
+            let block = ThemedProvidersView(frame: .zero)
+            block.appearance = mode.appearance
+            let height = block.configure([item], theme: theme, appearance: mode.appearance ?? systemAppearance, threshold: threshold)
+            block.frame = NSRect(x: 0, y: y, width: 340, height: height)
+            addSubview(block); y += height
+        }
+        needsDisplay = true
+        return y
+    }
+
+    func configure(_ providers: [ProviderPresentation], theme: PanelTheme, appearance: NSAppearance, threshold: Int) -> CGFloat {
+        subviews.forEach { $0.removeFromSuperview() }
+        currentTheme = theme
+        let sample = theme.makeView()
+        sample?.appearance = appearance
+        let palette = sample?.palette
+        backgroundColor = palette?.background ?? .windowBackgroundColor
+        let foreground = palette?.text ?? NSColor.labelColor
+        let secondary = palette?.secondary ?? NSColor.secondaryLabelColor
+        var y: CGFloat = 12
+        func addLabel(_ value: String, font: NSFont, color: NSColor, spacing: CGFloat, heading: Bool = false) {
+            guard !value.isEmpty else { return }
+            let label = NSTextField(wrappingLabelWithString: value)
+            label.font = font; label.textColor = color; label.maximumNumberOfLines = 0; label.tag = heading ? 1 : 0
+            let style = NSMutableParagraphStyle(); style.lineBreakMode = .byWordWrapping
+            let height = ceil((value as NSString).boundingRect(with: NSSize(width: 312, height: CGFloat.greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font, .paragraphStyle: style]).height)
+            label.frame = NSRect(x: 14, y: y, width: 312, height: height + 2)
+            addSubview(label); y += height + spacing
+        }
+        for item in providers {
+            addLabel(item.name, font: .systemFont(ofSize: 14, weight: .semibold), color: foreground, spacing: 8, heading: true)
+            let five = item.quota?.fiveHour, week = item.quota?.weekly
+            let fiveReset = five?.reset.map { ResetText.describe($0) } ?? "Reset unavailable"
+            let weekReset = week?.reset.map { ResetText.describe($0) } ?? "Reset unavailable"
+            if let view = theme.makeView() {
+                func description(_ name: String, _ window: QuotaWindow?, _ reset: String) -> String {
+                    guard let window = window else { return "\(name): unavailable" }
+                    return "\(name): \(Int(window.remaining.rounded())) percent remaining, \(reset)"
+                }
+                let summary = "\(item.name). \(description("5 hours", five, fiveReset)). \(description("Week", week, weekReset)). \(item.status)"
+                view.data = ThemeData(fiveHour: five?.remaining, weekly: week?.remaining, fiveReset: fiveReset, weekReset: weekReset, accessibility: summary, warningThreshold: threshold, providerName: item.name)
+                let height = view.preferredContentHeight + view.outerInset
+                view.frame = NSRect(x: 0, y: y, width: 340, height: height)
+                addSubview(view); y += height
+            } else {
+                let first = QuotaTile(symbol: "5"), second = QuotaTile(symbol: "W")
+                first.update(five, reset: fiveReset); second.update(week, reset: weekReset)
+                first.ring.warningThreshold = threshold; second.ring.warningThreshold = threshold
+                let extra = max(first.extraResetHeight, second.extraResetHeight)
+                first.setExtraHeight(extra); second.setExtraHeight(extra)
+                first.frame.origin = NSPoint(x: 12, y: y); second.frame.origin = NSPoint(x: 176, y: y)
+                addSubview(first); addSubview(second); y += 192 + extra
+            }
+            var extras = item.quota?.additional.map { "\(durationName($0.durationMinutes)): \(Int($0.remaining.rounded()))% remaining · \(ResetText.describe($0.reset))" } ?? []
+            extras += item.quota?.namedAdditional.map { "\($0.name) week: \(Int($0.remaining.rounded()))% remaining · \(ResetText.describe($0.reset))" } ?? []
+            extras += item.quota?.conflictingDurations.map { "Conflicting \(durationName($0)) values; unavailable" } ?? []
+            addLabel(extras.joined(separator: "\n"), font: .systemFont(ofSize: 12), color: secondary, spacing: 10)
+            if !item.status.hasPrefix("Updated ") { addLabel(item.status, font: .systemFont(ofSize: 12), color: secondary, spacing: 16) }
+        }
+        needsDisplay = true
+        return y
+    }
+}
+
+// Shared by the popover, Picture-in-Picture and the widget image.
+final class MultiProviderView: NSView {
+    var providers: [ProviderPresentation] = [] { didSet { needsDisplay = true; updateAccessibility() } }
+    var colors: ThemePalette? { didSet { needsDisplay = true } }
+    var threshold = 20 { didSet { needsDisplay = true } }
+    var providerThresholds: [String: Int] = [:] { didSet { needsDisplay = true } }
+    override var isFlipped: Bool { true }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override init(frame: NSRect) { super.init(frame: frame); setAccessibilityElement(true); setAccessibilityRole(.staticText) }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    func updateAccessibility() {
+        let summary = providers.map { item in
+            let five = item.quota?.fiveHour.map { "\(Int($0.remaining.rounded())) percent remaining, \(ResetText.describe($0.reset))" } ?? "unavailable"
+            let week = item.quota?.weekly.map { "\(Int($0.remaining.rounded())) percent remaining, \(ResetText.describe($0.reset))" } ?? "unavailable"
+            return "\(item.name). Five hours: \(five). Week: \(week). \(item.status)"
+        }.joined(separator: ". ")
+        setAccessibilityLabel(summary)
+    }
+    override func draw(_ dirtyRect: NSRect) {
+        let p = colors ?? ThemePalette(background: .windowBackgroundColor, surface: .controlBackgroundColor, text: .labelColor, secondary: .secondaryLabelColor, track: .separatorColor, accent: .controlAccentColor, second: .controlAccentColor)
+        p.background.setFill(); bounds.fill()
+        let rowHeight = bounds.height / 2
+        for (index, item) in providers.prefix(2).enumerated() {
+            let y = CGFloat(index) * rowHeight
+            let alpha: CGFloat = item.stale ? 0.45 : 1
+            drawProviderMark(item.name, in: NSRect(x: 13, y: y + 12, width: 16, height: 16), color: p.text.withAlphaComponent(alpha))
+            if !item.status.hasPrefix("Updated ") { drawText(item.status, NSRect(x: 34, y: y + 12, width: 292, height: 17), size: 10, color: p.secondary) }
+            for (i, window) in [item.quota?.fiveHour, item.quota?.weekly].enumerated() {
+                let x = CGFloat(48 + i * 143)
+                let radius: CGFloat = min(22, max(14, (rowHeight - 44) / 2))
+                let circle = NSRect(x: x, y: y + 32, width: radius * 2, height: radius * 2)
+                let track = NSBezierPath(ovalIn: circle); track.lineWidth = 4; p.track.setStroke(); track.stroke()
+                if let value = window?.remaining, value > 0 {
+                    let path = NSBezierPath(); path.lineWidth = 4; path.lineCapStyle = .round
+                    if value >= 100 { path.appendOval(in: circle) }
+                    else { path.appendArc(withCenter: NSPoint(x: circle.midX, y: circle.midY), radius: radius, startAngle: 90, endAngle: 90 + 360 * CGFloat(value / 100), clockwise: false) }
+                    (isLowQuota(value, threshold: providerThresholds[item.name.lowercased()] ?? threshold) ? NSColor.systemRed : p.accent).withAlphaComponent(alpha).setStroke(); path.stroke()
+                }
+                drawText(i == 0 ? "5" : "W", NSRect(x: x, y: circle.midY - 8, width: circle.width, height: 16), size: 12, color: p.text.withAlphaComponent(alpha), centered: true)
+                let value = window.map { "\(Int($0.remaining.rounded()))%" } ?? "—"
+                drawText(value, NSRect(x: x + radius * 2 + 8, y: y + 34, width: 76, height: 18), size: 15, color: p.text.withAlphaComponent(alpha))
+                let reset = window?.reset.map { ResetText.describe($0) } ?? "Reset unavailable"
+                drawText(reset, NSRect(x: x + radius * 2 + 8, y: y + 54, width: 82, height: max(15, rowHeight - 56)), size: 9, color: p.secondary, wrap: true)
+            }
+        }
+    }
+    private func drawText(_ value: String, _ rect: NSRect, size: CGFloat, color: NSColor, centered: Bool = false, wrap: Bool = false) {
+        let style = NSMutableParagraphStyle(); style.alignment = centered ? .center : .left; style.lineBreakMode = wrap ? .byWordWrapping : .byTruncatingTail
+        (value as NSString).draw(in: rect, withAttributes: [.font: NSFont.systemFont(ofSize: size), .foregroundColor: color, .paragraphStyle: style])
+    }
+}

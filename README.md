@@ -1,6 +1,6 @@
 # Codex Bar
 
-Codex Bar is a macOS menu bar app that shows your remaining Codex usage. The upper bar shows the five-hour limit and the lower bar shows the weekly limit; click them for percentages and reset times.
+Codex Bar is a macOS menu bar app that shows remaining Codex and Claude subscription usage. Choose Codex, Claude, or both in Settings. Each pair of bars shows the five-hour limit above the weekly limit; click them for percentages and reset times.
 
 - Choose from six themes and Light, Dark, or Auto appearance.
 - Keep a themed panel on your desktop or add a macOS widget.
@@ -12,6 +12,8 @@ Codex Bar is a macOS menu bar app that shows your remaining Codex usage. The upp
 1. Install the Codex CLI and sign in to your ChatGPT account. Check with `codex login status` in Terminal. Installing the Codex app does not necessarily install the CLI.
 2. Download the Apple Silicon archive from the [latest release](https://github.com/frankydzoro/codex-bar/releases/latest), unzip it, and move CodexBar.app to Applications.
 3. Open Codex Bar. It appears in the menu bar, not the Dock.
+
+For Claude, [install Claude Code](https://code.claude.com/docs/en/setup), run `claude` in Terminal, and sign in to your Claude subscription. Choose Claude or Both in Codex Bar settings. Codex CLI is needed only when Codex is selected.
 
 The app requires macOS 13 or later. The desktop widget requires macOS 14 or later. The release is locally signed and not notarized by Apple, so macOS may show a security warning. Use Privacy & Security settings to open an app you trust.
 
@@ -25,7 +27,7 @@ Install Codex Bar from https://github.com/frankydzoro/codex-bar. Check that my M
 
 ## Use
 
-Click the menu bar indicator to open the panel. Right-click it (or click with two fingers on a trackpad) for Refresh, Picture-in-Picture, Settings, Check for Updates, and Quit. Settings contains the appearance and notification options. Notifications are off by default; the warning threshold defaults to 20% and also controls indicator colors.
+Click the menu bar indicator to open the panel. Right-click it (or click with two fingers on a trackpad) for Refresh, Picture-in-Picture, Settings, Check for Updates, and Quit. Settings has separate appearance, activity, and notification options for Codex and Claude. Notifications are off by default; each warning threshold defaults to 20% and also controls that provider’s indicator colors. To show Claude Code activity, select Claude in Settings, install the Claude hooks, enable the activity option, and restart Claude Code.
 
 **Picture-in-Picture** opens a movable desktop window in the selected theme. It stays open while the app is running and can be covered by other windows. Its position and visibility are restored on the next launch.
 
@@ -58,6 +60,8 @@ Choose a theme in **Settings → Appearance**. These examples use Dark mode and 
 - **Login or network error:** run `codex login status`, sign in if needed, check your connection, and choose Refresh.
 - **Previous data shown:** the last refresh failed. The panel shows the error and age of the last successful update.
 - **Limit unavailable:** Codex may not have returned that window; reset times appear only when provided.
+- **Claude CLI not found or not signed in:** install Claude Code, run `claude` in Terminal, sign in, and choose Refresh. Claude Desktop does not necessarily install the CLI.
+- **Claude usage unavailable:** run `/usage` in Claude Code to check the account and connection. Codex Bar reads the terminal display, which can change when Claude Code updates. Reset times that cannot be interpreted are shown as unavailable.
 
 ## Build and test
 

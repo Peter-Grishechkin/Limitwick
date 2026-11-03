@@ -57,6 +57,14 @@ private struct Gauge: View {
 private struct WidgetContent: View {
     let entry: Entry
     var body: some View {
+        if entry.snapshot?.provider == "both" {
+            VStack(alignment: .leading, spacing: 12) {
+                dualRow("Codex", entry.snapshot?.five, entry.snapshot?.week)
+                dualRow("Claude", entry.snapshot?.claudeFive, entry.snapshot?.claudeWeek)
+            }.padding(16)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(entry.snapshot?.accessibility ?? "Codex and Claude limits unavailable")
+        } else {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
                 Gauge(title: "5", value: entry.snapshot?.five, reset: entry.snapshot?.fiveReset, threshold: entry.snapshot?.threshold ?? 20)
@@ -71,6 +79,15 @@ private struct WidgetContent: View {
                 Text("Open Codex Bar to update").font(.system(size: 10)).foregroundColor(.secondary).lineLimit(1).minimumScaleFactor(0.7)
             }
         }.padding(8)
+        }
+    }
+    private func dualRow(_ name: String, _ five: Double?, _ week: Double?) -> some View {
+        HStack {
+            Text(name).font(.headline).frame(width: 65, alignment: .leading)
+            Text("5h: \(five.map { "\(Int($0.rounded()))%" } ?? "—")")
+            Spacer()
+            Text("Week: \(week.map { "\(Int($0.rounded()))%" } ?? "—")")
+        }.font(.system(size: 13)).monospacedDigit()
     }
 }
 
@@ -114,7 +131,7 @@ struct CodexWidget: Widget {
     private var configuration: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in WidgetView(entry: entry) }
             .configurationDisplayName(widgetDisplayName)
-            .description("See your five-hour and weekly Codex limits.")
+            .description("See your five-hour and weekly Codex and Claude limits.")
             .supportedFamilies([.systemMedium])
     }
     private var widgetDisplayName: String {

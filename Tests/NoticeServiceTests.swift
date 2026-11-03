@@ -30,6 +30,33 @@ import Foundation
         service.process(current); precondition(authorization.isEmpty)
         let restored = NoticeService(settings: settings, authorize: { authorization.append($0) }, deliver: { _, _, _, done in deliveries.append(done) }, current: { (current, stale) }, now: { date })
         restored.process(current); precondition(authorization.isEmpty)
+        var claudeKeys: [String] = []
+        settings.setEnabled(true, kind: "low", for: "claude")
+        let claude = NoticeService(settings: settings, authorize: { $0(true) }, deliver: { key, _, _, done in claudeKeys.append(key); done(true) }, current: { (current, stale) }, now: { date }, provider: "claude")
+        claude.process(current)
+        precondition(claudeKeys.count == 1 && claudeKeys[0].hasPrefix("claude:"))
+        claude.process(current); precondition(claudeKeys.count == 1)
+        precondition(!settings.noticeDelivered(for: "codex").isEmpty && !settings.noticeDelivered(for: "claude").isEmpty)
+        precondition(settings.providers == .codex)
+        settings.providers = .both; precondition(AppSettings(defaults).providers == .both)
+        settings.setThreshold(10, for: "codex"); settings.setThreshold(45, for: "claude")
+        settings.setTheme("paper", for: "codex"); settings.setTheme("terminal", for: "claude")
+        settings.setAppearance("light", for: "codex"); settings.setAppearance("dark", for: "claude")
+        settings.setEnabled(false, kind: "low", for: "codex")
+        precondition(settings.enabled("low", for: "claude") && !settings.enabled("low", for: "codex"))
+        precondition(settings.threshold(for: "codex") == 10 && settings.threshold(for: "claude") == 45)
+        precondition(settings.theme(for: "codex") == "paper" && settings.theme(for: "claude") == "terminal")
+        precondition(settings.appearance(for: "codex") == "light" && settings.appearance(for: "claude") == "dark")
+        let legacySuite = "legacy-\(UUID().uuidString)"; let legacy = UserDefaults(suiteName: legacySuite)!
+        defer { legacy.removePersistentDomain(forName: legacySuite) }
+        legacy.set("dots", forKey: "panelTheme"); legacy.set("dark", forKey: "appearanceMode")
+        legacy.set(35, forKey: "noticeThreshold"); legacy.set(true, forKey: "noticeLow"); legacy.set(false, forKey: "activityEnabled")
+        let migrated = AppSettings(legacy)
+        for name in ["codex", "claude"] {
+            precondition(migrated.theme(for: name) == "dots" && migrated.appearance(for: name) == "dark")
+            precondition(migrated.threshold(for: name) == 35 && migrated.enabled("low", for: name) && !migrated.activityEnabled(for: name))
+        }
+        migrated.setThreshold(12, for: "claude"); precondition(AppSettings(legacy).threshold(for: "claude") == 12)
         print("Notice service tests passed")
     }
 }

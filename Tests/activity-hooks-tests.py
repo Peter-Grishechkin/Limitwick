@@ -31,3 +31,27 @@ message = json.loads(files[0].read_text())
 assert message['event'] == 'PreToolUse' and message['tool'] == 'call'
 assert 'PRIVATE' not in files[0].read_text() and 'tool_input' not in message
 print('Activity hook tests passed')
+
+claude_root = root / 'claude'
+env['CLAUDE_CONFIG_DIR'] = str(claude_root)
+claude_root.mkdir()
+claude_config = claude_root / 'settings.json'
+claude_original = {'permissions': {'allow': ['Read']}, 'hooks': {'Stop': [{'hooks': [{'type': 'command', 'command': '/usr/bin/true'}]}]}}
+claude_config.write_text(json.dumps(claude_original))
+setup = 'Resources/useAnimations/claude-activity-setup.py'
+for action in ('install', 'install', 'remove'):
+    subprocess.run(['/usr/bin/python3', setup, action], env=env, check=True, stdout=subprocess.DEVNULL)
+assert json.loads(claude_config.read_text()) == claude_original
+claude_config.write_text('{bad json')
+result = subprocess.run(['/usr/bin/python3', setup, 'install'], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+assert result.returncode != 0 and claude_config.read_text() == '{bad json'
+claude_listener = Path(env['HOME']) / 'Library/Caches/CodexBar/ClaudeActivity' / f'listener-{os.getpid()}'
+claude_listener.mkdir(parents=True)
+input_data = {'hook_event_name': 'PreToolUse', 'session_id': 'claude-session', 'tool_use_id': 'call', 'tool_input': {'command': 'PRIVATE'}}
+p = subprocess.run(['/usr/bin/python3', 'Resources/useAnimations/claude-activity-hook.py'], env=env, input=json.dumps(input_data), text=True, capture_output=True, check=True)
+files = list(claude_listener.glob('event-*'))
+assert len(files) == 1 and p.stdout == ''
+message = json.loads(files[0].read_text())
+assert message['event'] == 'PreToolUse' and message['session'] == 'claude-session' and message['tool'] == 'call'
+assert 'PRIVATE' not in files[0].read_text() and 'tool_input' not in message
+print('Claude activity hook tests passed')

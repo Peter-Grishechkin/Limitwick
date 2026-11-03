@@ -8,9 +8,16 @@ struct QuotaWindow: Equatable {
     let reset: Date?
 }
 
+struct NamedQuotaWindow: Equatable {
+    let name: String
+    let remaining: Double
+    let reset: Date?
+}
+
 struct Quota {
     let windows: [QuotaWindow]
     let conflictingDurations: [Int]
+    var namedAdditional: [NamedQuotaWindow] = []
     var fiveHour: QuotaWindow? { windows.first { $0.durationMinutes == 300 } }
     var weekly: QuotaWindow? { windows.first { $0.durationMinutes == 10080 } }
     var additional: [QuotaWindow] { windows.filter { $0.durationMinutes != 300 && $0.durationMinutes != 10080 } }

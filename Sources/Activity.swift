@@ -91,6 +91,32 @@ final class ActivityMonitor {
     }
 }
 
+struct ActivityBarLayout {
+    let width: CGFloat
+    let codexIcon: CGFloat?
+    let claudeIcon: CGFloat?
+    let codexMark: CGFloat?
+    let claudeMark: CGFloat?
+    let codexBars: CGFloat?
+    let claudeBars: CGFloat?
+    init(codex: Bool, claude: Bool, codexActive: Bool, claudeActive: Bool) {
+        let dual = codex && claude
+        var x: CGFloat = 0
+        var ci: CGFloat?, ai: CGFloat?, cm: CGFloat?, am: CGFloat?, cb: CGFloat?, ab: CGFloat?
+        if codex {
+            if codexActive { ci = x + 1; x += 22 }
+            if dual { cm = x + 1; x += 16 }
+            cb = x + 1; x += 34
+        }
+        if claude {
+            if claudeActive { ai = x + 1; x += 22 }
+            if dual { am = x + 1; x += 16 }
+            ab = x + 1; x += 34
+        }
+        width = x; codexIcon = ci; claudeIcon = ai; codexMark = cm; claudeMark = am; codexBars = cb; claudeBars = ab
+    }
+}
+
 final class ActivityIcon: LottieAnimationView {
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
     func show(_ state: ActivityDisplay?) {
@@ -104,9 +130,61 @@ final class ActivityIcon: LottieAnimationView {
         else { loopMode = state == .completed ? .playOnce : .loop; play() }
     }
     private func recolor() {
-        let color = NSColor.labelColor.usingColorSpace(.deviceRGB) ?? .black
+        let color = NSColor.white.usingColorSpace(.deviceRGB) ?? .white
         let provider = ColorValueProvider(LottieColor(r: Double(color.redComponent), g: Double(color.greenComponent), b: Double(color.blueComponent), a: Double(color.alphaComponent)))
         setValueProvider(provider, keypath: AnimationKeypath(keypath: "**.Color"))
     }
     override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); recolor() }
+}
+
+// Claude hooks identify a session, rather than a Codex turn or writer lock.
+final class ClaudeActivityMonitor {
+    private struct Session { var tools: Set<String>; var timestamp: TimeInterval }
+    private var sessions: [String: Session] = [:]
+    private var completedUntil: TimeInterval = 0
+    private var shown: ActivityDisplay?
+    private var timer: Timer?
+    private let directory: URL
+    var onChange: ((ActivityDisplay?) -> Void)?
+    init(base: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches/CodexBar/ClaudeActivity", isDirectory: true)) {
+        directory = base.appendingPathComponent("listener-\(getpid())", isDirectory: true)
+    }
+    func start() {
+        guard timer == nil else { return }
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.poll() }
+        } catch { return }
+    }
+    func stop() {
+        timer?.invalidate(); timer = nil; sessions.removeAll(); completedUntil = 0; shown = nil
+        try? FileManager.default.removeItem(at: directory)
+    }
+    func poll(now: TimeInterval = Date().timeIntervalSince1970) {
+        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+        struct Event: Decodable { let event: String; let session: String; let tool: String; let time: TimeInterval }
+        var events: [Event] = []
+        for url in files where url.lastPathComponent.hasPrefix("event-") {
+            if let data = try? Data(contentsOf: url), data.count < 4096, let event = try? JSONDecoder().decode(Event.self, from: data), abs(event.time - now) < 30, !event.session.isEmpty, event.session.count <= 100 { events.append(event) }
+            try? FileManager.default.removeItem(at: url)
+        }
+        for event in events.sorted(by: { $0.time < $1.time }) {
+            if let prior = sessions[event.session], prior.timestamp > event.time { continue }
+            switch event.event {
+            case "UserPromptSubmit": sessions[event.session] = Session(tools: [], timestamp: event.time); completedUntil = 0
+            case "PreToolUse":
+                var session = sessions[event.session] ?? Session(tools: [], timestamp: event.time)
+                session.tools.insert(event.tool); session.timestamp = event.time; sessions[event.session] = session; completedUntil = 0
+            case "PostToolUse", "PostToolUseFailure":
+                if var session = sessions[event.session] { session.tools.remove(event.tool); session.timestamp = event.time; sessions[event.session] = session }
+            case "Stop":
+                if sessions.removeValue(forKey: event.session) != nil && sessions.isEmpty { completedUntil = now + 3 }
+            case "SessionEnd", "StopFailure", "Idle": sessions.removeValue(forKey: event.session); completedUntil = 0
+            default: break
+            }
+        }
+        sessions = sessions.filter { now - $0.value.timestamp < 1800 }
+        let next: ActivityDisplay? = sessions.values.contains(where: { !$0.tools.isEmpty }) ? .tool : (!sessions.isEmpty ? .working : (now < completedUntil ? .completed : nil))
+        if next != shown { shown = next; onChange?(next) }
+    }
 }
