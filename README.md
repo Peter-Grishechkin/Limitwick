@@ -1,6 +1,6 @@
 # Limitwick
 
-https://github.com/user-attachments/assets/7dcc1168-e311-40b4-9aa4-406b0f773566
+https://github.com/user-attachments/assets/1031bde7-9b43-4f7f-b499-5eb4845571ae
 
 Limitwick is a small macOS menu bar app that shows how much of your **Codex** and **Claude Code** subscription usage is left. It tracks the five-hour and weekly limits, shows when each one resets, and can show when Codex or Claude Code is working right now.
 
