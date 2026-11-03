@@ -83,6 +83,10 @@ import Lottie
         claude.poll(now: now + 5); precondition(claudeShown == nil)
         try claudeSend("UserPromptSubmit", "one"); try claudeSend("Idle", "one"); precondition(claudeShown == nil)
         try claudeSend("UserPromptSubmit", "one"); claude.poll(now: now + 1801); precondition(claudeShown == nil)
+        let config = root.appendingPathComponent("claude-config"); try FileManager.default.createDirectory(at: config, withIntermediateDirectories: true)
+        precondition(!ClaudeActivityMonitor.hooksInstalled(config: config))
+        try #"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/usr/bin/python3 /Applications/CodexBar.app/Contents/Resources/useAnimations/claude-activity-hook.py"}]}]}}"#.write(to: config.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)
+        precondition(ClaudeActivityMonitor.hooksInstalled(config: config))
         print("Activity tests passed")
     }
 }

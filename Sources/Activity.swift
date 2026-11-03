@@ -160,6 +160,11 @@ final class ClaudeActivityMonitor {
         timer?.invalidate(); timer = nil; sessions.removeAll(); completedUntil = 0; shown = nil
         try? FileManager.default.removeItem(at: directory)
     }
+    // Matches the marker that claude-activity-setup.py uses to find its own handlers.
+    static func hooksInstalled(config: URL = ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"].map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude")) -> Bool {
+        guard let text = try? String(contentsOf: config.appendingPathComponent("settings.json"), encoding: .utf8) else { return false }
+        return text.contains("/useAnimations/claude-activity-hook.py")
+    }
     func poll(now: TimeInterval = Date().timeIntervalSince1970) {
         let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
         struct Event: Decodable { let event: String; let session: String; let tool: String; let time: TimeInterval }

@@ -47,6 +47,9 @@ import Foundation
         precondition(settings.threshold(for: "codex") == 10 && settings.threshold(for: "claude") == 45)
         precondition(settings.theme(for: "codex") == "paper" && settings.theme(for: "claude") == "terminal")
         precondition(settings.appearance(for: "codex") == "light" && settings.appearance(for: "claude") == "dark")
+        let fresh = "fresh-\(UUID().uuidString)"; let freshDefaults = UserDefaults(suiteName: fresh)!
+        defer { freshDefaults.removePersistentDomain(forName: fresh) }
+        precondition(AppSettings(freshDefaults).activityEnabled(for: "codex") && AppSettings(freshDefaults).activityEnabled(for: "claude"))
         let legacySuite = "legacy-\(UUID().uuidString)"; let legacy = UserDefaults(suiteName: legacySuite)!
         defer { legacy.removePersistentDomain(forName: legacySuite) }
         legacy.set("dots", forKey: "panelTheme"); legacy.set("dark", forKey: "appearanceMode")

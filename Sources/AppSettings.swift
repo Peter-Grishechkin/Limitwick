@@ -15,7 +15,7 @@ final class AppSettings {
     func setTheme(_ value: String, for provider: String) { defaults.set(value, forKey: "panelTheme.\(provider)") }
     func appearance(for provider: String) -> String { defaults.string(forKey: "appearanceMode.\(provider)") ?? "" }
     func setAppearance(_ value: String, for provider: String) { defaults.set(value, forKey: "appearanceMode.\(provider)") }
-    func activityEnabled(for provider: String) -> Bool { defaults.object(forKey: "activityEnabled.\(provider)") as? Bool ?? (provider == "codex") }
+    func activityEnabled(for provider: String) -> Bool { defaults.object(forKey: "activityEnabled.\(provider)") as? Bool ?? true }
     func setActivityEnabled(_ value: Bool, for provider: String) { defaults.set(value, forKey: "activityEnabled.\(provider)") }
     func threshold(for provider: String) -> Int { let value = defaults.integer(forKey: "noticeThreshold.\(provider)"); return value == 0 ? 20 : min(99, max(1, value)) }
     func setThreshold(_ value: Int, for provider: String) { defaults.set(value, forKey: "noticeThreshold.\(provider)") }

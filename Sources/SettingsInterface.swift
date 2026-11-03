@@ -84,7 +84,7 @@ extension AppDelegate {
             activityToggle.state = settings.activityEnabled(for: settingsProvider) ? .on : .off
             var items = [heading("AI services"), row("Show limits", providerPicker), claudeSetup, heading("Provider settings"), row("Configure", editPicker), heading("Appearance"), row("Theme", themePicker), row("Mode", appearancePicker), activityToggle] as [NSView]
             if settingsProvider == "claude" {
-                let help = NSTextField(wrappingLabelWithString: "Claude Code activity requires hooks. Install them, then restart Claude Code.")
+                let help = NSTextField(wrappingLabelWithString: ClaudeActivityMonitor.hooksInstalled() ? "Claude Code hooks are installed. Restart Claude Code if activity does not appear." : "Claude Code activity requires hooks, which are not installed. Install them, then restart Claude Code.")
                 help.font = .systemFont(ofSize: 11); help.tag = 902; help.widthAnchor.constraint(equalToConstant: 372).isActive = true
                 let install = NSButton(title: "Install Claude hooks", target: self, action: #selector(installClaudeHooks))
                 let remove = NSButton(title: "Remove Claude hooks", target: self, action: #selector(removeClaudeHooks))
@@ -103,6 +103,9 @@ extension AppDelegate {
     }
     @objc func settingsProviderChanged(_ sender: NSPopUpButton) {
         settingsProvider = sender.indexOfSelectedItem == 0 ? "codex" : "claude"
+        reloadSettingsWindow()
+    }
+    func reloadSettingsWindow() {
         if let surface = settingsWindow?.contentView { themeSurfaces.removeAll { $0 === surface } }
         settingsWindow?.close(); settingsWindow = nil; showSettings()
     }
@@ -120,6 +123,10 @@ extension AppDelegate {
             alert.messageText = process.terminationStatus == 0 ? "Claude hooks \(action == "install" ? "installed" : "removed")" : "Could not update Claude hooks"
             alert.informativeText = process.terminationStatus == 0 ? "Restart Claude Code to apply the change." : detail
             alert.runModal()
+            if process.terminationStatus == 0 && action == "install" {
+                settings.setActivityEnabled(true, for: "claude"); claudeActivity.start()
+            }
+            reloadSettingsWindow()
         } catch {
             let alert = NSAlert(error: error); alert.runModal()
         }
