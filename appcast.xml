@@ -2,6 +2,18 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Codex Bar 1.11.0</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Add Claude Code subscription quota monitoring alongside Codex, with separate five-hour and weekly limits, reset times, additional limits, and error messages.
+- Show Codex, Claude, or both in the menu bar and popup. Each provider has its own panel theme, light or dark mode, notification options, and warning threshold.
+- Add an optional Claude Code activity indicator with setup and removal controls for Claude Code hooks. Activity indicators use white animations and occupy space only while active.
+- Keep per-provider data available in the Picture-in-Picture window and widget. The widget&amp;#x27;s combined view currently uses a shared simplified style rather than separate provider themes.&lt;/div&gt;</description>
+      <sparkle:version>1.11.0</sparkle:version>
+      <sparkle:shortVersionString>1.11.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 15:05:31 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/codex-bar/releases/download/v1.11.0/CodexBar-1.11.0-macOS-Apple-Silicon.zip" sparkle:edSignature="7ZFXywvMdMwLLPRYnRadq5DK3p682Pj8AINIkQdaCmLX0zR46pUI6tWtn1uKZmbLJMvORpbanLGw5x/QJNCfAA==" length="3786401" type="application/octet-stream" />
+    </item>
+    <item>
       <title>Codex Bar 1.10.1</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Refactor quota refresh scheduling, notification handling, and settings into focused components.
 - Share app-server connection setup while retaining separate quota and event connections.
