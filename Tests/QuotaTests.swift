@@ -18,6 +18,12 @@ import Darwin
         let running = URL(fileURLWithPath: "/Applications/Limitwick.app")
         let copies = otherAppCopies([running, URL(fileURLWithPath: "/Applications/./Limitwick.app"), URL(fileURLWithPath: "/Users/a/Downloads/Limitwick.app"), URL(fileURLWithPath: "/Users/a/Downloads/Limitwick.app"), URL(fileURLWithPath: "/private/var/folders/x/T/AppTranslocation/1/d/Limitwick.app"), URL(fileURLWithPath: "/Volumes/Gone/Limitwick.app")], running: running, exists: { !$0.path.hasPrefix("/Volumes/Gone") })
         check(copies.map(\.path) == ["/Users/a/Downloads/Limitwick.app"], "other copies exclude the running app, duplicates, translocation and missing paths")
+        let hooks = #"{"hooks":{"Stop":[{"hooks":[{"command":"/usr/bin/python3 '/Users/a/Downloads/CodexBar.app/Contents/Resources/useAnimations/activity-hook.py'"}]}]}}"#
+        check(hooksUseBundles(hooks, [URL(fileURLWithPath: "/Users/a/Downloads/CodexBar.app")], script: "activity-hook.py"), "hooks inside a removed bundle are found")
+        check(!hooksUseBundles(hooks, [URL(fileURLWithPath: "/Applications/CodexBar.app")], script: "activity-hook.py"), "hooks of another bundle are kept")
+        check(!hooksUseBundles(hooks, [URL(fileURLWithPath: "/Users/a/Downloads/CodexBar.app")], script: "claude-activity-hook.py"), "hooks are matched by script")
+        check(isInTrash(URL(fileURLWithPath: "/Users/a/.Trash/CodexBar.app")) && isInTrash(URL(fileURLWithPath: "/Volumes/USB/.Trashes/501/CodexBar.app")), "apps in the Trash are recognized")
+        check(!isInTrash(URL(fileURLWithPath: "/Users/a/Downloads/CodexBar.app")), "apps outside the Trash are not in the Trash")
         check(isLowQuota(19, threshold: 20), "below warning threshold")
         check(isLowQuota(20, threshold: 20), "at warning threshold")
         check(!isLowQuota(21, threshold: 20), "above warning threshold")

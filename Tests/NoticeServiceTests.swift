@@ -60,6 +60,12 @@ import Foundation
             precondition(migrated.threshold(for: name) == 35 && migrated.enabled("low", for: name) && !migrated.activityEnabled(for: name))
         }
         migrated.setThreshold(12, for: "claude"); precondition(AppSettings(legacy).threshold(for: "claude") == 12)
+        let renamedSuite = "renamed-\(UUID().uuidString)"; let renamed = UserDefaults(suiteName: renamedSuite)!
+        defer { renamed.removePersistentDomain(forName: renamedSuite) }
+        renamed.set("paper", forKey: "panelTheme.codex")
+        AppSettings.importLegacy(["panelTheme.codex": "dots", "providers": "both"], into: renamed)
+        AppSettings.importLegacy(["providers": "claude"], into: renamed)
+        precondition(AppSettings(renamed).theme(for: "codex") == "paper" && AppSettings(renamed).providers == .both)
         print("Notice service tests passed")
     }
 }

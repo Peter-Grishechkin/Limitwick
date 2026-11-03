@@ -47,9 +47,9 @@ struct WidgetSnapshot: Codable, Equatable {
     }
 
     #if LIMITWICK_DEVELOPMENT
-    static let group = "group.local.codexbar.development.shared"
+    static let group = "group.local.limitwick.development.shared"
     #else
-    static let group = "group.local.codexbar.shared"
+    static let group = "group.local.limitwick.shared"
     #endif
 
     var five: Double? = nil

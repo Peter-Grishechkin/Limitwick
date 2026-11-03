@@ -11,6 +11,17 @@ final class AppSettings {
             }
         }
     }
+    #if LIMITWICK_DEVELOPMENT
+    static let legacyBundleID = "local.codexbar.development"
+    #else
+    static let legacyBundleID = "local.codexbar.app"
+    #endif
+    // Limitwick 2.0 replaced the CodexBar bundle IDs; settings saved under the old ID are copied once.
+    static func importLegacy(_ legacy: [String: Any]?, into defaults: UserDefaults) {
+        guard !defaults.bool(forKey: "legacySettingsImported") else { return }
+        for (key, value) in legacy ?? [:] where defaults.object(forKey: key) == nil { defaults.set(value, forKey: key) }
+        defaults.set(true, forKey: "legacySettingsImported")
+    }
     func theme(for provider: String) -> String { defaults.string(forKey: "panelTheme.\(provider)") ?? "" }
     func setTheme(_ value: String, for provider: String) { defaults.set(value, forKey: "panelTheme.\(provider)") }
     func appearance(for provider: String) -> String { defaults.string(forKey: "appearanceMode.\(provider)") ?? "" }

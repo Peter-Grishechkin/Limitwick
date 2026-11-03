@@ -63,7 +63,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         guard self?.shouldRefresh(.claude) == true else { return }
         self?.claudeTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { _ in action() }
     }, cancelTimer: { [weak self] in self?.claudeTimer?.invalidate(); self?.claudeTimer = nil })
-    let settings = AppSettings()
+    let settings: AppSettings = {
+        AppSettings.importLegacy(UserDefaults.standard.persistentDomain(forName: AppSettings.legacyBundleID), into: .standard)
+        return AppSettings()
+    }()
     let notices = UNUserNotificationCenter.current()
     var noticeStatus = NSTextField(wrappingLabelWithString: "")
     var lowToggle: NSButton?
@@ -154,6 +157,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         claudeActivity.onChange = { [weak self] state in self?.showClaudeActivity(state) }
         if settings.activityEnabled(for: "claude") { claudeActivity.start() }
         refreshClaudeHooks()
+        removeLegacyCopies()
         activity.onChange = { [weak self] state in self?.showActivity(state) }
         if activityEnabled { activity.start() }
         updateBadge.frame = NSRect(x: button.bounds.width - 6, y: button.bounds.height - 6, width: 5, height: 5)

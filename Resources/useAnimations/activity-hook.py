@@ -21,7 +21,7 @@ try:
         tool = ''
     payload = json.dumps({'event': event, 'session': session, 'turn': turn, 'tool': tool, 'time': time.time(),
                           'home': os.environ.get('CODEX_HOME', os.path.expanduser('~/.codex'))})
-    base = os.path.expanduser('~/Library/Caches/CodexBar/Activity')
+    base = os.path.expanduser('~/Library/Caches/Limitwick/Activity')
     for directory in glob.glob(os.path.join(base, 'listener-*')):
         try:
             pid = int(os.path.basename(directory).split('-')[1])

@@ -2,9 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>CFBundleDisplayName</key><string>Limitwick</string>
-<key>CFBundleExecutable</key><string>CodexWidget</string>
-<key>CFBundleIdentifier</key><string>local.codexbar.app.widget</string>
-<key>CFBundleName</key><string>CodexWidget</string>
+<key>CFBundleExecutable</key><string>LimitwickWidget</string>
+<key>CFBundleIdentifier</key><string>local.limitwick.app.widget</string>
+<key>CFBundleName</key><string>LimitwickWidget</string>
 <key>CFBundlePackageType</key><string>XPC!</string>
 <key>CFBundleShortVersionString</key><string>1.9.1</string>
 <key>CFBundleVersion</key><string>1.9.1</string>

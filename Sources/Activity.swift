@@ -36,7 +36,7 @@ final class ActivityMonitor {
     var onChange: ((ActivityDisplay?) -> Void)?
     private var shown: ActivityDisplay?
 
-    init(base: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches/CodexBar/Activity", isDirectory: true)) {
+    init(base: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches/Limitwick/Activity", isDirectory: true)) {
         directory = base.appendingPathComponent("listener-\(getpid())", isDirectory: true)
     }
     func start() {
@@ -147,7 +147,7 @@ final class ClaudeActivityMonitor {
     private let directory: URL
     var onChange: ((ActivityDisplay?) -> Void)?
     private(set) var lastEvent: TimeInterval?
-    init(base: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches/CodexBar/ClaudeActivity", isDirectory: true)) {
+    init(base: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches/Limitwick/ClaudeActivity", isDirectory: true)) {
         directory = base.appendingPathComponent("listener-\(getpid())", isDirectory: true)
     }
     func start() {

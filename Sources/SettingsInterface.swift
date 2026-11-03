@@ -51,7 +51,11 @@ extension AppDelegate {
             let providerPicker = NSPopUpButton(); providerPicker.addItems(withTitles: ProviderSelection.allCases.map(\.title))
             providerPicker.selectItem(at: ProviderSelection.allCases.firstIndex(of: settings.providers) ?? 0)
             providerPicker.target = self; providerPicker.action = #selector(providerChanged(_:)); providerPicker.setAccessibilityLabel("AI services")
-            let claudeSetup = NSTextField(wrappingLabelWithString: "Claude requires Claude Code. Install it from code.claude.com, then run claude in Terminal and sign in to your Claude subscription.")
+            let claudeInstalled = ClaudeClient.findCLI() != nil
+            let claudeSetup = NSTextField(wrappingLabelWithString: claudeInstalled
+                ? "Claude limits not loading? Click Sign in, then type /login in Terminal."
+                : "Claude needs Claude Code. Click Install and sign in when Terminal asks.")
+            let claudeButton = NSButton(title: claudeInstalled ? "Sign in to Claude…" : "Install Claude Code…", target: self, action: #selector(setUpClaude))
             claudeSetup.font = .systemFont(ofSize: 11); claudeSetup.tag = 902
             claudeSetup.widthAnchor.constraint(equalToConstant: 372).isActive = true
             let editPicker = NSPopUpButton(); editPicker.addItems(withTitles: ["Codex", "Claude"])
@@ -82,7 +86,7 @@ extension AppDelegate {
             let openSettings = NSButton(title: "Notification Settings…", target: self, action: #selector(openNotificationSettings))
             let activityToggle = NSButton(checkboxWithTitle: "Show \(settingsProvider.capitalized) activity in menu bar", target: self, action: #selector(activitySettingChanged(_:)))
             activityToggle.state = settings.activityEnabled(for: settingsProvider) ? .on : .off
-            var items = [heading("AI services"), row("Show limits", providerPicker), claudeSetup, heading("Provider settings"), row("Configure", editPicker), heading("Appearance"), row("Theme", themePicker), row("Mode", appearancePicker), activityToggle] as [NSView]
+            var items = [heading("AI services"), row("Show limits", providerPicker), claudeSetup, claudeButton, heading("Provider settings"), row("Configure", editPicker), heading("Appearance"), row("Theme", themePicker), row("Mode", appearancePicker), activityToggle] as [NSView]
             let copies = otherCopies
             if !copies.isEmpty {
                 let paths = copies.map { ($0.path as NSString).abbreviatingWithTildeInPath }.joined(separator: "\n")
@@ -118,8 +122,51 @@ extension AppDelegate {
         settingsWindow?.close(); settingsWindow = nil; claudeHookStatus = nil; showSettings()
     }
     var otherCopies: [URL] {
-        guard let id = Bundle.main.bundleIdentifier else { return [] }
-        return otherAppCopies(NSWorkspace.shared.urlsForApplications(withBundleIdentifier: id), running: Bundle.main.bundleURL)
+        // Copies under the pre-2.0 bundle ID still add their widgets to the gallery.
+        let ids = [Bundle.main.bundleIdentifier, AppSettings.legacyBundleID].compactMap { $0 }
+        return otherAppCopies(ids.flatMap { NSWorkspace.shared.urlsForApplications(withBundleIdentifier: $0) }, running: Bundle.main.bundleURL)
+    }
+    // Version 2.0 replaces apps under the pre-2.0 bundle ID: they are quit and moved to the Trash at launch.
+    func removeLegacyCopies() {
+        let copies = otherAppCopies(NSWorkspace.shared.urlsForApplications(withBundleIdentifier: AppSettings.legacyBundleID), running: Bundle.main.bundleURL).filter { !isInTrash($0) }
+        guard !copies.isEmpty else { return }
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            guard let self else { return }
+            let running = NSRunningApplication.runningApplications(withBundleIdentifier: AppSettings.legacyBundleID)
+            running.forEach { $0.terminate() }
+            let deadline = Date().addingTimeInterval(5)
+            while running.contains(where: { !$0.isTerminated }) && Date() < deadline { Thread.sleep(forTimeInterval: 0.2) }
+            running.filter { !$0.isTerminated }.forEach { $0.forceTerminate() }
+            // Hooks are moved off the old bundles first, so open sessions do not call a missing script.
+            if ClaudeActivityMonitor.hooksInstalled() { _ = self.claudeHookSetup("refresh") }
+            let codexHome = ProcessInfo.processInfo.environment["CODEX_HOME"].map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex")
+            let codexHooks = (try? String(contentsOf: codexHome.appendingPathComponent("hooks.json"), encoding: .utf8)) ?? ""
+            let codexMoved = hooksUseBundles(codexHooks, copies, script: "activity-hook.py") && self.runHookScript("activity-setup.py", "install") == nil
+            var removed: [URL] = []
+            for url in copies {
+                // Unregistering keeps the old widgets out of the gallery before the Trash is emptied.
+                let plugins = (try? FileManager.default.contentsOfDirectory(at: url.appendingPathComponent("Contents/PlugIns"), includingPropertiesForKeys: nil)) ?? []
+                plugins.forEach { self.runTool("/usr/bin/pluginkit", ["-r", $0.path]) }
+                self.runTool("/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister", ["-u", url.path])
+                if (try? FileManager.default.trashItem(at: url, resultingItemURL: nil)) != nil { removed.append(url) }
+            }
+            DispatchQueue.main.async {
+                let failed = copies.filter { !removed.contains($0) }
+                let list = { (urls: [URL]) in urls.map { ($0.path as NSString).abbreviatingWithTildeInPath }.joined(separator: "\n") }
+                var text = removed.isEmpty ? "" : "Moved to the Trash:\n\(list(removed))"
+                if !failed.isEmpty { text += (text.isEmpty ? "" : "\n\n") + "Could not move, remove manually:\n\(list(failed))" }
+                if codexMoved { text += "\n\nCodex activity hooks now use this app. Review and trust them in Codex Settings → Hooks." }
+                let alert = NSAlert()
+                alert.messageText = "Previous versions of Limitwick removed"
+                alert.informativeText = text + "\n\nRemove old widgets from the desktop and add new ones from the widget gallery."
+                NSApp.activate(ignoringOtherApps: true); alert.runModal()
+            }
+        }
+    }
+    func runTool(_ path: String, _ arguments: [String]) {
+        let process = Process(); process.executableURL = URL(fileURLWithPath: path); process.arguments = arguments
+        process.standardOutput = FileHandle.nullDevice; process.standardError = FileHandle.nullDevice
+        if (try? process.run()) != nil { process.waitUntilExit() }
     }
     @objc func revealOtherCopies() { NSWorkspace.shared.activateFileViewerSelecting(otherCopies) }
     var claudeHookStatusText: String {
@@ -128,11 +175,24 @@ extension AppDelegate {
         if claudeActivity.lastEvent != nil { return "Claude Code hooks are installed. Receiving activity from Claude Code." }
         return "Claude Code hooks are installed. Waiting for activity: it appears in Claude Code sessions started after installation."
     }
+    // Opens Terminal with the official installer when needed, then starts Claude Code to sign in.
+    @objc func setUpClaude() {
+        let claude = ClaudeClient.findCLI().map { "'\($0.replacingOccurrences(of: "'", with: "'\\''"))'" }
+        let command = claude ?? "curl -fsSL https://claude.ai/install.sh | bash && \"$HOME/.local/bin/claude\""
+        let script = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Limitwick/claude-setup.command")
+        do {
+            try FileManager.default.createDirectory(at: script.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try "#!/bin/zsh -l\nclear\n\(command)\n".write(to: script, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: script.path)
+            NSWorkspace.shared.open(script)
+        } catch { NSWorkspace.shared.open(URL(string: "https://code.claude.com")!) }
+    }
     @objc func installClaudeHooks() { runClaudeHookSetup("install") }
     @objc func removeClaudeHooks() { runClaudeHookSetup("remove") }
     // Returns an error description, or nil on success.
-    func claudeHookSetup(_ action: String) -> String? {
-        guard let path = Bundle.main.path(forResource: "claude-activity-setup", ofType: "py", inDirectory: "useAnimations") else { return "The hook installer is missing from the app." }
+    func claudeHookSetup(_ action: String) -> String? { runHookScript("claude-activity-setup.py", action) }
+    func runHookScript(_ script: String, _ action: String) -> String? {
+        guard let path = Bundle.main.path(forResource: script, ofType: nil, inDirectory: "useAnimations") else { return "The hook installer is missing from the app." }
         let process = Process(); let errors = Pipe()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/python3"); process.arguments = [path, action]
         process.standardError = errors; process.standardOutput = Pipe()

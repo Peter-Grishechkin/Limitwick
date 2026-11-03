@@ -14,7 +14,7 @@ MARKER = '/useAnimations/claude-activity-hook.py'
 # A copy outside the app bundle keeps hooks working when the app is moved or a build is deleted.
 # The copy stays after removal: open sessions keep calling it, and a missing script exits with 2, which blocks tools.
 def stable_helper():
-    target = Path.home() / 'Library/Application Support/CodexBar/useAnimations/claude-activity-hook.py'
+    target = Path.home() / 'Library/Application Support/Limitwick/useAnimations/claude-activity-hook.py'
     target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     fd, temp = tempfile.mkstemp(prefix='.claude-activity-hook-', dir=target.parent)
     try:

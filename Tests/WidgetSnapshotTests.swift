@@ -9,7 +9,7 @@ import Foundation
         let variants = WidgetVariant.all
         precondition(variants.count == 24 && Set(variants.map(\.kind)).count == 24)
         precondition(PanelTheme.allCases.map(\.rawValue) == WidgetVariant.themes)
-        let registrations = try String(contentsOfFile: "Widget/CodexWidget.swift", encoding: .utf8)
+        let registrations = try String(contentsOfFile: "Widget/LimitwickWidget.swift", encoding: .utf8)
             .split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { $0.hasPrefix("QuotaWidget(.") }
         precondition(registrations == variants.map {
@@ -17,10 +17,10 @@ import Foundation
         })
         #if LIMITWICK_DEVELOPMENT
         precondition(variants.allSatisfy { $0.kind.hasPrefix("LimitwickDevelopmentQuota.") })
-        precondition(WidgetSnapshot.group == "group.local.codexbar.development.shared")
+        precondition(WidgetSnapshot.group == "group.local.limitwick.development.shared")
         #else
         precondition(variants.allSatisfy { $0.kind.hasPrefix("LimitwickQuota.") })
-        precondition(WidgetSnapshot.group == "group.local.codexbar.shared")
+        precondition(WidgetSnapshot.group == "group.local.limitwick.shared")
         #endif
 
         let installed = WidgetVariant.installed(in: Set(variants.filter { $0.source == .claude }.prefix(2).map(\.kind))

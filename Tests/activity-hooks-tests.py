@@ -21,7 +21,7 @@ config.write_text('{bad json')
 result = subprocess.run(['/usr/bin/python3', setup, 'install'], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 assert result.returncode != 0 and config.read_text() == '{bad json'
 
-listener = Path(env['HOME']) / 'Library/Caches/CodexBar/Activity' / f'listener-{os.getpid()}'
+listener = Path(env['HOME']) / 'Library/Caches/Limitwick/Activity' / f'listener-{os.getpid()}'
 listener.mkdir(parents=True)
 input_data = {'hook_event_name': 'PreToolUse', 'session_id': 'session', 'turn_id': 'turn', 'tool_use_id': 'call', 'tool_input': {'command': 'PRIVATE'}}
 p = subprocess.run(['/usr/bin/python3', 'Resources/useAnimations/activity-hook.py'], env=env, input=json.dumps(input_data), text=True, capture_output=True, check=True)
@@ -43,7 +43,7 @@ setup = 'Resources/useAnimations/claude-activity-setup.py'
 for action in ('install', 'install', 'remove'):
     subprocess.run(['/usr/bin/python3', setup, action], env=env, check=True, stdout=subprocess.DEVNULL)
 assert json.loads(claude_config.read_text()) == claude_original
-stable = Path(env['HOME']) / 'Library/Application Support/CodexBar/useAnimations/claude-activity-hook.py'
+stable = Path(env['HOME']) / 'Library/Application Support/Limitwick/useAnimations/claude-activity-hook.py'
 assert stable.exists() and os.access(stable, os.X_OK)
 subprocess.run(['/usr/bin/python3', setup, 'refresh'], env=env, check=True, stdout=subprocess.DEVNULL)
 assert json.loads(claude_config.read_text()) == claude_original
@@ -58,7 +58,7 @@ claude_config.write_text(json.dumps(claude_original))
 claude_config.write_text('{bad json')
 result = subprocess.run(['/usr/bin/python3', setup, 'install'], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 assert result.returncode != 0 and claude_config.read_text() == '{bad json'
-claude_listener = Path(env['HOME']) / 'Library/Caches/CodexBar/ClaudeActivity' / f'listener-{os.getpid()}'
+claude_listener = Path(env['HOME']) / 'Library/Caches/Limitwick/ClaudeActivity' / f'listener-{os.getpid()}'
 claude_listener.mkdir(parents=True)
 input_data = {'hook_event_name': 'PreToolUse', 'session_id': 'claude-session', 'tool_use_id': 'call', 'tool_input': {'command': 'PRIVATE'}}
 p = subprocess.run(['/usr/bin/python3', 'Resources/useAnimations/claude-activity-hook.py'], env=env, input=json.dumps(input_data), text=True, capture_output=True, check=True)

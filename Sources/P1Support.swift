@@ -87,3 +87,13 @@ func otherAppCopies(_ urls: [URL], running: URL, exists: (URL) -> Bool = { FileM
     var seen: Set<String> = [key(running)]
     return urls.filter { !key($0).contains("/AppTranslocation/") && exists($0) && seen.insert(key($0)).inserted }
 }
+
+// Launch Services keeps reporting apps that are already in the Trash.
+func isInTrash(_ url: URL) -> Bool {
+    url.standardizedFileURL.pathComponents.contains { $0 == ".Trash" || $0 == ".Trashes" }
+}
+
+// Hooks that call a script inside a removed app bundle would fail once the bundle is in the Trash.
+func hooksUseBundles(_ config: String, _ bundles: [URL], script: String) -> Bool {
+    bundles.contains { config.contains($0.path + "/Contents/Resources/useAnimations/" + script) }
+}

@@ -37,19 +37,28 @@ You need only the tool for the service you want to track.
 
 ## Install
 
-1. Download the Apple Silicon archive from the [latest release](https://github.com/frankydzoro/codex-bar/releases/latest).
+1. Download the Apple Silicon archive from the [latest release](https://github.com/frankydzoro/Limitwick/releases/latest).
 2. Unzip it and move **Limitwick.app** to the Applications folder.
 3. Open Limitwick. It appears in the menu bar, not in the Dock.
 4. Codex is shown by default. To track Claude or both, right-click the menu bar icon, choose **Settings…**, and set **Show limits** to **Claude** or **Both**.
 
 The app is locally signed and not notarized by Apple, so macOS may block the first launch. Open **System Settings → Privacy & Security** and allow Limitwick there.
 
+### Updating from version 1.x
+
+Limitwick 2.0 uses new app identifiers, so it installs as a new app rather than updating the old one in place. Version 1.x shows the update notice and opens the release page.
+
+1. Install Limitwick 2.0 as described above and open it.
+2. On launch, Limitwick quits all copies of version 1.x, including ones named **CodexBar.app**, moves them to the Trash and lists them. Copies already in the Trash are left there. Your settings are copied over, and installed Claude and Codex activity hooks are switched to the new app. If Codex hooks were switched, review and trust them in **Codex Settings → Hooks**.
+3. Remove the old widgets from the desktop and add new ones from the widget gallery.
+4. macOS asks again for permission to send notifications if you turned them on.
+
 ### Install with Codex
 
 You can ask Codex to install the app for you. Paste this prompt into Codex:
 
 ```text
-Install Limitwick from https://github.com/frankydzoro/codex-bar. Check that my Mac meets the requirements and that Codex CLI is installed and signed in. Download the Apple Silicon archive from the latest GitHub release, install Limitwick.app in Applications, open it, and verify that it launched. If a step needs my input or macOS blocks the app, explain what I need to do.
+Install Limitwick from https://github.com/frankydzoro/Limitwick. Check that my Mac meets the requirements and that Codex CLI is installed and signed in. Download the Apple Silicon archive from the latest GitHub release, install Limitwick.app in Applications, open it, and verify that it launched. If a step needs my input or macOS blocks the app, explain what I need to do.
 ```
 
 ## Using Limitwick
@@ -100,6 +109,8 @@ Open **Settings…** from the menu. The window has four sections.
 
 **Show limits** chooses what to track: **Codex**, **Claude**, or **Both**.
 
+If Claude Code is missing, **Install Claude Code…** opens Terminal, runs the official installer and starts Claude Code so you can sign in. When it is installed, **Sign in to Claude…** opens Claude Code in Terminal; type `/login` there if limits do not load.
+
 ### Provider settings
 
 **Configure** chooses which service the settings below apply to: **Codex** or **Claude**. Theme, appearance, activity, and notifications are set separately for each service. Change the selection to edit the other service.
@@ -147,7 +158,7 @@ The text below the checkbox shows the current status:
 - *Waiting for activity:* the hooks are installed, but no events have arrived yet; start a new Claude Code session and send a request;
 - *Receiving activity from Claude Code:* everything works.
 
-To uninstall, click **Remove Claude hooks**. Only Limitwick's own entries are added to or removed from `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`). Your other settings and hooks are kept. The hook script is stored in `~/Library/Application Support/CodexBar/`, so the hooks keep working after the app is moved or updated. Turning off the checkbox hides the indicator but leaves the hooks installed.
+To uninstall, click **Remove Claude hooks**. Only Limitwick's own entries are added to or removed from `~/.claude/settings.json` (or `$CLAUDE_CONFIG_DIR/settings.json`). Your other settings and hooks are kept. The hook script is stored in `~/Library/Application Support/Limitwick/`, so the hooks keep working after the app is moved or updated. Turning off the checkbox hides the indicator but leaves the hooks installed.
 
 ### Codex
 

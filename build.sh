@@ -35,17 +35,17 @@ if [ ! -d "$SPARKLE_DIR/Sparkle.framework" ]; then
     tar -xf "$ARCHIVE" -C "$SPARKLE_DIR"
 fi
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Resources" "$APP/Contents/PlugIns/CodexWidget.appex/Contents/MacOS"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Resources" "$APP/Contents/PlugIns/LimitwickWidget.appex/Contents/MacOS"
 cp Info.plist "$APP/Contents/Info.plist"
 APP_ENTITLEMENTS="$PWD/build/app-$CONFIGURATION.entitlements"
 WIDGET_ENTITLEMENTS="$PWD/build/widget-$CONFIGURATION.entitlements"
 cp Widget/App.entitlements "$APP_ENTITLEMENTS"
 cp Widget/Widget.entitlements "$WIDGET_ENTITLEMENTS"
 if [ "$CONFIGURATION" = development ]; then
-    /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier local.codexbar.development' "$APP/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier local.limitwick.development' "$APP/Contents/Info.plist"
     /usr/libexec/PlistBuddy -c 'Set :CFBundleName Limitwick Development' "$APP/Contents/Info.plist"
-    /usr/libexec/PlistBuddy -c 'Set :com.apple.security.application-groups:0 group.local.codexbar.development.shared' "$APP_ENTITLEMENTS"
-    /usr/libexec/PlistBuddy -c 'Set :com.apple.security.application-groups:0 group.local.codexbar.development.shared' "$WIDGET_ENTITLEMENTS"
+    /usr/libexec/PlistBuddy -c 'Set :com.apple.security.application-groups:0 group.local.limitwick.development.shared' "$APP_ENTITLEMENTS"
+    /usr/libexec/PlistBuddy -c 'Set :com.apple.security.application-groups:0 group.local.limitwick.development.shared' "$WIDGET_ENTITLEMENTS"
 fi
 # Development builds may use a distinct build number to refresh WidgetKit's cache.
 if [ -n "${LIMITWICK_BUILD_NUMBER:-}" ]; then
@@ -55,15 +55,15 @@ ditto "$SPARKLE_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framewo
 ditto "$LOTTIE_DIR/Lottie.xcframework/macos-arm64_x86_64/Lottie.framework" "$APP/Contents/Frameworks/Lottie.framework"
 ditto Resources/useAnimations "$APP/Contents/Resources/useAnimations"
 swiftc ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} -target "$(uname -m)-apple-macosx13.0" -module-cache-path "$PWD/build/module-cache" -F "$APP/Contents/Frameworks" -framework Sparkle -framework Lottie -Xlinker -rpath -Xlinker '@executable_path/../Frameworks' Sources/QuotaClient.swift Sources/ClaudeClient.swift Sources/P1Support.swift Sources/AppSettings.swift Sources/NoticeService.swift Sources/RefreshCoordinator.swift Sources/Activity.swift Sources/Themes.swift Widget/SharedSnapshot.swift Sources/InterfaceViews.swift Sources/PanelInterface.swift Sources/ThemeInterface.swift Sources/SettingsInterface.swift Sources/MenuInterface.swift Sources/Limitwick.swift -o "$APP/Contents/MacOS/Limitwick"
-WIDGET="$APP/Contents/PlugIns/CodexWidget.appex"
+WIDGET="$APP/Contents/PlugIns/LimitwickWidget.appex"
 cp Widget/Info.plist "$WIDGET/Contents/Info.plist"
 if [ "$CONFIGURATION" = development ]; then
-    /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier local.codexbar.development.widget' "$WIDGET/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier local.limitwick.development.widget' "$WIDGET/Contents/Info.plist"
     /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Limitwick Development' "$WIDGET/Contents/Info.plist"
 fi
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Info.plist)" "$WIDGET/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")" "$WIDGET/Contents/Info.plist"
-swiftc ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} -target "$(uname -m)-apple-macosx14.0" -module-cache-path "$PWD/build/module-cache" -application-extension -parse-as-library -Xlinker -e -Xlinker _NSExtensionMain Sources/QuotaClient.swift Sources/P1Support.swift Sources/Themes.swift Sources/WidgetTheme.swift Widget/SharedSnapshot.swift Widget/CodexWidget.swift -o "$WIDGET/Contents/MacOS/CodexWidget"
+swiftc ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} -target "$(uname -m)-apple-macosx14.0" -module-cache-path "$PWD/build/module-cache" -application-extension -parse-as-library -Xlinker -e -Xlinker _NSExtensionMain Sources/QuotaClient.swift Sources/P1Support.swift Sources/Themes.swift Sources/WidgetTheme.swift Widget/SharedSnapshot.swift Widget/LimitwickWidget.swift -o "$WIDGET/Contents/MacOS/LimitwickWidget"
 codesign --force --sign - --entitlements "$WIDGET_ENTITLEMENTS" "$WIDGET"
 codesign --force --sign - "$APP/Contents/Frameworks/Lottie.framework"
 codesign --force --sign - --entitlements "$APP_ENTITLEMENTS" "$APP"

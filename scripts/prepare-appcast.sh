@@ -22,10 +22,10 @@ for KEY in CFBundleShortVersionString CFBundleVersion; do
     [ "$VALUE" = "$VERSION" ] || { echo "$KEY in archive is $VALUE, expected $VERSION" >&2; exit 1; }
 done
 # The public release is the source of truth for what users see before updating.
-gh release view "v$VERSION" --repo frankydzoro/codex-bar --json body --jq .body | python3 scripts/release-changes.py > "$NOTES"
+gh release view "v$VERSION" --repo frankydzoro/Limitwick --json body --jq .body | python3 scripts/release-changes.py > "$NOTES"
 SIGNER="$PWD/build/sparkle-2.10.1/bin/sign_update"
 [ -x "$SIGNER" ] || { echo "Run ./build.sh first to install Sparkle tools." >&2; exit 1; }
-SIGNATURE="$("$SIGNER" --account codex-bar-updates -p "$ARCHIVE")"
+SIGNATURE="$("$SIGNER" --account limitwick-updates -p "$ARCHIVE")"
 LENGTH="$(stat -f %z "$ARCHIVE")"
 python3 - "$VERSION" "$NAME" "$SIGNATURE" "$LENGTH" "$NOTES" <<'PY'
 import datetime, email.utils, os, sys, tempfile, xml.etree.ElementTree as ET
@@ -47,7 +47,11 @@ ET.SubElement(item, f'{{{ns}}}version').text = version
 ET.SubElement(item, f'{{{ns}}}shortVersionString').text = version
 ET.SubElement(item, f'{{{ns}}}minimumSystemVersion').text = '13.0'
 ET.SubElement(item, 'pubDate').text = email.utils.format_datetime(datetime.datetime.now(datetime.timezone.utc))
-ET.SubElement(item, 'enclosure', {'url': f'https://github.com/frankydzoro/codex-bar/releases/download/v{version}/{name}', f'{{{ns}}}edSignature': signature, 'length': length, 'type': 'application/octet-stream'})
+ET.SubElement(item, 'enclosure', {'url': f'https://github.com/frankydzoro/Limitwick/releases/download/v{version}/{name}', f'{{{ns}}}edSignature': signature, 'length': length, 'type': 'application/octet-stream'})
+# 2.0 changed the bundle ID, so pre-2.0 apps only see a notice that links to the manual download.
+if int(version.split('.')[0]) >= 2:
+    ET.SubElement(item, 'link').text = f'https://github.com/frankydzoro/Limitwick/releases/tag/v{version}'
+    ET.SubElement(ET.SubElement(item, f'{{{ns}}}informationalUpdate'), f'{{{ns}}}belowVersion').text = '2.0.0'
 channel.insert(0, item)
 ET.indent(tree, space='  ')
 fd, tmp = tempfile.mkstemp(prefix='.appcast-', dir='.')

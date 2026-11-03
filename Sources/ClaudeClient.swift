@@ -153,7 +153,7 @@ final class ClaudeClient {
     }
     func cancel() { lock.lock(); cancelled = true; if let p = active, p.isRunning { kill(p.processIdentifier, SIGKILL) }; lock.unlock() }
     func fetch(path: String, directory: URL? = nil) -> Result<Quota, Error> {
-        let folder = directory ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/CodexBar/ClaudeProbe", isDirectory: true)
+        let folder = directory ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Limitwick/ClaudeProbe", isDirectory: true)
         do { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) } catch { return .failure(ClaudeError.launchFailed) }
         if directory == nil && folder.standardizedFileURL != folder.resolvingSymlinksInPath().standardizedFileURL { return .failure(ClaudeError.launchFailed) }
         var master: Int32 = -1, slave: Int32 = -1

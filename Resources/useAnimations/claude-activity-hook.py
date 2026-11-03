@@ -18,7 +18,7 @@ try:
         if not isinstance(tool, str) or len(tool) > 200:
             tool = ''
         payload = json.dumps({'event': event, 'session': session, 'tool': tool, 'time': time.time()})
-        base = os.path.expanduser('~/Library/Caches/CodexBar/ClaudeActivity')
+        base = os.path.expanduser('~/Library/Caches/Limitwick/ClaudeActivity')
         for directory in glob.glob(os.path.join(base, 'listener-*')):
             try:
                 pid = int(os.path.basename(directory).split('-')[1]); os.kill(pid, 0)

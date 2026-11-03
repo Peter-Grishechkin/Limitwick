@@ -16,7 +16,7 @@ extension AppDelegate {
         }
         NSApp.activate(ignoringOtherApps: true); aboutWindow?.makeKeyAndOrderFront(nil)
     }
-    @objc func openGitHub() { NSWorkspace.shared.open(URL(string: "https://github.com/frankydzoro/codex-bar")!) }
+    @objc func openGitHub() { NSWorkspace.shared.open(URL(string: "https://github.com/frankydzoro/Limitwick")!) }
     @objc func closeAbout() { aboutWindow?.performClose(nil) }
 
     func showContextMenu(relativeTo button: NSView) {
