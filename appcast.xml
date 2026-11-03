@@ -2,6 +2,17 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 1.12.0</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Codex Bar is now called **Limitwick**. The app, menu, About window, notifications and desktop widget use the new name, and release archives are named `Limitwick-&amp;lt;version&amp;gt;-macOS-Apple-Silicon.zip`.
+- Updating keeps your settings, widget data and installed activity hooks: the bundle identifier, app group and storage folders are unchanged. An app updated in place may keep its old file name in Applications; you can rename it to Limitwick.app if you like.
+- The README has been rewritten as a full user guide with new images of the menu bar and all panel themes.&lt;/div&gt;</description>
+      <sparkle:version>1.12.0</sparkle:version>
+      <sparkle:shortVersionString>1.12.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 16:35:47 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/codex-bar/releases/download/v1.12.0/Limitwick-1.12.0-macOS-Apple-Silicon.zip" sparkle:edSignature="W4FXsvW95aU44ar/fVkd+iSIye0nwFYqvj4B3aP0ctFGXAOzKdFbYOa9UjNRnVTlniOFIuoJd6iQvnmeqd81Ag==" length="3792274" type="application/octet-stream" />
+    </item>
+    <item>
       <title>Codex Bar 1.11.2</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Turning on Claude activity in Settings now installs the Claude Code hooks automatically, so they are ready before your next Claude Code session.
 - Claude Code hooks now use a copy of the helper script in Application Support instead of the app bundle, so they keep working if the app is moved or replaced. Existing hooks are moved to the new location when the app starts.
