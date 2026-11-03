@@ -2,6 +2,17 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Codex Bar 1.8.0</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Add a horizontal macOS desktop widget that displays the five-hour and weekly limits using the selected panel theme. Desktop widgets require macOS 14 or later; macOS controls their refresh timing.
+- Add a movable Picture-in-Picture window with the same themes and live limits, available from the menu bar context menu. Its position and visibility are saved.
+- Keep the latest widget snapshot in a local shared container and show previous data when a refresh fails.&lt;/div&gt;</description>
+      <sparkle:version>1.8.0</sparkle:version>
+      <sparkle:shortVersionString>1.8.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 01:02:17 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/codex-bar/releases/download/v1.8.0/CodexBar-1.8.0-macOS-Apple-Silicon.zip" sparkle:edSignature="ve0GBH3PQKtkPnuiaLO3UQ9VmgcXBSAlEDHTaOYtB1wSDLJownrIdDu63xviTR8P+ZyiTX07FUCCQ8K73AgUDg==" length="1409043" type="application/octet-stream" />
+    </item>
+    <item>
       <title>Codex Bar 1.7.4</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Keep the limits panel visible when Settings is open, including when clicking outside or switching apps.
 - Continue to allow closing the panel using the menu bar icon or Escape.&lt;/div&gt;</description>
