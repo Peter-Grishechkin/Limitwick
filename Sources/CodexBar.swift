@@ -265,9 +265,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         let savedUpdate = UserDefaults.standard.dictionary(forKey: "availableUpdate") as? [String: String]
         if savedUpdate?["installed"] == installedVersion { availableUpdate = savedUpdate?["available"] }
         updateUpdateUI()
+        #if !CODEXBAR_DEVELOPMENT
         updaterController.updater.automaticallyChecksForUpdates = false
         updaterController.startUpdater()
         checkUpdateInformation()
+        #endif
         button.toolTip = "Codex: top — 5 hours, bottom — week"
         button.target = self
         button.action = #selector(statusItemClicked)
@@ -290,8 +292,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         let about = NSMenuItem(title: "About Codex Bar", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
         contextMenu.addItem(about)
+        #if !CODEXBAR_DEVELOPMENT
         checkUpdates.target = self
         contextMenu.addItem(checkUpdates)
+        #endif
         contextMenu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quit.target = NSApp
@@ -310,6 +314,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         layoutPanel(message: "Loading…")
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(didWake(_:)), name: NSWorkspace.didWakeNotification, object: nil)
         if UserDefaults.standard.bool(forKey: "desktopVisible") { showDesktopWindow() }
+        publishWidgetSnapshot(previousSnapshot: WidgetSnapshot.read())
         refreshNow()
         DispatchQueue.global(qos: .utility).async { [weak self] in
             guard let self = self else { return }
@@ -673,7 +678,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         let menu = NSPopover(); menu.behavior = .transient; menu.appearance = appearanceMode.appearance
         let view = MenuView(); surface(view)
         let desktopTitle = desktopWindow?.isVisible == true ? "Hide Picture-in-Picture" : "Show Picture-in-Picture"
-        let commands: [(String, Selector, String)] = [("Refresh", #selector(menuRefresh), "r"), (desktopTitle, #selector(toggleDesktopWindow), ""), ("Settings…", #selector(showSettings), ","), ("About Codex Bar", #selector(showAbout), ""), (updateMenuTitle, #selector(menuUpdates), ""), ("Quit", #selector(menuQuit), "q")]
+        var commands: [(String, Selector, String)] = [("Refresh", #selector(menuRefresh), "r"), (desktopTitle, #selector(toggleDesktopWindow), ""), ("Settings…", #selector(showSettings), ","), ("About Codex Bar", #selector(showAbout), "")]
+        #if !CODEXBAR_DEVELOPMENT
+        commands.append((updateMenuTitle, #selector(menuUpdates), ""))
+        #endif
+        commands.append(("Quit", #selector(menuQuit), "q"))
         var buttons: [NSView] = []
         for (title, action, key) in commands {
             let item = MenuButton(title: title, target: self, action: action)
@@ -857,18 +866,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         bars.stale = stale
         updateAge()
         layoutPanel(message: message)
-        publishWidgetSnapshot()
+        publishWidgetSnapshot(previousSnapshot: lastQuota == nil ? WidgetSnapshot.read() : nil)
         updateStatusAccessibility()
         let interval: TimeInterval
         switch result { case .success: interval = schedule.record(success: true); case .failure: interval = schedule.record(success: false) }
         if wakePending { wakePending = false; refreshNow() } else { scheduleRefresh(after: interval) }
     }
-    func publishWidgetSnapshot() {
+    func publishWidgetSnapshot(previousSnapshot: WidgetSnapshot? = nil) {
         // Render specifically for the medium widget; the popup can grow independently.
-        let summary = "\(describe("5 hours", lastQuota?.fiveHour)). \(describe("Week", lastQuota?.weekly)). \(state)"
+        let five = lastQuota?.fiveHour ?? previousSnapshot?.five.map { QuotaWindow(durationMinutes: 300, remaining: $0, reset: previousSnapshot?.fiveReset) }
+        let week = lastQuota?.weekly ?? previousSnapshot?.week.map { QuotaWindow(durationMinutes: 10080, remaining: $0, reset: previousSnapshot?.weekReset) }
+        let summary = "\(describe("5 hours", five)). \(describe("Week", week)). \(state)"
         let widget = WidgetThemeView(theme: selectedTheme,
-            data: ThemeData(fiveHour: lastQuota?.fiveHour?.remaining, weekly: lastQuota?.weekly?.remaining,
-                            fiveReset: resetDescription(lastQuota?.fiveHour), weekReset: resetDescription(lastQuota?.weekly),
+            data: ThemeData(fiveHour: five?.remaining, weekly: week?.remaining,
+                            fiveReset: resetDescription(five), weekReset: resetDescription(week),
                             accessibility: summary, warningThreshold: noticeThreshold),
             previous: stale || lastQuota == nil, appearance: content.effectiveAppearance)
         let bounds = widget.bounds
@@ -877,10 +888,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
             widget.cacheDisplay(in: bounds, to: bitmap)
             image = bitmap.representation(using: .png, properties: [:])
         }
-        WidgetSnapshot(five: lastQuota?.fiveHour?.remaining, week: lastQuota?.weekly?.remaining,
-                       fiveReset: lastQuota?.fiveHour?.reset, weekReset: lastQuota?.weekly?.reset,
-                       updated: lastUpdate, stale: stale || lastQuota == nil, threshold: noticeThreshold,
-                       panelImage: image, accessibility: summary).write()
+        WidgetSnapshot(five: five?.remaining, week: week?.remaining,
+                       fiveReset: five?.reset, weekReset: week?.reset,
+                       updated: lastUpdate ?? previousSnapshot?.updated, stale: stale || lastQuota == nil, threshold: noticeThreshold,
+                       panelImage: image, accessibility: summary, appVersion: installedVersion).write()
         WidgetCenter.shared.reloadTimelines(ofKind: WidgetSnapshot.widgetKind)
     }
     func applicationWillTerminate(_ notification: Notification) {

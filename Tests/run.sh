@@ -7,3 +7,5 @@ build/quota-tests "$PWD/Tests/fake-codex"
 
 swiftc -module-cache-path "$PWD/build/module-cache" Widget/SharedSnapshot.swift Tests/WidgetSnapshotTests.swift -o build/widget-snapshot-tests
 build/widget-snapshot-tests
+swiftc -D CODEXBAR_DEVELOPMENT -module-cache-path "$PWD/build/module-cache" Widget/SharedSnapshot.swift Tests/WidgetSnapshotTests.swift -o build/widget-snapshot-development-tests
+build/widget-snapshot-development-tests

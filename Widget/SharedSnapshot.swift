@@ -1,8 +1,13 @@
 import Foundation
 
 struct WidgetSnapshot: Codable {
+    #if CODEXBAR_DEVELOPMENT
+    static let widgetKind = "CodexBarQuotaWideDevelopment"
+    static let group = "group.local.codexbar.development.shared"
+    #else
     static let widgetKind = "CodexBarQuotaWideV2"
     static let group = "group.local.codexbar.shared"
+    #endif
     static let key = "quotaSnapshot"
     var five: Double?
     var week: Double?
@@ -13,6 +18,7 @@ struct WidgetSnapshot: Codable {
     var threshold: Int
     var panelImage: Data? = nil
     var accessibility: String? = nil
+    var appVersion: String? = nil
 
     static func read() -> WidgetSnapshot? {
         guard let data = UserDefaults(suiteName: group)?.data(forKey: key) else { return nil }

@@ -79,8 +79,11 @@ private struct WidgetView: View {
     var panel: some View {
         Group {
             if let data = entry.snapshot?.panelImage, let image = NSImage(data: data) {
-                Image(nsImage: image).resizable().aspectRatio(contentMode: .fit)
-                    .accessibilityLabel(entry.snapshot?.accessibility ?? "Codex usage limits")
+                GeometryReader { geometry in
+                    Image(nsImage: image).resizable()
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .accessibilityLabel(entry.snapshot?.accessibility ?? "Codex usage limits")
+                }
             } else if entry.snapshot != nil {
                 WidgetContent(entry: entry)
             } else {
@@ -110,8 +113,15 @@ struct CodexWidget: Widget {
     }
     private var configuration: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in WidgetView(entry: entry) }
-            .configurationDisplayName("Codex Bar")
+            .configurationDisplayName(widgetDisplayName)
             .description("See your five-hour and weekly Codex limits.")
             .supportedFamilies([.systemMedium])
+    }
+    private var widgetDisplayName: String {
+        #if CODEXBAR_DEVELOPMENT
+        return "Codex Bar Development"
+        #else
+        return "Codex Bar"
+        #endif
     }
 }

@@ -65,11 +65,11 @@ Building from source requires Xcode Command Line Tools and an internet connectio
 
 ```sh
 ./build.sh
-open build/CodexBar.app
+open build/CodexBar-Development.app
 ./Tests/run.sh
 ```
 
-The build is locally signed and not notarized. See [publishing updates](docs/RELEASING.md) for release instructions.
+The default build is `build/CodexBar-Development.app`, with separate identifiers and widget storage from the installed app. It is locally signed and not notarized. See [publishing updates](docs/RELEASING.md) for release instructions.
 
 ## License
 
