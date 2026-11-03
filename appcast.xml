@@ -2,6 +2,18 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Codex Bar 1.11.2</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Turning on Claude activity in Settings now installs the Claude Code hooks automatically, so they are ready before your next Claude Code session.
+- Claude Code hooks now use a copy of the helper script in Application Support instead of the app bundle, so they keep working if the app is moved or replaced. Existing hooks are moved to the new location when the app starts.
+- Settings shows whether the hooks are installed and whether activity is arriving from Claude Code, with a single Install or Remove button.
+- Clearer instructions after installing hooks: activity appears in Claude Code sessions started afterwards; to include an open session, type /exit, then run `claude --continue`.&lt;/div&gt;</description>
+      <sparkle:version>1.11.2</sparkle:version>
+      <sparkle:shortVersionString>1.11.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 16:09:06 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/codex-bar/releases/download/v1.11.2/CodexBar-1.11.2-macOS-Apple-Silicon.zip" sparkle:edSignature="AerBb+jhu3p339T/vDuxmUwxOvUbRpxsIBDpsIM8b8svcHl5Au+sa1Y++4euuIQYSD0CGM6fKmX1JLbyFDiQCw==" length="3790787" type="application/octet-stream" />
+    </item>
+    <item>
       <title>Codex Bar 1.11.1</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Fix the Claude Code activity indicator never appearing in the menu bar: activity display is now on by default for Claude, as it is for Codex. If you turned it off earlier, your choice is kept.
 - Settings now shows whether the Claude Code hooks are installed, and installing them turns the Claude activity indicator on.&lt;/div&gt;</description>
