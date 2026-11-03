@@ -2,6 +2,16 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Codex Bar 1.11.1</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Fix the Claude Code activity indicator never appearing in the menu bar: activity display is now on by default for Claude, as it is for Codex. If you turned it off earlier, your choice is kept.
+- Settings now shows whether the Claude Code hooks are installed, and installing them turns the Claude activity indicator on.&lt;/div&gt;</description>
+      <sparkle:version>1.11.1</sparkle:version>
+      <sparkle:shortVersionString>1.11.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 15:50:02 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/codex-bar/releases/download/v1.11.1/CodexBar-1.11.1-macOS-Apple-Silicon.zip" sparkle:edSignature="q299mO5WOFduKjmXVY8EoBDcWkee/VFgyh5BCjVeL9m/iMauic37Vo5p9l9zAifb52fcLZ+tFcqVOuWaMt3pAw==" length="3787870" type="application/octet-stream" />
+    </item>
+    <item>
       <title>Codex Bar 1.11.0</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Add Claude Code subscription quota monitoring alongside Codex, with separate five-hour and weekly limits, reset times, additional limits, and error messages.
 - Show Codex, Claude, or both in the menu bar and popup. Each provider has its own panel theme, light or dark mode, notification options, and warning threshold.
