@@ -33,13 +33,15 @@ final class QuotaTile: NSView {
         self.symbol = symbol
         super.init(frame: NSRect(x: 0, y: 0, width: 152, height: 180))
         ring.frame = NSRect(x: 31, y: 77, width: 90, height: 90)
+        // The percentage is the reading; the period letter inside the ring only labels it.
         symbolLabel.stringValue = symbol
-        symbolLabel.font = .systemFont(ofSize: 32, weight: .semibold)
+        symbolLabel.font = .systemFont(ofSize: 22, weight: .medium)
+        symbolLabel.textColor = .secondaryLabelColor
         symbolLabel.alignment = .center
-        symbolLabel.frame = NSRect(x: 31, y: 99, width: 90, height: 45)
-        valueLabel.font = .systemFont(ofSize: 21, weight: .semibold)
+        symbolLabel.frame = NSRect(x: 31, y: 107, width: 90, height: 30)
+        valueLabel.font = .systemFont(ofSize: 26, weight: .semibold)
         valueLabel.alignment = .center
-        valueLabel.frame = NSRect(x: 8, y: 46, width: 136, height: 28)
+        valueLabel.frame = NSRect(x: 8, y: 43, width: 136, height: 33)
         resetLabel.font = .systemFont(ofSize: 11)
         // The system secondary gray is 3.9:1 on the light tile; a darker gray keeps 4.5:1.
         resetLabel.textColor = NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .secondaryLabelColor : NSColor(white: 0.40, alpha: 1) }
@@ -63,8 +65,8 @@ final class QuotaTile: NSView {
         frame.size.height = 180 + extra
         resetLabel.frame.size.height = 34 + extra
         ring.frame.origin.y = 77 + extra
-        symbolLabel.frame.origin.y = 99 + extra
-        valueLabel.frame.origin.y = 46 + extra
+        symbolLabel.frame.origin.y = 107 + extra
+        valueLabel.frame.origin.y = 43 + extra
     }
     func update(_ window: QuotaWindow?, reset: String, stale: Bool = false) {
         ring.value = window?.remaining
@@ -139,11 +141,14 @@ final class MenuButton: NSButton {
     override func draw(_ dirtyRect: NSRect) {
         guard let p = paletteProvider?() else { return }
         let selected = isEnabled && (hovered || keyboardSelected)
+        // Rows stay clear at rest like a native menu; only the selected row and an update offer are filled.
         let background = highlightsUpdate
             ? (p.background.blended(withFraction: selected ? 0.36 : 0.24, of: .systemBlue) ?? p.surface)
-            : (p.background.blended(withFraction: selected ? 0.18 : 0.07, of: p.text) ?? p.surface)
-        background.setFill()
-        NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 1), xRadius: 6, yRadius: 6).fill()
+            : selected ? (p.background.blended(withFraction: 0.14, of: p.text) ?? p.surface) : nil
+        if let background = background {
+            background.setFill()
+            NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 1), xRadius: 6, yRadius: 6).fill()
+        }
         let foreground = isEnabled ? p.text : p.secondary.withAlphaComponent(0.55)
         let font = fontProvider?() ?? NSFont.systemFont(ofSize: 13, weight: .regular)
         let shortcutFont = NSFont.systemFont(ofSize: 12, weight: .regular)
@@ -167,6 +172,15 @@ final class MenuButton: NSButton {
         }
         if event.keyCode == 36 || event.keyCode == 76 || event.keyCode == 49 { performClick(nil); return }
         super.keyDown(with: event)
+    }
+}
+
+final class MenuSeparator: NSView {
+    var paletteProvider: (() -> ThemePalette)?
+    override func draw(_ dirtyRect: NSRect) {
+        guard let p = paletteProvider?() else { return }
+        p.text.withAlphaComponent(0.14).setFill()
+        NSRect(x: 12, y: floor(bounds.midY), width: bounds.width - 24, height: 1).fill()
     }
 }
 
@@ -286,9 +300,13 @@ final class ThemedProvidersView: NSView {
         }
         for item in providers {
             // A failure or previous-data note sits under the provider name, next to the values it qualifies.
+            // Terminal prints the name in its own "> NAME / LIMITS" header, so its note follows the readout.
             let note = item.status.hasPrefix("Updated ") ? "" : item.status
-            addLabel(item.name, font: .systemFont(ofSize: 14, weight: .semibold), color: foreground, spacing: note.isEmpty ? 8 : 2, heading: true)
-            addLabel(note, font: .systemFont(ofSize: 12), color: secondary, spacing: 8)
+            let ownHeader = theme == .terminal
+            if !ownHeader {
+                addLabel(item.name, font: .systemFont(ofSize: 14, weight: .semibold), color: foreground, spacing: note.isEmpty ? 8 : 2, heading: true)
+                addLabel(note, font: .systemFont(ofSize: 12), color: secondary, spacing: 8)
+            }
             let five = item.quota?.fiveHour, week = item.quota?.weekly
             let fiveReset = five?.reset.map { ResetText.describe($0) } ?? "Reset unavailable"
             let weekReset = week?.reset.map { ResetText.describe($0) } ?? "Reset unavailable"
@@ -302,6 +320,7 @@ final class ThemedProvidersView: NSView {
                 let height = view.preferredContentHeight + view.outerInset
                 view.frame = NSRect(x: 0, y: y, width: 340, height: height)
                 addSubview(view); y += height
+                if ownHeader { addLabel(note, font: .systemFont(ofSize: 12), color: secondary, spacing: 10) }
             } else {
                 let first = QuotaTile(symbol: "5"), second = QuotaTile(symbol: "W")
                 first.update(five, reset: fiveReset, stale: item.stale); second.update(week, reset: weekReset, stale: item.stale)

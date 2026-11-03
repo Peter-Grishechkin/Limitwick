@@ -16,7 +16,8 @@ import AppKit
                 let height = view.configure(providers, theme: theme, appearance: appearance, threshold: 20)
                 view.frame = NSRect(x: 0, y: 0, width: 340, height: height)
                 let labels = view.subviews.compactMap { $0 as? NSTextField }
-                precondition(labels.map(\.stringValue).contains("Codex") && labels.map(\.stringValue).contains("Claude"))
+                // Terminal names the provider in its own header instead of a separate heading.
+                precondition(labels.map(\.stringValue).contains("Codex") == (theme != .terminal) && labels.map(\.stringValue).contains("Claude") == (theme != .terminal))
                 precondition(!labels.contains { $0.stringValue == "Updated just now" })
                 precondition(labels.contains { $0.stringValue == error && $0.frame.height > 100 })
                 precondition(labels.contains { $0.stringValue.contains("Extra week: 22%") && $0.stringValue.contains("Conflicting") })
@@ -31,7 +32,8 @@ import AppKit
                 else {
                     precondition(themed.count == 2 && themed[0].data.fiveHour == 72 && themed[1].data.weekly == 84)
                     precondition(themed[0].data.providerName == "Codex" && themed[1].data.providerName == "Claude")
-                    precondition(themed[0].data.stale && !themed[1].data.stale && note.frame.maxY <= themed[0].frame.minY)
+                    precondition(themed[0].data.stale && !themed[1].data.stale)
+                    precondition(theme == .terminal ? note.frame.minY >= themed[0].frame.maxY && note.frame.maxY <= themed[1].frame.minY : note.frame.maxY <= themed[0].frame.minY)
                     precondition(themed[0].quotaColor(72, normal: .systemBlue).alphaComponent < 1 && themed[0].quotaColor(5, normal: .systemBlue) != .systemBlue)
                 }
                 guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { fatalError("No bitmap") }

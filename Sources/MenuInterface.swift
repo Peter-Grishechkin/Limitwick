@@ -8,7 +8,7 @@ extension AppDelegate {
             let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
             let title = heading("Limitwick")
             let versionLabel = NSTextField(labelWithString: "Version \(version)"); versionLabel.tag = 902
-            let description = NSTextField(wrappingLabelWithString: "A menu bar app for Codex usage limits."); description.widthAnchor.constraint(equalToConstant: 312).isActive = true
+            let description = NSTextField(wrappingLabelWithString: "Codex and Claude Code limits in your menu bar."); description.widthAnchor.constraint(equalToConstant: 312).isActive = true
             let github = NSButton(title: "GitHub", target: self, action: #selector(openGitHub))
             let close = NSButton(title: "Close", target: self, action: #selector(closeAbout))
             let buttons = NSStackView(views: [github, close]); buttons.orientation = .horizontal; buttons.spacing = 8
@@ -56,9 +56,14 @@ extension AppDelegate {
             buttons.append(item)
         }
         view.items = buttons.compactMap { $0 as? MenuButton }
-        let list = stack(buttons, spacing: 2)
-        list.setCustomSpacing(10, after: buttons[0])
-        list.setCustomSpacing(10, after: buttons[4])
+        func separator() -> NSView {
+            let line = MenuSeparator(); line.paletteProvider = view.items.first?.paletteProvider
+            line.widthAnchor.constraint(equalToConstant: 250).isActive = true
+            line.heightAnchor.constraint(equalToConstant: 9).isActive = true
+            return line
+        }
+        // Lines set off Refresh and Quit from the other commands.
+        let list = stack([buttons[0], separator()] + buttons[1..<(buttons.count - 1)] + [separator(), buttons[buttons.count - 1]], spacing: 2)
         install(list, in: view, width: 298)
         let controller = NSViewController(); controller.view = view; menu.contentViewController = controller
         view.dismiss = { [weak menu] in menu?.performClose(nil) }

@@ -53,8 +53,8 @@ final class WidgetThemeView: ThemeView {
                 else { path.appendArc(withCenter: center, radius: radius, startAngle: 90, endAngle: 90 + 360 * fraction(value), clockwise: false) }
                 quotaColor(value, normal: p.accent).setStroke(); path.stroke()
             }
-            text(i == 0 ? "5" : "W", NSRect(x: x+46, y: 29, width: 60, height: 29), size: 22, color: p.text, font: .systemFont(ofSize: 22, weight: .semibold), alignment: .center)
-            text(percent(value), NSRect(x: x+10, y: 77, width: 132, height: 26), size: 20, color: p.text, font: .systemFont(ofSize: 20, weight: .semibold), alignment: .center)
+            text(i == 0 ? "5" : "W", NSRect(x: x+46, y: 34, width: 60, height: 20), size: 16, color: p.secondary, font: .systemFont(ofSize: 16, weight: .medium), alignment: .center)
+            text(percent(value), NSRect(x: x+10, y: 75, width: 132, height: 30), size: 24, color: p.text, font: .systemFont(ofSize: 24, weight: .semibold), alignment: .center)
             reset(date, NSRect(x: x+8, y: 110, width: 136, height: 32), color: p.secondary, alignment: .center)
         }
     }

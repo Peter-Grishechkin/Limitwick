@@ -62,7 +62,7 @@ extension AppDelegate {
             let colors = palette(for: surface.effectiveAppearance)
             surface.needsDisplay = true
             func apply(_ view: NSView) {
-                if let item = view as? MenuButton { item.needsDisplay = true }
+                if view is MenuButton || view is MenuSeparator { view.needsDisplay = true }
                 if let text = view as? NSTextField {
                     text.textColor = text.tag == 902 ? colors.secondary : colors.text
                     if text.tag == 901 {
