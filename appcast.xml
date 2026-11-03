@@ -2,6 +2,24 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.0.0</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Limitwick no longer uses the CodexBar identifiers. The bundle ID, app group, widget extension and storage folders now use the Limitwick name.
+- Because the bundle ID changed, Limitwick 2.0 installs as a new app. Version 1.x shows an update notice that links to this page instead of installing it.
+- On the first launch your settings are copied from the previous version. Installed Claude Code and Codex activity hooks are switched to the new app. If Codex hooks were switched, review and trust them again in Codex Settings → Hooks.
+- On launch Limitwick quits all copies of version 1.x, including ones named CodexBar.app, moves them to the Trash and lists them.
+- Desktop widgets must be added again from the widget gallery. macOS asks again for permission to send notifications.
+- Settings has a button to install Claude Code or sign in to it in Terminal.&lt;/div&gt;</description>
+      <sparkle:version>2.0.0</sparkle:version>
+      <sparkle:shortVersionString>2.0.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 19:18:27 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.0.0/Limitwick-2.0.0-macOS-Apple-Silicon.zip" sparkle:edSignature="NlhA+rM4OuetuMdWyI8iY7ZgGscU1Oy/Eiqy8bqB4WpX/5vuzgCTTOE7ImZhLCbXh06Dcpn5HXlzue4Kw0BOCg==" length="3872649" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.0.0</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 1.13.1</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Settings now warns when another copy of Limitwick is on your Mac. A second copy, for example in Downloads or under the old name CodexBar.app, can make the widget gallery show old widgets after an update. The warning lists the copies and opens them in Finder so you can remove them.
 - The README troubleshooting section explains how to fix old widgets in the gallery: keep one copy in Applications, move the rest to the Trash, empty the Trash, and log out and back in.&lt;/div&gt;</description>
