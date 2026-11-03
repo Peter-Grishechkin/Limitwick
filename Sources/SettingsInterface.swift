@@ -48,6 +48,9 @@ extension AppDelegate {
     @objc func showSettings() {
         popover.performClose(nil); menuPopover?.performClose(nil)
         if settingsWindow == nil {
+            // With one service shown, its settings are the only ones that matter.
+            if settings.providers != .both { settingsProvider = activeProvider }
+            let scope = settings.providers == .both ? " · \(settingsProvider.capitalized)" : ""
             let providerPicker = NSPopUpButton(); providerPicker.addItems(withTitles: ProviderSelection.allCases.map(\.title))
             providerPicker.selectItem(at: ProviderSelection.allCases.firstIndex(of: settings.providers) ?? 0)
             providerPicker.target = self; providerPicker.action = #selector(providerChanged(_:)); providerPicker.setAccessibilityLabel("AI services")
@@ -58,9 +61,9 @@ extension AppDelegate {
             let claudeButton = NSButton(title: claudeInstalled ? "Sign in to Claude…" : "Install Claude Code…", target: self, action: #selector(setUpClaude))
             claudeSetup.font = .systemFont(ofSize: 11); claudeSetup.tag = 902
             claudeSetup.widthAnchor.constraint(equalToConstant: 372).isActive = true
-            let editPicker = NSPopUpButton(); editPicker.addItems(withTitles: ["Codex", "Claude"])
-            editPicker.selectItem(at: settingsProvider == "codex" ? 0 : 1)
-            editPicker.target = self; editPicker.action = #selector(settingsProviderChanged(_:))
+            let editPicker = NSSegmentedControl(labels: ["Codex", "Claude"], trackingMode: .selectOne, target: self, action: #selector(settingsProviderChanged(_:)))
+            editPicker.segmentDistribution = .fillEqually
+            editPicker.selectedSegment = settingsProvider == "codex" ? 0 : 1; editPicker.setAccessibilityLabel("Settings for")
             let themePicker = NSPopUpButton(); themePicker.addItems(withTitles: PanelTheme.allCases.map(\.title))
             themePicker.selectItem(at: PanelTheme.allCases.firstIndex(of: theme(for: settingsProvider)) ?? 0)
             themePicker.target = self; themePicker.action = #selector(themeChanged(_:)); themePicker.setAccessibilityLabel("Theme")
@@ -80,13 +83,21 @@ extension AppDelegate {
             let threshold = NSStepper(); threshold.minValue = 1; threshold.maxValue = 99; threshold.integerValue = settings.threshold(for: settingsProvider)
             threshold.target = self; threshold.action = #selector(thresholdChanged(_:)); threshold.setAccessibilityLabel("Low quota threshold percent")
             let field = NSTextField(labelWithString: "\(settings.threshold(for: settingsProvider))%"); field.tag = 501
-            let thresholdRow = NSStackView(views: [NSTextField(labelWithString: "Low threshold:"), field, threshold]); thresholdRow.orientation = .horizontal; thresholdRow.spacing = 12
+            let thresholdControl = NSStackView(views: [field, threshold]); thresholdControl.orientation = .horizontal; thresholdControl.spacing = 8
+            let thresholdHelp = NSTextField(wrappingLabelWithString: "Indicators turn red below this level. Low quota alerts use it too.")
+            thresholdHelp.font = .systemFont(ofSize: 11); thresholdHelp.tag = 902; thresholdHelp.widthAnchor.constraint(equalToConstant: 372).isActive = true
             noticeStatus.maximumNumberOfLines = 0; noticeStatus.font = .systemFont(ofSize: 11); noticeStatus.tag = 902
+            noticeStatus.isHidden = noticeStatus.stringValue.isEmpty
             noticeStatus.widthAnchor.constraint(equalToConstant: 372).isActive = true
             let openSettings = NSButton(title: "Notification Settings…", target: self, action: #selector(openNotificationSettings))
             let activityToggle = NSButton(checkboxWithTitle: "Show \(settingsProvider.capitalized) activity in menu bar", target: self, action: #selector(activitySettingChanged(_:)))
-            activityToggle.state = settings.activityEnabled(for: settingsProvider) ? .on : .off
-            var items = [heading("AI services"), row("Show limits", providerPicker), claudeSetup, claudeButton, heading("Provider settings"), row("Configure", editPicker), heading("Appearance"), row("Theme", themePicker), row("Mode", appearancePicker), activityToggle] as [NSView]
+            // Claude activity needs hooks; without them the box stays clear, and checking it installs them.
+            let activityWorks = settingsProvider == "codex" || ClaudeActivityMonitor.hooksInstalled()
+            activityToggle.state = settings.activityEnabled(for: settingsProvider) && activityWorks ? .on : .off
+            var items = [heading("AI services"), row("Show limits", providerPicker)] as [NSView]
+            if settings.providers.includesClaude { items += [claudeSetup, claudeButton] }
+            if settings.providers == .both { items.append(row("Settings for", editPicker)) }
+            items += [heading("Appearance" + scope), row("Theme", themePicker), row("Mode", appearancePicker), activityToggle]
             let copies = otherCopies
             if !copies.isEmpty {
                 let paths = copies.map { ($0.path as NSString).abbreviatingWithTildeInPath }.joined(separator: "\n")
@@ -103,7 +114,7 @@ extension AppDelegate {
                     : NSButton(title: "Install Claude hooks", target: self, action: #selector(installClaudeHooks))
                 items += [help, button]
             }
-            items += [heading("Notifications"), low, reset, thresholdRow, noticeStatus, openSettings]
+            items += [heading("Low quota" + scope), row("Warn below", thresholdControl), thresholdHelp, heading("Notifications" + scope), low, reset, noticeStatus, openSettings]
             let content = stack(items, spacing: 12)
             content.setCustomSpacing(22, after: activityToggle)
             settingsWindow = makeWindow(title: "Settings", content: content, width: 420)
@@ -113,8 +124,8 @@ extension AppDelegate {
         updateNoticeStatus()
         resizeWindowToContent(settingsWindow)
     }
-    @objc func settingsProviderChanged(_ sender: NSPopUpButton) {
-        settingsProvider = sender.indexOfSelectedItem == 0 ? "codex" : "claude"
+    @objc func settingsProviderChanged(_ sender: NSSegmentedControl) {
+        settingsProvider = sender.selectedSegment == 0 ? "codex" : "claude"
         reloadSettingsWindow()
     }
     func reloadSettingsWindow() {
@@ -231,6 +242,7 @@ extension AppDelegate {
         updateWarningThreshold()
         updatePresentation()
         refreshNow()
+        reloadSettingsWindow()
     }
     @objc func themeChanged(_ sender: NSPopUpButton) {
         guard PanelTheme.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
@@ -284,6 +296,7 @@ extension AppDelegate {
                 case .authorized, .provisional, .ephemeral: self.noticeStatus.stringValue = "Notifications are allowed. Reset alerts require a successful refresh."
                 default: self.noticeStatus.stringValue = "Enable an alert above to request notification permission."
                 }
+                self.noticeStatus.isHidden = false
                 self.resizeWindowToContent(self.settingsWindow)
             }
         }

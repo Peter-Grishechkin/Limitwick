@@ -122,8 +122,8 @@ extension AppDelegate {
         }
         desktopTheme?.isHidden = dual
         desktopFive.isHidden = dual || desktopTheme != nil; desktopWeek.isHidden = dual || desktopTheme != nil
-        desktopFive.update(displayQuota?.fiveHour, reset: resetDescription(displayQuota?.fiveHour))
-        desktopWeek.update(displayQuota?.weekly, reset: resetDescription(displayQuota?.weekly))
+        desktopFive.update(displayQuota?.fiveHour, reset: resetDescription(displayQuota?.fiveHour), stale: displayStale)
+        desktopWeek.update(displayQuota?.weekly, reset: resetDescription(displayQuota?.weekly), stale: displayStale)
         desktopFive.ring.warningThreshold = noticeThreshold; desktopWeek.ring.warningThreshold = noticeThreshold
         desktopFive.frame = fiveHourView.frame; desktopWeek.frame = weeklyView.frame
         desktopState.stringValue = stateLabel.stringValue; desktopState.isHidden = dual || stateLabel.isHidden; desktopState.frame = stateLabel.frame

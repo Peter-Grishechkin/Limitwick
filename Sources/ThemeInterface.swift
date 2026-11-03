@@ -40,7 +40,7 @@ extension AppDelegate {
         let week = displayQuota?.weekly
         let summary = "\(describe("5 hours", five)). \(describe("Week", week)). \(state). \(updatedLabel.stringValue). \(additionalLabel.stringValue)"
         themeView?.data = ThemeData(fiveHour: five?.remaining, weekly: week?.remaining,
-                                    fiveReset: resetDescription(five), weekReset: resetDescription(week), accessibility: summary, warningThreshold: noticeThreshold, providerName: activeProvider.capitalized)
+                                    fiveReset: resetDescription(five), weekReset: resetDescription(week), accessibility: summary, warningThreshold: noticeThreshold, providerName: activeProvider.capitalized, stale: displayStale)
     }
     func palette(for appearance: NSAppearance) -> ThemePalette {
         if let view = selectedTheme.makeView() {

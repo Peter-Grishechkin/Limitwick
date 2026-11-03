@@ -20,6 +20,7 @@ final class WidgetThemeView: ThemeView {
         if let view = paletteView { return view.palette }
         return ThemePalette(background: dark ? .init(white: 0.12, alpha: 1) : .init(white: 0.96, alpha: 1), surface: dark ? .init(white: 0.18, alpha: 1) : .white, text: dark ? .white : .black, secondary: dark ? .lightGray : .darkGray, track: .gray, accent: .systemBlue, second: .systemBlue)
     }
+    override var warningColor: NSColor { paletteView?.warningColor ?? .systemRed }
     override func draw(_ dirtyRect: NSRect) {
         background()
         switch theme {
@@ -112,7 +113,7 @@ final class WidgetThemeView: ThemeView {
             text(i == 0 ? "5h" : "W", NSRect(x: 21, y: y+18, width: 50, height: 30), size: 22, color: p.text, font: .systemFont(ofSize: 22, weight: .bold), alignment: .center)
             let dateRect = NSRect(x: 83, y: y+17, width: 125, height: 32)
             reset(date, dateRect, color: p.text)
-            if !dark, value != nil, fraction(value) > 0 { NSGraphicsContext.saveGraphicsState(); NSBezierPath(roundedRect: rect, xRadius: 32, yRadius: 32).addClip(); NSBezierPath(rect: progress).addClip(); reset(date, dateRect, color: .white); NSGraphicsContext.restoreGraphicsState() }
+            if !dark, !data.stale, value != nil, fraction(value) > 0 { NSGraphicsContext.saveGraphicsState(); NSBezierPath(roundedRect: rect, xRadius: 32, yRadius: 32).addClip(); NSBezierPath(rect: progress).addClip(); reset(date, dateRect, color: .white); NSGraphicsContext.restoreGraphicsState() }
             text(percent(value), NSRect(x: 211, y: y+18, width: 103, height: 30), size: 22, color: p.text, font: .systemFont(ofSize: 22, weight: .bold), alignment: .right)
         }
     }

@@ -22,13 +22,17 @@ import AppKit
                 precondition(labels.contains { $0.stringValue.contains("Extra week: 22%") && $0.stringValue.contains("Conflicting") })
                 precondition(view.subviews.allSatisfy { $0.frame.minY >= 0 && $0.frame.maxY <= height })
                 let themed = view.subviews.compactMap { $0 as? ThemeView }
+                let note = labels.first { $0.stringValue == error }!
                 if theme == .classic {
                     let tiles = view.subviews.compactMap { $0 as? QuotaTile }
                     precondition(tiles.count == 4 && tiles[0].ring.value == 72 && tiles[3].ring.value == 84)
+                    precondition(tiles[0].ring.stale && !tiles[3].ring.stale && note.frame.maxY <= tiles[0].frame.minY)
                 }
                 else {
                     precondition(themed.count == 2 && themed[0].data.fiveHour == 72 && themed[1].data.weekly == 84)
                     precondition(themed[0].data.providerName == "Codex" && themed[1].data.providerName == "Claude")
+                    precondition(themed[0].data.stale && !themed[1].data.stale && note.frame.maxY <= themed[0].frame.minY)
+                    precondition(themed[0].quotaColor(72, normal: .systemBlue).alphaComponent < 1 && themed[0].quotaColor(5, normal: .systemBlue) != .systemBlue)
                 }
                 guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { fatalError("No bitmap") }
                 view.cacheDisplay(in: view.bounds, to: bitmap)

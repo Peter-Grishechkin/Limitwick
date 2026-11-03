@@ -468,8 +468,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         bars.stale = displayStale
         claudeBars.values = [claudeQuota?.fiveHour?.remaining, claudeQuota?.weekly?.remaining]
         claudeBars.stale = claudeStale
-        fiveHourView.update(quota?.fiveHour, reset: resetDescription(quota?.fiveHour))
-        weeklyView.update(quota?.weekly, reset: resetDescription(quota?.weekly))
+        fiveHourView.update(quota?.fiveHour, reset: resetDescription(quota?.fiveHour), stale: displayStale)
+        weeklyView.update(quota?.weekly, reset: resetDescription(quota?.weekly), stale: displayStale)
         updatedLabel.stringValue = ageDescription(displayUpdate)
         state = first?.status ?? "Loading…"
         let messages = presentations.compactMap { item -> String? in

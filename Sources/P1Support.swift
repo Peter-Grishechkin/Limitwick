@@ -6,23 +6,33 @@ func durationName(_ minutes: Int) -> String {
     return "\(minutes)-minute"
 }
 
+// Relative time leads; the clock time drops the date when it is today and the year when it is this year.
+// No-break spaces keep "in 2h 15m" and the clock time whole, so a narrow panel wraps only after "·".
 struct ResetText {
-    static func describe(_ date: Date?, now: Date = Date()) -> String {
+    static func describe(_ date: Date?, now: Date = Date(), calendar: Calendar = .current, locale: Locale = .current) -> String {
         guard let date = date else { return "Reset unavailable" }
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-        let absolute = formatter.string(from: date)
+        func format(_ template: String) -> String {
+            let formatter = DateFormatter()
+            formatter.locale = locale; formatter.calendar = calendar; formatter.timeZone = calendar.timeZone
+            formatter.setLocalizedDateFormatFromTemplate(template)
+            return formatter.string(from: date)
+        }
+        let time = format("jmm")
+        let day = calendar.isDate(date, inSameDayAs: now) ? nil
+            : abs(date.timeIntervalSince(now)) < 6 * 86400 ? format("EEE") + " "
+            : format(calendar.isDate(date, equalTo: now, toGranularity: .year) ? "MMMd" : "yMMMd") + ", "
+        let absolute = unbroken((day ?? "") + time)
         let seconds = date.timeIntervalSince(now)
-        guard seconds > 0 else { return "\(absolute) · reset passed" }
+        guard seconds > 0 else { return "Reset\u{00A0}passed\u{00A0}· \(absolute)" }
         let minutes = max(1, Int(ceil(seconds / 60)))
         let days = minutes / 1440, hours = (minutes % 1440) / 60, mins = minutes % 60
         let relative: String
         if days > 0 { relative = "\(days)d \(hours)h" }
         else if hours > 0 { relative = "\(hours)h \(mins)m" }
         else { relative = "\(mins)m" }
-        return "\(absolute) · in \(relative)"
+        return unbroken("in \(relative)") + "\u{00A0}· \(absolute)"
     }
+    private static func unbroken(_ text: String) -> String { text.replacingOccurrences(of: " ", with: "\u{00A0}") }
 }
 
 struct RefreshSchedule {

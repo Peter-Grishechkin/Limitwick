@@ -6,7 +6,7 @@ import AppKit
 let scale: CGFloat = 2
 let output = URL(fileURLWithPath: CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "docs/images", isDirectory: true)
 let appearances: [(String, NSAppearance)] = [("light", NSAppearance(named: .aqua)!), ("dark", NSAppearance(named: .darkAqua)!)]
-let demo = (five: 72.0, week: 46.0, fiveReset: "11/3/26, 4:30 PM · in 2h 15m", weekReset: "11/7/26, 8:15 PM · in 4d 6h")
+let demo = (five: 72.0, week: 46.0, fiveReset: "in\u{00A0}2h\u{00A0}15m\u{00A0}· 4:30\u{00A0}PM", weekReset: "in\u{00A0}4d\u{00A0}6h\u{00A0}· Sat\u{00A0}8:15\u{00A0}PM")
 
 func isDark(_ appearance: NSAppearance) -> Bool { appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua }
 

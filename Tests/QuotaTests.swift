@@ -67,8 +67,20 @@ import Darwin
         check(durationName(10080) == "7-day", "weekly duration label")
         check(durationName(90) == "90-minute", "other duration label")
         check(ResetText.describe(nil, now: now) == "Reset unavailable", "missing reset")
-        check(ResetText.describe(now.addingTimeInterval(-1), now: now).contains("reset passed"), "past reset")
-        check(ResetText.describe(now.addingTimeInterval(8100), now: now).contains("in 2h 15m"), "relative reset")
+        var utc = Calendar(identifier: .gregorian); utc.timeZone = TimeZone(identifier: "UTC")!
+        let english = Locale(identifier: "en_US")
+        func reset(_ seconds: TimeInterval) -> String {
+            ResetText.describe(now.addingTimeInterval(seconds), now: now, calendar: utc, locale: english)
+                .replacingOccurrences(of: "\u{00A0}", with: " ").replacingOccurrences(of: "\u{202F}", with: " ")
+        }
+        // now is Fri 15 Jan 2027, 08:00 UTC.
+        check(reset(-1) == "Reset passed · 7:59 AM", "past reset")
+        check(reset(8100) == "in 2h 15m · 10:15 AM", "same-day reset shows the time only")
+        check(reset(367200) == "in 4d 6h · Tue 2:00 PM", "reset within a week shows the weekday")
+        check(reset(20 * 86400) == "in 20d 0h · Feb 4, 8:00 AM", "later reset shows the date without the year")
+        check(reset(400 * 86400).contains("2028"), "reset next year shows the year")
+        let wrapped = ResetText.describe(now.addingTimeInterval(367200), now: now, calendar: utc, locale: english)
+        check(wrapped.filter { $0 == " " }.count == 1 && wrapped.contains("· "), "the line breaks only after the separator")
         var schedule = RefreshSchedule()
         check(schedule.record(success: false) == 360, "first failure backoff")
         check(schedule.record(success: false) == 720, "second failure backoff")

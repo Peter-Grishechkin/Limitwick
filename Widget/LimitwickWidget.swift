@@ -109,7 +109,7 @@ private struct QuotaWidgetView: View {
             data: ThemeData(fiveHour: entry.snapshot?.five, weekly: entry.snapshot?.week,
                             fiveReset: reset(entry.snapshot?.fiveReset), weekReset: reset(entry.snapshot?.weekReset),
                             accessibility: summary, warningThreshold: entry.snapshot?.threshold ?? 20,
-                            providerName: variant.source.title),
+                            providerName: variant.source.title, stale: entry.snapshot?.state == .stale),
             status: status, appearance: appearance)
         guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return nil }
         if let appearance {

@@ -40,8 +40,9 @@ final class QuotaTile: NSView {
         valueLabel.font = .systemFont(ofSize: 21, weight: .semibold)
         valueLabel.alignment = .center
         valueLabel.frame = NSRect(x: 8, y: 46, width: 136, height: 28)
-        resetLabel.font = .systemFont(ofSize: 10.5)
-        resetLabel.textColor = .secondaryLabelColor
+        resetLabel.font = .systemFont(ofSize: 11)
+        // The system secondary gray is 3.9:1 on the light tile; a darker gray keeps 4.5:1.
+        resetLabel.textColor = NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .secondaryLabelColor : NSColor(white: 0.40, alpha: 1) }
         resetLabel.alignment = .center
         resetLabel.maximumNumberOfLines = 0
         resetLabel.frame = NSRect(x: 6, y: 8, width: 140, height: 34)
@@ -65,8 +66,9 @@ final class QuotaTile: NSView {
         symbolLabel.frame.origin.y = 99 + extra
         valueLabel.frame.origin.y = 46 + extra
     }
-    func update(_ window: QuotaWindow?, reset: String) {
+    func update(_ window: QuotaWindow?, reset: String, stale: Bool = false) {
         ring.value = window?.remaining
+        ring.stale = stale
         valueLabel.stringValue = window.map { "\(Int($0.remaining.rounded()))%" } ?? "—"
         resetLabel.stringValue = reset
         let period = symbol == "5" ? "5 hours" : "Week"
@@ -77,6 +79,7 @@ final class QuotaTile: NSView {
 final class RingView: NSView {
     var value: Double? { didSet { needsDisplay = true } }
     var warningThreshold = 20 { didSet { needsDisplay = true } }
+    var stale = false { didSet { needsDisplay = true } }
     override func draw(_ dirtyRect: NSRect) {
         let rect = bounds.insetBy(dx: 6, dy: 6)
         let track = NSBezierPath(ovalIn: rect)
@@ -93,7 +96,7 @@ final class RingView: NSView {
             path.appendArc(withCenter: NSPoint(x: bounds.midX, y: bounds.midY), radius: rect.width / 2,
                            startAngle: 90, endAngle: 90 - CGFloat(360 * fraction), clockwise: true)
         }
-        (isLowQuota(value, threshold: warningThreshold) ? NSColor.systemRed : NSColor.systemBlue).setStroke()
+        (isLowQuota(value, threshold: warningThreshold) ? NSColor.systemRed : NSColor.systemBlue).withAlphaComponent(stale ? 0.4 : 1).setStroke()
         path.stroke()
     }
 }
@@ -282,7 +285,10 @@ final class ThemedProvidersView: NSView {
             addSubview(label); y += height + spacing
         }
         for item in providers {
-            addLabel(item.name, font: .systemFont(ofSize: 14, weight: .semibold), color: foreground, spacing: 8, heading: true)
+            // A failure or previous-data note sits under the provider name, next to the values it qualifies.
+            let note = item.status.hasPrefix("Updated ") ? "" : item.status
+            addLabel(item.name, font: .systemFont(ofSize: 14, weight: .semibold), color: foreground, spacing: note.isEmpty ? 8 : 2, heading: true)
+            addLabel(note, font: .systemFont(ofSize: 12), color: secondary, spacing: 8)
             let five = item.quota?.fiveHour, week = item.quota?.weekly
             let fiveReset = five?.reset.map { ResetText.describe($0) } ?? "Reset unavailable"
             let weekReset = week?.reset.map { ResetText.describe($0) } ?? "Reset unavailable"
@@ -292,13 +298,13 @@ final class ThemedProvidersView: NSView {
                     return "\(name): \(Int(window.remaining.rounded())) percent remaining, \(reset)"
                 }
                 let summary = "\(item.name). \(description("5 hours", five, fiveReset)). \(description("Week", week, weekReset)). \(item.status)"
-                view.data = ThemeData(fiveHour: five?.remaining, weekly: week?.remaining, fiveReset: fiveReset, weekReset: weekReset, accessibility: summary, warningThreshold: threshold, providerName: item.name)
+                view.data = ThemeData(fiveHour: five?.remaining, weekly: week?.remaining, fiveReset: fiveReset, weekReset: weekReset, accessibility: summary, warningThreshold: threshold, providerName: item.name, stale: item.stale)
                 let height = view.preferredContentHeight + view.outerInset
                 view.frame = NSRect(x: 0, y: y, width: 340, height: height)
                 addSubview(view); y += height
             } else {
                 let first = QuotaTile(symbol: "5"), second = QuotaTile(symbol: "W")
-                first.update(five, reset: fiveReset); second.update(week, reset: weekReset)
+                first.update(five, reset: fiveReset, stale: item.stale); second.update(week, reset: weekReset, stale: item.stale)
                 first.ring.warningThreshold = threshold; second.ring.warningThreshold = threshold
                 let extra = max(first.extraResetHeight, second.extraResetHeight)
                 first.setExtraHeight(extra); second.setExtraHeight(extra)
@@ -309,7 +315,6 @@ final class ThemedProvidersView: NSView {
             extras += item.quota?.namedAdditional.map { "\($0.name) week: \(Int($0.remaining.rounded()))% remaining · \(ResetText.describe($0.reset))" } ?? []
             extras += item.quota?.conflictingDurations.map { "Conflicting \(durationName($0)) values; unavailable" } ?? []
             addLabel(extras.joined(separator: "\n"), font: .systemFont(ofSize: 12), color: secondary, spacing: 10)
-            if !item.status.hasPrefix("Updated ") { addLabel(item.status, font: .systemFont(ofSize: 12), color: secondary, spacing: 16) }
         }
         needsDisplay = true
         return y

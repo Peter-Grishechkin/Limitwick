@@ -109,11 +109,9 @@ Open **Settings…** from the menu. The window has four sections.
 
 **Show limits** chooses what to track: **Codex**, **Claude**, or **Both**.
 
-If Claude Code is missing, **Install Claude Code…** opens Terminal, runs the official installer and starts Claude Code so you can sign in. When it is installed, **Sign in to Claude…** opens Claude Code in Terminal; type `/login` there if limits do not load.
+When Claude is tracked and Claude Code is missing, **Install Claude Code…** opens Terminal, runs the official installer and starts Claude Code so you can sign in. When it is installed, **Sign in to Claude…** opens Claude Code in Terminal; type `/login` there if limits do not load.
 
-### Provider settings
-
-**Configure** chooses which service the settings below apply to: **Codex** or **Claude**. Theme, appearance, activity, and notifications are set separately for each service. Change the selection to edit the other service.
+Theme, appearance, activity, threshold, and notifications are set separately for each service. With **Both** selected, **Settings for** switches between **Codex** and **Claude**, and the section titles name the service being edited. With one service selected, the settings apply to it.
 
 ### Appearance
 
@@ -123,11 +121,14 @@ If Claude Code is missing, **Install Claude Code…** opens Terminal, runs the o
 
 When **Both** is selected, each service's block in the panel uses that service's own theme and mode.
 
+### Low quota
+
+**Warn below:** from 1% to 99%, 20% by default. Below this level the bars and rings turn red, even if notifications are off, and low quota alerts use the same level. Red appears only for this warning; the themes use other colors for normal values.
+
 ### Notifications
 
 - **Low remaining quota:** notifies you when a limit drops below the threshold.
 - **Confirmed quota reset:** notifies you when a limit has reset.
-- **Low threshold:** from 1% to 99%, 20% by default. It also sets when the bars and rings turn red, even if notifications are off.
 - **Notification Settings…:** opens macOS notification settings if alerts are blocked.
 
 See [Notifications](#notifications) for details.
@@ -148,8 +149,8 @@ The indicator uses *hooks*: small scripts that Codex or Claude Code runs on each
 
 ### Claude Code
 
-1. In **Settings**, set **Configure** to **Claude**.
-2. Turn on **Show Claude activity in menu bar**. If the hooks are not installed yet, Limitwick installs them and confirms. You can also use the **Install Claude hooks** button.
+1. In **Settings**, choose **Claude** under **Show limits**, or set **Settings for** to **Claude** when both services are shown.
+2. Turn on **Show Claude activity in menu bar**. The box stays clear until the hooks are installed; checking it installs them and confirms. You can also use the **Install Claude hooks** button.
 3. Start a new Claude Code session. Claude Code reads hooks only when a session starts. To include a session that is already open, type `/exit` in it, then run `claude --continue` to resume the same conversation.
 
 The text below the checkbox shows the current status:
@@ -266,9 +267,9 @@ Limitwick checks for new versions quietly at launch and once a day. When an upda
 | **Codex login or network error** | Run `codex login status`, sign in if needed, check your connection, and choose **Refresh**. |
 | **Claude Code not found or not signed in** | Install Claude Code, run `claude` in Terminal, sign in, and choose **Refresh**. |
 | **Claude usage unavailable** | Run `/usage` in Claude Code to check the account and connection. Limitwick reads Claude Code's on-screen output, which can change when Claude Code updates. Reset times that cannot be read are shown as unavailable. |
-| **Bars are dimmed** | The last refresh failed, so the previous values are shown. The panel shows the error and how old the data is. |
+| **Bars are dimmed** | The last refresh failed, so the previous values are shown. The panel dims that service's indicators too and shows the error and how old the data is under its name. |
 | **A limit is missing** | The service did not report that limit. Reset times appear only when the service provides them. |
-| **No activity animation for Claude** | Check the status text in **Settings → Configure: Claude**. Install the hooks if needed and start a new Claude Code session. |
+| **No activity animation for Claude** | Check the status text on the Claude settings in **Settings**. Install the hooks if needed and start a new Claude Code session. |
 | **No activity animation for Codex** | Make sure the hooks are installed and trusted in Codex, and that the session was started after they were trusted. |
 | **Widget gallery shows old widgets after an update** | Another copy of the app, for example a second **Limitwick.app** or **CodexBar.app** in Downloads or Applications, can supply its old widgets. **Settings** lists such copies under **Other copies**. Keep one copy in Applications, move the rest to the Trash, empty the Trash, and log out and back in. Then remove the old widget from the desktop and add a new one from the gallery. |
 | **No notifications** | Turn on the notification type in Settings and allow alerts in **Notification Settings…**. |
