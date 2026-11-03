@@ -2,6 +2,17 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Codex Bar 1.10.0</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Show animated Codex activity beside the menu bar quota bars for supported local sessions.
+- Display working, tool activity and completion; enable or disable the indicator in Settings.
+- Improve the size and weight of the activity icons while keeping the existing quota bars.&lt;/div&gt;</description>
+      <sparkle:version>1.10.0</sparkle:version>
+      <sparkle:shortVersionString>1.10.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 12:00:13 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/codex-bar/releases/download/v1.10.0/CodexBar-1.10.0-macOS-Apple-Silicon.zip" sparkle:edSignature="SGOzOZry07hwdbVU9EJm3o24yxR85QJoMgQkP8lB/2lL8izF0JnB3dOCLJY5ndZ4XrLJsG5FlkrxbuHXZc0PDA==" length="3642927" type="application/octet-stream" />
+    </item>
+    <item>
       <title>Codex Bar 1.9.1</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Refresh the desktop widget using the current theme when Codex Bar starts, and retain available previous values while fresh limits load.
 - Make the widget image fill its available space and reduce visible borders.
