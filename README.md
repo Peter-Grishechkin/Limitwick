@@ -55,13 +55,44 @@ Limitwick 2.0 uses new app identifiers, so it installs as a new app rather than 
 3. Remove the old widgets from the desktop and add new ones from the widget gallery.
 4. macOS asks again for permission to send notifications if you turned them on.
 
-### Install with Codex
+### Install with Agent
 
-You can ask Codex to install the app for you. Paste this prompt into Codex:
+Claude Code, Codex, or another coding agent with Terminal access can install and set up Limitwick for you: check the requirements, install the app, choose what to track, and turn on the activity indicator. You only need to finish sign-in in the browser and, for Codex, trust the new hooks.
+
+**1. Let the agent run commands without stopping.** The setup writes to `/Applications`, `~/.claude`, `~/.codex` and the app's preferences, so an agent in its default mode asks before almost every step. Start it in a more autonomous mode from any folder:
+
+| Agent | Command | What it allows |
+| --- | --- | --- |
+| Claude Code | `claude --permission-mode auto` | Runs commands and edits on its own; still stops before risky actions. |
+| Codex CLI | `codex --sandbox danger-full-access --ask-for-approval never` | Full access to your files and network with no prompts. Use it for this task, then start Codex normally again. |
+
+In the Claude desktop app or the Codex app, choose the same level in the session's permission menu: the mode that lets the agent run commands without asking each time.
+
+**2. Paste this prompt.** Change `Both` on the first line to `Codex` or `Claude` if you track only one service.
 
 ```text
-Install Limitwick from https://github.com/frankydzoro/Limitwick. Check that my Mac meets the requirements and that Codex CLI is installed and signed in. Download the Apple Silicon archive from the latest GitHub release, install Limitwick.app in Applications, open it, and verify that it launched. If a step needs my input or macOS blocks the app, explain what I need to do.
+Track: Both
+
+Install and set up Limitwick (https://github.com/frankydzoro/Limitwick) on this Mac. Work on your own and stop only for steps that need me.
+
+1. Check that the Mac is Apple Silicon (`uname -m` prints arm64) and runs macOS 13 or later. If not, stop and tell me.
+2. For each service in "Track" make sure its CLI is installed and signed in:
+   - Codex: `codex login status`. If the CLI is missing, install it with the official method from OpenAI's Codex docs. If it is not signed in, run `codex login` and tell me to finish sign-in in the browser.
+   - Claude: `claude auth status`. If Claude Code is missing, install it with the official installer from https://code.claude.com/docs/en/setup. If it is not signed in, tell me to run `claude` in Terminal and sign in, then wait for me.
+3. Find the latest release with the GitHub API or `gh release view -R frankydzoro/Limitwick`, and download the `*-macOS-Apple-Silicon.zip` asset with curl or gh into a temporary folder. Unzip it and check that Limitwick.app is inside.
+4. If Limitwick is running, quit it (`osascript -e 'quit app "Limitwick"'`). Move an existing /Applications/Limitwick.app to the Trash and copy the new one there. Leave copies with other names, such as CodexBar.app: Limitwick removes version 1.x itself on first launch.
+5. Set what to track: `defaults write local.limitwick.app providers -string <codex|claude|both>`, matching "Track".
+6. Install the activity hooks for the tracked services:
+   - Claude: `/usr/bin/python3 /Applications/Limitwick.app/Contents/Resources/useAnimations/claude-activity-setup.py install`
+   - Codex: `/usr/bin/python3 /Applications/Limitwick.app/Contents/Resources/useAnimations/activity-setup.py install`
+   These scripts add only Limitwick's own entries and keep my other settings and hooks.
+7. Open the app with `open /Applications/Limitwick.app` and check with `pgrep -x Limitwick` that it is running. If macOS blocks it, tell me to allow it in System Settings → Privacy & Security, then check again.
+8. Finish with a short report: what you installed or changed, the installed version, and what is left for me. If Codex hooks were installed, remind me to trust them in Codex Settings → Hooks or with /hooks in the Codex CLI, and to restart open Codex and Claude Code sessions.
+
+Never ask me for passwords or tokens and do not print them. Do not change other apps, settings or hooks. Delete only the temporary files you created.
 ```
+
+After the agent finishes, look for Limitwick in the menu bar. If limits do not load, see [Troubleshooting](#troubleshooting).
 
 ## Using Limitwick
 
