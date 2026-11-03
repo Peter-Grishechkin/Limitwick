@@ -2,6 +2,16 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Codex Bar 1.7.3</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Fix the limits panel reopening when clicking the menu bar icon while Settings is open.
+- Keep dismissing the panel by clicking outside it or pressing Escape.&lt;/div&gt;</description>
+      <sparkle:version>1.7.3</sparkle:version>
+      <sparkle:shortVersionString>1.7.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 00:06:34 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/codex-bar/releases/download/v1.7.3/CodexBar-1.7.3-macOS-Apple-Silicon.zip" sparkle:edSignature="Dr2DjqH+Yskx5jrktIqqHKe3QLfwcAqse2PqJ5X+b5MLUZMGix9/fAM0wXF6NubOuIh65IszrWt1wefJS8ojCg==" length="1289965" type="application/octet-stream" />
+    </item>
+    <item>
       <title>Codex Bar 1.7.2</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Show the release&amp;#x27;s Changes in the update window before installation.
 - Include the GitHub release notes in the update feed when preparing future releases.&lt;/div&gt;</description>
