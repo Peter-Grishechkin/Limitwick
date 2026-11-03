@@ -2,6 +2,16 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Codex Bar 1.8.1</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Adapt all six themes to the horizontal desktop widget with dedicated 2:1 layouts, preserving their colors and indicators.
+- Keep the widget layout independent of the popup height and show when previous data is displayed.&lt;/div&gt;</description>
+      <sparkle:version>1.8.1</sparkle:version>
+      <sparkle:shortVersionString>1.8.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 01:48:37 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/codex-bar/releases/download/v1.8.1/CodexBar-1.8.1-macOS-Apple-Silicon.zip" sparkle:edSignature="IUrED9IkjSBckmfvdUw2q1MFGq8fgPTqpsuurqBoYORrmm9uo1D6+I2wgVU1pfdw5sYWDo4zrN/WMjVn3oeCCw==" length="1418491" type="application/octet-stream" />
+    </item>
+    <item>
       <title>Codex Bar 1.8.0</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Add a horizontal macOS desktop widget that displays the five-hour and weekly limits using the selected panel theme. Desktop widgets require macOS 14 or later; macOS controls their refresh timing.
 - Add a movable Picture-in-Picture window with the same themes and live limits, available from the menu bar context menu. Its position and visibility are saved.
