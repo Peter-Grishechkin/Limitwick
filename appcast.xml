@@ -2,6 +2,24 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.1.0</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Red now means only one thing: the remaining quota is below your warning threshold. Themes that used red or orange for the weekly limit use calmer colors instead: blue in Industrial, teal in Capsules, the theme&amp;#x27;s main color in Dot Matrix and Paper.
+- When a refresh fails, the panel, Picture-in-Picture window and widgets dim the previous values, as the menu bar already did. With both services shown, the error and the age of the data appear right under the service name.
+- Reset times lead with the time remaining, for example &amp;quot;in 2h 15m · 4:30 PM&amp;quot; or &amp;quot;in 4d 6h · Sat 8:15 PM&amp;quot;. The date is left out for today and the year for this year, and the line wraps only after &amp;quot;·&amp;quot;.
+- Reset times are larger (11 pt) in every theme, and their contrast is higher in Classic (light) and on Capsules fills.
+- Settings: the Claude sign-in hint appears only when Claude is tracked. With both services shown, Settings for switches between Codex and Claude, and section titles name the service. The threshold has its own Low quota section (Warn below). The Claude activity box stays clear until Claude Code hooks are installed; checking it installs them.
+- Classic shows the percentage larger than the period letter in the ring. The menu rows stay clear until you point at them, with thin lines around Refresh and Quit. In the dual panel, Terminal no longer repeats the service name. About mentions Claude Code.&lt;/div&gt;</description>
+      <sparkle:version>2.1.0</sparkle:version>
+      <sparkle:shortVersionString>2.1.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 22:10:30 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.1.0/Limitwick-2.1.0-macOS-Apple-Silicon.zip" sparkle:edSignature="dHJp4vAoPKA0JtbYD6YoLqXouhq1qj5z9ESTf7oHtyJKoKrS25b0UHcGUJ/TflCkGQR0zqlkeLG++LWaqL6LDA==" length="3884299" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.1.0</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.0.1</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Fixed Claude limits not loading after the update to 2.0.0. Limitwick runs Claude Code in a new folder, and Claude Code asks whether to trust it. Claude Code could reset the answer to &amp;quot;No, exit&amp;quot; right after showing the question, so Limitwick waited until the timeout. Limitwick now repeats the selection until &amp;quot;Yes, I trust this folder&amp;quot; is chosen.&lt;/div&gt;</description>
       <sparkle:version>2.0.1</sparkle:version>
