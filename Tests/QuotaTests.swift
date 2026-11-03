@@ -9,6 +9,12 @@ import Darwin
         func json(_ string: String) throws -> [String: Any] {
             try JSONSerialization.jsonObject(with: Data(string.utf8)) as! [String: Any]
         }
+        check(isMajorUpdate("2.0.0", installedVersion: "1.8.1"), "major update detected")
+        check(isMajorUpdate("3.1.0", installedVersion: "1.8.1"), "multiple major versions detected")
+        check(!isMajorUpdate("1.9.0", installedVersion: "1.8.1"), "minor update is not major")
+        check(!isMajorUpdate("1.8.2", installedVersion: "1.8.1"), "patch update is not major")
+        check(!isMajorUpdate("invalid", installedVersion: "1.8.1"), "invalid version is not major")
+        check(!isMajorUpdate("2.0.0", installedVersion: ""), "unknown installed version is not major")
         check(isLowQuota(19, threshold: 20), "below warning threshold")
         check(isLowQuota(20, threshold: 20), "at warning threshold")
         check(!isLowQuota(21, threshold: 20), "above warning threshold")

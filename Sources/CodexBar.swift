@@ -122,6 +122,7 @@ final class MenuButton: NSButton {
     var shortcut = ""
     var dismiss: (() -> Void)?
     var fontProvider: (() -> NSFont)?
+    var highlightsUpdate = false { didSet { needsDisplay = true } }
     var keyboardSelected = false { didSet { needsDisplay = true } }
     private var hovered = false { didSet { needsDisplay = true } }
     private var tracking: NSTrackingArea?
@@ -139,7 +140,9 @@ final class MenuButton: NSButton {
     override func draw(_ dirtyRect: NSRect) {
         guard let p = paletteProvider?() else { return }
         let selected = isEnabled && (hovered || keyboardSelected)
-        let background = p.background.blended(withFraction: selected ? 0.18 : 0.07, of: p.text) ?? p.surface
+        let background = highlightsUpdate
+            ? (p.background.blended(withFraction: selected ? 0.36 : 0.24, of: .systemBlue) ?? p.surface)
+            : (p.background.blended(withFraction: selected ? 0.18 : 0.07, of: p.text) ?? p.surface)
         background.setFill()
         NSBezierPath(roundedRect: bounds.insetBy(dx: 2, dy: 1), xRadius: 6, yRadius: 6).fill()
         let foreground = isEnabled ? p.text : p.secondary.withAlphaComponent(0.55)
@@ -186,7 +189,15 @@ final class MenuView: ThemedSurface {
     }
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
+final class UpdateBadge: NSView {
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.systemRed.setFill()
+        NSBezierPath(ovalIn: bounds).fill()
+    }
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPUUpdaterDelegate {
     let status = NSStatusBar.system.statusItem(withLength: 34)
     let bars = Bars(frame: NSRect(x: 0, y: 0, width: 32, height: 20))
     let popover = NSPopover()
@@ -200,7 +211,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     let refresh = NSMenuItem(title: "Refresh", action: #selector(refreshNow), keyEquivalent: "r")
     let client = QuotaClient()
     let listener = QuotaListener()
-    let updaterController = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+    lazy var updaterController = SPUStandardUpdaterController(startingUpdater: false, updaterDelegate: self, userDriverDelegate: nil)
+    let updateBadge = UpdateBadge(frame: .zero)
+    var updateCheckTimer: Timer?
+    var menuUpdateButton: MenuButton?
+    var availableUpdate: String?
+    var installedVersion: String { Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "" }
     let checkUpdates = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
     var timer: Timer?
     var schedule = RefreshSchedule()
@@ -242,8 +258,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         bars.frame.origin = NSPoint(x: 1, y: (button.bounds.height - 20) / 2)
         bars.autoresizingMask = [.minYMargin, .maxYMargin]
         button.addSubview(bars)
+        updateBadge.frame = NSRect(x: button.bounds.width - 6, y: button.bounds.height - 6, width: 5, height: 5)
+        updateBadge.autoresizingMask = [.minXMargin, .minYMargin]
+        updateBadge.isHidden = true
+        button.addSubview(updateBadge)
+        let savedUpdate = UserDefaults.standard.dictionary(forKey: "availableUpdate") as? [String: String]
+        if savedUpdate?["installed"] == installedVersion { availableUpdate = savedUpdate?["available"] }
+        updateUpdateUI()
+        updaterController.updater.automaticallyChecksForUpdates = false
+        updaterController.startUpdater()
+        checkUpdateInformation()
         button.toolTip = "Codex: top — 5 hours, bottom — week"
-        button.setAccessibilityLabel("Codex usage limits, loading")
         button.target = self
         button.action = #selector(statusItemClicked)
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -648,7 +673,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let menu = NSPopover(); menu.behavior = .transient; menu.appearance = appearanceMode.appearance
         let view = MenuView(); surface(view)
         let desktopTitle = desktopWindow?.isVisible == true ? "Hide Picture-in-Picture" : "Show Picture-in-Picture"
-        let commands: [(String, Selector, String)] = [("Refresh", #selector(menuRefresh), "r"), (desktopTitle, #selector(toggleDesktopWindow), ""), ("Settings…", #selector(showSettings), ","), ("About Codex Bar", #selector(showAbout), ""), ("Check for Updates…", #selector(menuUpdates), ""), ("Quit", #selector(menuQuit), "q")]
+        let commands: [(String, Selector, String)] = [("Refresh", #selector(menuRefresh), "r"), (desktopTitle, #selector(toggleDesktopWindow), ""), ("Settings…", #selector(showSettings), ","), ("About Codex Bar", #selector(showAbout), ""), (updateMenuTitle, #selector(menuUpdates), ""), ("Quit", #selector(menuQuit), "q")]
         var buttons: [NSView] = []
         for (title, action, key) in commands {
             let item = MenuButton(title: title, target: self, action: action)
@@ -671,6 +696,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             item.widthAnchor.constraint(equalToConstant: 250).isActive = true
             item.heightAnchor.constraint(equalToConstant: 30).isActive = true
             if title == "Refresh" { item.isEnabled = !running; menuRefreshButton = item }
+            if action == #selector(menuUpdates) { item.highlightsUpdate = availableUpdate != nil; menuUpdateButton = item }
             buttons.append(item)
         }
         view.items = buttons.compactMap { $0 as? MenuButton }
@@ -746,10 +772,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             window.setFrame(NSRect(x: old.origin.x, y: old.maxY - size.height, width: size.width, height: size.height), display: true)
         }
     }
+    var updateMenuTitle: String {
+        availableUpdate.map { "Update to \($0)…" } ?? "Check for Updates…"
+    }
+    func updateUpdateUI() {
+        updateBadge.isHidden = !(availableUpdate.map { isMajorUpdate($0, installedVersion: installedVersion) } ?? false)
+        checkUpdates.title = updateMenuTitle
+        menuUpdateButton?.title = updateMenuTitle
+        menuUpdateButton?.setAccessibilityLabel(updateMenuTitle)
+        menuUpdateButton?.highlightsUpdate = availableUpdate != nil
+        updateStatusAccessibility()
+    }
+    func updateStatusAccessibility() {
+        let update = availableUpdate.map { ". Update \($0) available" } ?? ""
+        status.button?.setAccessibilityLabel("Codex. \(state). \(describe("5 hours", lastQuota?.fiveHour)). \(describe("Week", lastQuota?.weekly)). \(updatedLabel.stringValue)\(update)")
+    }
+    func checkUpdateInformation() {
+        updateCheckTimer?.invalidate()
+        let updater = updaterController.updater
+        if updater.sessionInProgress {
+            updateCheckTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: false) { [weak self] _ in self?.checkUpdateInformation() }
+            return
+        }
+        updater.checkForUpdateInformation()
+        updateCheckTimer = Timer.scheduledTimer(withTimeInterval: 24 * 60 * 60, repeats: false) { [weak self] _ in self?.checkUpdateInformation() }
+    }
+    func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
+        availableUpdate = item.displayVersionString
+        UserDefaults.standard.set(["installed": installedVersion, "available": item.displayVersionString], forKey: "availableUpdate")
+        updateUpdateUI()
+    }
+    func updaterDidNotFindUpdate(_ updater: SPUUpdater, error: Error) {
+        availableUpdate = nil
+        UserDefaults.standard.removeObject(forKey: "availableUpdate")
+        updateUpdateUI()
+    }
     @objc func menuRefresh() { menuPopover?.performClose(nil); refreshNow() }
     @objc func menuUpdates() { menuPopover?.performClose(nil); checkForUpdates() }
     @objc func menuQuit() { menuPopover?.performClose(nil); NSApp.terminate(nil) }
     @objc func checkForUpdates() {
+        if !updaterController.updater.canCheckForUpdates {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.checkForUpdates() }
+            return
+        }
         NSApp.activate(ignoringOtherApps: true)
         updaterController.checkForUpdates(nil)
     }
@@ -793,7 +858,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         updateAge()
         layoutPanel(message: message)
         publishWidgetSnapshot()
-        status.button?.setAccessibilityLabel("Codex. \(state). \(describe("5 hours", lastQuota?.fiveHour)). \(describe("Week", lastQuota?.weekly)). \(updatedLabel.stringValue)")
+        updateStatusAccessibility()
         let interval: TimeInterval
         switch result { case .success: interval = schedule.record(success: true); case .failure: interval = schedule.record(success: false) }
         if wakePending { wakePending = false; refreshNow() } else { scheduleRefresh(after: interval) }
@@ -822,7 +887,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         requestID += 1
         stopClickMonitoring()
         NSWorkspace.shared.notificationCenter.removeObserver(self)
-        timer?.invalidate(); ageTimer?.invalidate()
+        timer?.invalidate(); ageTimer?.invalidate(); updateCheckTimer?.invalidate()
         client.cancel()
         listener.cancel()
     }

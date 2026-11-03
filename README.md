@@ -31,7 +31,7 @@ Click the menu bar indicator to open the panel. Right-click it (or click with tw
 
 To add the **widget** on macOS 14 or later, right-click the desktop, choose Edit Widgets, and add the medium Codex Bar widget. It uses a horizontal layout in the selected theme. Keep the app running for fresh data; macOS controls widget refresh timing, so values may lag behind the app.
 
-Updates are checked manually from the context menu. Version 1.4.2 and older need one manual upgrade before they can use the updater. See [how Codex Bar works](docs/DETAILS.md) for refresh, notification, widget, and data details.
+Updates are checked quietly at launch and once a day. When an update is available, the context menu highlights it; major updates also show a red dot on the menu bar icon. Select the menu item to review and install the update. Version 1.4.2 and older need one manual upgrade before they can use the updater. See [how Codex Bar works](docs/DETAILS.md) for refresh, notification, widget, and data details.
 
 ## Themes
 

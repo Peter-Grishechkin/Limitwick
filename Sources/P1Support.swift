@@ -74,3 +74,9 @@ func isLowQuota(_ value: Double?, threshold: Int) -> Bool {
     guard let value = value, value.isFinite else { return false }
     return value <= Double(threshold)
 }
+
+func isMajorUpdate(_ availableVersion: String, installedVersion: String) -> Bool {
+    guard let available = availableVersion.split(separator: ".").first.flatMap({ Int($0) }),
+          let installed = installedVersion.split(separator: ".").first.flatMap({ Int($0) }) else { return false }
+    return available > installed
+}

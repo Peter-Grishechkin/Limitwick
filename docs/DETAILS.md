@@ -8,6 +8,10 @@ The panel shows the local reset date and time remaining. If a reset time has pas
 Settings can enable separate low-quota and confirmed-reset notifications. Both are off by default. The low threshold defaults to 20% and can be set from 1% to 99%; it also controls warning colors even when notifications are off. macOS asks for permission when you enable an alert; if notifications are blocked, use Notification Settings in the app. Alerts require a successful response and a future reset date. Reset alerts arrive only after a refresh confirms a new reset period, so they may be delayed. Delivery markers and reset dates are stored locally and pruned during successful refreshes after 30 days (for reset dates, 30 days after the reset); notification records do not contain quota percentages or account identifiers. Codex Bar cannot reliably detect an account switch, so alerts can be missed or associated with the previous account after switching.
 
 
+## App updates
+
+Codex Bar checks for compatible releases quietly at launch and once a day. When an update is available, the context menu offers to update and shows its version. A red dot appears on the menu bar icon for an update to a new major version. Select the menu item to review and install it; update checks do not show automatic alerts. If a check fails, the last known update remains visible until a successful check finds no update or the app version changes.
+
 ## Widget
 
 
