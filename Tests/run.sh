@@ -9,3 +9,13 @@ swiftc -module-cache-path "$PWD/build/module-cache" Widget/SharedSnapshot.swift 
 build/widget-snapshot-tests
 swiftc -D CODEXBAR_DEVELOPMENT -module-cache-path "$PWD/build/module-cache" Widget/SharedSnapshot.swift Tests/WidgetSnapshotTests.swift -o build/widget-snapshot-development-tests
 build/widget-snapshot-development-tests
+
+if [ ! -d build/CodexBar-Development.app/Contents/Frameworks/Lottie.framework ]; then
+    ./build.sh
+fi
+swiftc -target "$(uname -m)-apple-macosx13.0" -module-cache-path "$PWD/build/module-cache" \
+    -F build/CodexBar-Development.app/Contents/Frameworks -framework Lottie \
+    -Xlinker -rpath -Xlinker "$PWD/build/CodexBar-Development.app/Contents/Frameworks" \
+    Sources/Activity.swift Tests/ActivityTests.swift -o build/activity-tests
+build/activity-tests
+/usr/bin/python3 Tests/activity-hooks-tests.py

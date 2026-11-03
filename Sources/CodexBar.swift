@@ -200,6 +200,9 @@ final class UpdateBadge: NSView {
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPUUpdaterDelegate {
     let status = NSStatusBar.system.statusItem(withLength: 34)
     let bars = Bars(frame: NSRect(x: 0, y: 0, width: 32, height: 20))
+    let activity = ActivityMonitor()
+    let activityIcon = ActivityIcon(frame: NSRect(x: 1, y: 0, width: 19, height: 19))
+    var activityState: ActivityDisplay?
     let popover = NSPopover()
     let content = NSView(frame: NSRect(x: 0, y: 0, width: 340, height: 290))
     let fiveHourView = QuotaTile(symbol: "5")
@@ -258,6 +261,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         bars.frame.origin = NSPoint(x: 1, y: (button.bounds.height - 20) / 2)
         bars.autoresizingMask = [.minYMargin, .maxYMargin]
         button.addSubview(bars)
+        activityIcon.isHidden = true
+        activityIcon.frame.origin.y = (button.bounds.height - 19) / 2
+        activityIcon.autoresizingMask = [.minYMargin, .maxYMargin]
+        button.addSubview(activityIcon)
+        activity.onChange = { [weak self] state in self?.showActivity(state) }
+        if activityEnabled { activity.start() }
         updateBadge.frame = NSRect(x: button.bounds.width - 6, y: button.bounds.height - 6, width: 5, height: 5)
         updateBadge.autoresizingMask = [.minXMargin, .minYMargin]
         updateBadge.isHidden = true
@@ -311,6 +320,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         applyTheme()
         updateWarningThreshold()
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(activeApplicationChanged(_:)), name: NSWorkspace.didActivateApplicationNotification, object: nil)
+        NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(accessibilityDisplayChanged(_:)), name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
         layoutPanel(message: "Loading…")
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(didWake(_:)), name: NSWorkspace.didWakeNotification, object: nil)
         if UserDefaults.standard.bool(forKey: "desktopVisible") { showDesktopWindow() }
@@ -549,9 +559,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
             noticeStatus.maximumNumberOfLines = 0; noticeStatus.font = .systemFont(ofSize: 11); noticeStatus.tag = 902
             noticeStatus.widthAnchor.constraint(equalToConstant: 372).isActive = true
             let openSettings = NSButton(title: "Notification Settings…", target: self, action: #selector(openNotificationSettings))
-            let items = [heading("Appearance"), row("Theme", themePicker), row("Mode", appearancePicker), heading("Notifications"), low, reset, thresholdRow, noticeStatus, openSettings] as [NSView]
+            let activityToggle = NSButton(checkboxWithTitle: "Show Codex activity in menu bar", target: self, action: #selector(activitySettingChanged(_:)))
+            activityToggle.state = activityEnabled ? .on : .off
+            let items = [heading("Appearance"), row("Theme", themePicker), row("Mode", appearancePicker), activityToggle, heading("Notifications"), low, reset, thresholdRow, noticeStatus, openSettings] as [NSView]
             let content = stack(items, spacing: 12)
-            content.setCustomSpacing(22, after: items[2])
+            content.setCustomSpacing(22, after: activityToggle)
             settingsWindow = makeWindow(title: "Settings", content: content, width: 420)
             settingsWindow?.initialFirstResponder = themePicker
         }
@@ -574,6 +586,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         applyTheme()
         resizeWindowToContent(settingsWindow)
         publishWidgetSnapshot()
+    }
+    var activityEnabled: Bool { UserDefaults.standard.object(forKey: "activityEnabled") as? Bool ?? true }
+    @objc func activitySettingChanged(_ sender: NSButton) {
+        let enabled = sender.state == .on
+        UserDefaults.standard.set(enabled, forKey: "activityEnabled")
+        if enabled { activity.start() }
+        else { activity.stop(); showActivity(nil) }
     }
     var noticeThreshold: Int {
         let value = UserDefaults.standard.integer(forKey: "noticeThreshold")
@@ -794,8 +813,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
     }
     func updateStatusAccessibility() {
         let update = availableUpdate.map { ". Update \($0) available" } ?? ""
-        status.button?.setAccessibilityLabel("Codex. \(state). \(describe("5 hours", lastQuota?.fiveHour)). \(describe("Week", lastQuota?.weekly)). \(updatedLabel.stringValue)\(update)")
+        let activityDescription = activityState.map { ". \($0.label)" } ?? ""
+        status.button?.setAccessibilityLabel("Codex. \(state). \(describe("5 hours", lastQuota?.fiveHour)). \(describe("Week", lastQuota?.weekly)). \(updatedLabel.stringValue)\(activityDescription)\(update)")
     }
+    func showActivity(_ activityState: ActivityDisplay?) {
+        self.activityState = activityState
+        status.length = activityState == nil ? 34 : 56
+        bars.frame.origin.x = activityState == nil ? 1 : 23
+        activityIcon.show(activityState)
+        updateStatusAccessibility()
+    }
+    @objc func accessibilityDisplayChanged(_ notification: Notification) { activityIcon.show(activityState) }
     func checkUpdateInformation() {
         updateCheckTimer?.invalidate()
         let updater = updaterController.updater
@@ -899,6 +927,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         stopClickMonitoring()
         NSWorkspace.shared.notificationCenter.removeObserver(self)
         timer?.invalidate(); ageTimer?.invalidate(); updateCheckTimer?.invalidate()
+        activity.stop()
         client.cancel()
         listener.cancel()
     }

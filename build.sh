@@ -12,7 +12,20 @@ SPARKLE_VERSION="2.10.1"
 SPARKLE_DIR="$PWD/build/sparkle-$SPARKLE_VERSION"
 ARCHIVE="$SPARKLE_DIR/Sparkle-$SPARKLE_VERSION.tar.xz"
 SPARKLE_SHA256="1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27"
+LOTTIE_VERSION="4.5.2"
+LOTTIE_DIR="$PWD/build/lottie-$LOTTIE_VERSION"
+LOTTIE_ARCHIVE="$LOTTIE_DIR/Lottie.xcframework.zip"
+LOTTIE_SHA256="92206ff6af80373903767214ac16215838f6da11dedca789c0439299b46b6694"
 mkdir -p "$SPARKLE_DIR" "$PWD/build/module-cache"
+mkdir -p "$LOTTIE_DIR"
+if [ ! -f "$LOTTIE_ARCHIVE" ]; then
+    curl --fail --location --output "$LOTTIE_ARCHIVE.download" "https://github.com/airbnb/lottie-ios/releases/download/$LOTTIE_VERSION/Lottie.xcframework.zip"
+    mv "$LOTTIE_ARCHIVE.download" "$LOTTIE_ARCHIVE"
+fi
+echo "$LOTTIE_SHA256  $LOTTIE_ARCHIVE" | shasum -a 256 -c -
+if [ ! -d "$LOTTIE_DIR/Lottie.xcframework/macos-arm64_x86_64/Lottie.framework" ]; then
+    unzip -oq "$LOTTIE_ARCHIVE" 'Lottie.xcframework/macos-arm64_x86_64/*' -d "$LOTTIE_DIR"
+fi
 if [ ! -f "$ARCHIVE" ]; then
     curl --fail --location --output "$ARCHIVE.download" "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
     mv "$ARCHIVE.download" "$ARCHIVE"
@@ -39,7 +52,9 @@ if [ -n "${CODEXBAR_BUILD_NUMBER:-}" ]; then
     /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $CODEXBAR_BUILD_NUMBER" "$APP/Contents/Info.plist"
 fi
 ditto "$SPARKLE_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
-swiftc ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} -target "$(uname -m)-apple-macosx13.0" -module-cache-path "$PWD/build/module-cache" -F "$APP/Contents/Frameworks" -framework Sparkle -Xlinker -rpath -Xlinker '@executable_path/../Frameworks' Sources/QuotaClient.swift Sources/P1Support.swift Sources/Themes.swift Sources/WidgetTheme.swift Widget/SharedSnapshot.swift Sources/CodexBar.swift -o "$APP/Contents/MacOS/CodexBar"
+ditto "$LOTTIE_DIR/Lottie.xcframework/macos-arm64_x86_64/Lottie.framework" "$APP/Contents/Frameworks/Lottie.framework"
+ditto Resources/useAnimations "$APP/Contents/Resources/useAnimations"
+swiftc ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} -target "$(uname -m)-apple-macosx13.0" -module-cache-path "$PWD/build/module-cache" -F "$APP/Contents/Frameworks" -framework Sparkle -framework Lottie -Xlinker -rpath -Xlinker '@executable_path/../Frameworks' Sources/QuotaClient.swift Sources/P1Support.swift Sources/Activity.swift Sources/Themes.swift Sources/WidgetTheme.swift Widget/SharedSnapshot.swift Sources/CodexBar.swift -o "$APP/Contents/MacOS/CodexBar"
 WIDGET="$APP/Contents/PlugIns/CodexWidget.appex"
 cp Widget/Info.plist "$WIDGET/Contents/Info.plist"
 if [ "$CONFIGURATION" = development ]; then
@@ -50,5 +65,6 @@ fi
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")" "$WIDGET/Contents/Info.plist"
 swiftc ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} -target "$(uname -m)-apple-macosx14.0" -module-cache-path "$PWD/build/module-cache" -application-extension -parse-as-library -Xlinker -e -Xlinker _NSExtensionMain Widget/SharedSnapshot.swift Widget/CodexWidget.swift -o "$WIDGET/Contents/MacOS/CodexWidget"
 codesign --force --sign - --entitlements "$WIDGET_ENTITLEMENTS" "$WIDGET"
+codesign --force --sign - "$APP/Contents/Frameworks/Lottie.framework"
 codesign --force --sign - --entitlements "$APP_ENTITLEMENTS" "$APP"
 echo "Built: $APP"

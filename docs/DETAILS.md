@@ -25,3 +25,17 @@ The widget was tested locally on macOS 14. Widget discovery, shared data access,
 Codex Bar runs `codex app-server` and reads `account/rateLimits/read`. It also listens for rate-limit events, but delivery from other Codex sessions is not guaranteed. Other window durations appear in the panel; conflicting values for the same duration are shown as unavailable.
 
 The app does not ask for your password or store credentials. Codex contacts OpenAI, update checks contact GitHub, and the app has no separate server. Changes to the Codex CLI protocol can affect compatibility.
+
+## Codex activity indicator
+
+Codex Bar can show activity to the left of its quota bars. Turn it on or off with “Show Codex activity in menu bar” in Settings; it is on by default. Turning it off stops the listener and hides the indicator, but leaves installed Codex hooks in place. This optional integration uses Codex lifecycle hooks. It shows a loading animation while a detected turn is working, a terminal animation while a supported tool is running, and a checkmark briefly when all detected turns have stopped. These events do not establish when an answer is being streamed or whether every kind of user input is pending, so the edit and alert animations are not used yet.
+
+To enable the integration, run the following command after installing the app in `/Applications` (adjust the app name if needed):
+
+```sh
+/usr/bin/python3 '/Applications/CodexBar.app/Contents/Resources/useAnimations/activity-setup.py' install
+```
+
+For a development build, use the same command with the path to `build/CodexBar-Development.app` instead. The setup preserves other hook handlers in `$CODEX_HOME/hooks.json` (or `~/.codex/hooks.json`); it refuses an unexpected configuration format. Review and trust the new hooks in Codex Settings → Hooks or, in the CLI, `/hooks`, and restart or reopen sessions if necessary. Hooks that have not been trusted do not run. To remove these handlers, run the same command with `remove` instead of `install`. If the app is moved, rerun setup from its new location and review the changed hook.
+
+Hooks send only event type, session and turn identifiers, tool-call identifier, time, and Codex home path to running local Codex Bar instances. They do not send prompts, responses, command text, or tool results. The indicator covers only sessions whose hooks actually run while Codex Bar is open. It hides a turn if the local writer lock is no longer held, including after a process crash. It does not cover remote, ephemeral, unsupported, or untrusted sessions reliably. The CLI integration was tested with Codex CLI 0.156.0; Desktop hook delivery requires separate verification. Other hooks can continue a turn after a `Stop` hook, so the checkmark reflects the observed stop event and may be followed by renewed activity.
