@@ -2,6 +2,7 @@ import AppKit
 import Sparkle
 import Foundation
 import UserNotifications
+import WidgetKit
 
 final class Bars: NSView {
     var values: [Double?] = [nil, nil] { didSet { needsDisplay = true } }
@@ -145,7 +146,7 @@ final class MenuButton: NSButton {
         let font = fontProvider?() ?? NSFont.systemFont(ofSize: 13, weight: .regular)
         let shortcutFont = NSFont.systemFont(ofSize: 12, weight: .regular)
         let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byTruncatingTail
-        (title as NSString).draw(in: NSRect(x: 12, y: (bounds.height - 17) / 2, width: bounds.width - 75, height: 18), withAttributes: [.font: font, .foregroundColor: foreground, .paragraphStyle: paragraph])
+        (title as NSString).draw(in: NSRect(x: 12, y: (bounds.height - 17) / 2, width: bounds.width - (shortcut.isEmpty ? 24 : 75), height: 18), withAttributes: [.font: font, .foregroundColor: foreground, .paragraphStyle: paragraph])
         let right = NSMutableParagraphStyle(); right.alignment = .right
         (shortcut as NSString).draw(in: NSRect(x: bounds.width - 60, y: (bounds.height - 16) / 2, width: 48, height: 17), withAttributes: [.font: shortcutFont, .foregroundColor: p.secondary, .paragraphStyle: right])
     }
@@ -221,6 +222,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     var globalClickMonitor: Any?
     var localClickMonitor: Any?
     var themeView: ThemeView?
+    var desktopWindow: NSWindow?
+    let desktopContent = NSView()
+    let desktopFive = QuotaTile(symbol: "5")
+    let desktopWeek = QuotaTile(symbol: "W")
+    let desktopState = NSTextField(wrappingLabelWithString: "")
+    let desktopAdditional = NSTextField(wrappingLabelWithString: "")
+    var desktopTheme: ThemeView?
     var settingsWindow: NSWindow?
     var aboutWindow: NSWindow?
     var menuPopover: NSPopover?
@@ -276,6 +284,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(activeApplicationChanged(_:)), name: NSWorkspace.didActivateApplicationNotification, object: nil)
         layoutPanel(message: "Loading…")
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(didWake(_:)), name: NSWorkspace.didWakeNotification, object: nil)
+        if UserDefaults.standard.bool(forKey: "desktopVisible") { showDesktopWindow() }
         refreshNow()
         DispatchQueue.global(qos: .utility).async { [weak self] in
             guard let self = self else { return }
@@ -314,6 +323,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         stateLabel.frame = NSRect(x: 14, y: bottom, width: 312, height: stateHeight)
         additionalLabel.frame = NSRect(x: 14, y: bottom + (stateHeight > 0 ? stateHeight + 12 : 0), width: 312, height: additionalHeight)
         updateThemeData()
+        syncDesktop()
     }
     @objc func statusItemClicked() {
         guard let button = status.button else { return }
@@ -370,6 +380,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         settingsWindow?.appearance = appearanceMode.appearance
         aboutWindow?.appearance = appearanceMode.appearance
         menuPopover?.appearance = appearanceMode.appearance
+        desktopWindow?.appearance = appearanceMode.appearance
+        desktopTheme?.removeFromSuperview()
+        desktopTheme = selectedTheme.makeView()
+        if let themed = desktopTheme { desktopContent.addSubview(themed, positioned: .below, relativeTo: nil) }
         refreshSurfaces()
         resizeWindowToContent(settingsWindow)
         resizeWindowToContent(aboutWindow)
@@ -521,6 +535,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         UserDefaults.standard.set(selectedTheme.rawValue, forKey: "panelTheme")
         applyTheme()
         resizeWindowToContent(settingsWindow)
+        publishWidgetSnapshot()
     }
     @objc func appearanceChanged(_ sender: NSPopUpButton) {
         guard AppearanceMode.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
@@ -528,6 +543,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         UserDefaults.standard.set(appearanceMode.rawValue, forKey: "appearanceMode")
         applyTheme()
         resizeWindowToContent(settingsWindow)
+        publishWidgetSnapshot()
     }
     var noticeThreshold: Int {
         let value = UserDefaults.standard.integer(forKey: "noticeThreshold")
@@ -536,6 +552,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     @objc func thresholdChanged(_ sender: NSStepper) {
         UserDefaults.standard.set(sender.integerValue, forKey: "noticeThreshold")
         updateWarningThreshold()
+        layoutPanel(message: stateLabel.isHidden ? nil : stateLabel.stringValue)
+        publishWidgetSnapshot()
         (settingsWindow?.contentView?.viewWithTag(501) as? NSTextField)?.stringValue = "\(sender.integerValue)%"
     }
     @objc func noticeSettingChanged(_ sender: NSButton) {
@@ -629,7 +647,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if let old = menuPopover?.contentViewController?.view as? ThemedSurface { themeSurfaces.removeAll { $0 === old } }
         let menu = NSPopover(); menu.behavior = .transient; menu.appearance = appearanceMode.appearance
         let view = MenuView(); surface(view)
-        let commands: [(String, Selector, String)] = [("Refresh", #selector(menuRefresh), "r"), ("Settings…", #selector(showSettings), ","), ("About Codex Bar", #selector(showAbout), ""), ("Check for Updates…", #selector(menuUpdates), ""), ("Quit", #selector(menuQuit), "q")]
+        let desktopTitle = desktopWindow?.isVisible == true ? "Hide Picture-in-Picture" : "Show Picture-in-Picture"
+        let commands: [(String, Selector, String)] = [("Refresh", #selector(menuRefresh), "r"), (desktopTitle, #selector(toggleDesktopWindow), ""), ("Settings…", #selector(showSettings), ","), ("About Codex Bar", #selector(showAbout), ""), ("Check for Updates…", #selector(menuUpdates), ""), ("Quit", #selector(menuQuit), "q")]
         var buttons: [NSView] = []
         for (title, action, key) in commands {
             let item = MenuButton(title: title, target: self, action: action)
@@ -649,7 +668,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 return self.palette(for: view.effectiveAppearance)
             }
             item.keyEquivalent = key; if !key.isEmpty { item.keyEquivalentModifierMask = .command }
-            item.widthAnchor.constraint(equalToConstant: 220).isActive = true
+            item.widthAnchor.constraint(equalToConstant: 250).isActive = true
             item.heightAnchor.constraint(equalToConstant: 30).isActive = true
             if title == "Refresh" { item.isEnabled = !running; menuRefreshButton = item }
             buttons.append(item)
@@ -657,15 +676,75 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         view.items = buttons.compactMap { $0 as? MenuButton }
         let list = stack(buttons, spacing: 2)
         list.setCustomSpacing(10, after: buttons[0])
-        list.setCustomSpacing(10, after: buttons[3])
-        install(list, in: view, width: 268)
+        list.setCustomSpacing(10, after: buttons[4])
+        install(list, in: view, width: 298)
         let controller = NSViewController(); controller.view = view; menu.contentViewController = controller
         view.dismiss = { [weak menu] in menu?.performClose(nil) }
         menuPopover = menu; refreshSurfaces()
-        view.layoutSubtreeIfNeeded(); menu.contentSize = NSSize(width: 268, height: max(1, view.fittingSize.height))
+        view.layoutSubtreeIfNeeded(); menu.contentSize = NSSize(width: 298, height: max(1, view.fittingSize.height))
         NSApp.activate(ignoringOtherApps: true)
         menu.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         menu.contentViewController?.view.window?.makeFirstResponder(view)
+    }
+    @objc func toggleDesktopWindow() {
+        menuPopover?.performClose(nil)
+        if desktopWindow?.isVisible == true {
+            desktopWindow?.orderOut(nil)
+            UserDefaults.standard.set(false, forKey: "desktopVisible")
+        } else {
+            showDesktopWindow()
+        }
+    }
+    func showDesktopWindow() {
+        if desktopWindow == nil {
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 340, height: 220), styleMask: [.borderless], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.isMovableByWindowBackground = true
+            window.hidesOnDeactivate = false
+            window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+            window.appearance = appearanceMode.appearance
+            window.isOpaque = false
+            window.backgroundColor = .clear
+            window.hasShadow = true
+            desktopContent.wantsLayer = true
+            desktopContent.layer?.cornerRadius = 12
+            desktopContent.layer?.masksToBounds = true
+            for label in [desktopState, desktopAdditional] {
+                label.font = .systemFont(ofSize: 12)
+                label.maximumNumberOfLines = 0
+            }
+            for view in [desktopFive, desktopWeek, desktopState, desktopAdditional] as [NSView] { desktopContent.addSubview(view) }
+            window.contentView = desktopContent
+            desktopWindow = window
+            if !window.setFrameUsingName("DesktopWindow") { window.center() }
+            window.setFrameAutosaveName("DesktopWindow")
+        }
+        syncDesktop()
+        desktopWindow?.orderFrontRegardless()
+        UserDefaults.standard.set(true, forKey: "desktopVisible")
+    }
+    func syncDesktop() {
+        guard let window = desktopWindow else { return }
+        desktopContent.appearance = appearanceMode.appearance
+        desktopContent.layer?.backgroundColor = palette(for: desktopContent.effectiveAppearance).background.cgColor
+        desktopFive.isHidden = desktopTheme != nil; desktopWeek.isHidden = desktopTheme != nil
+        desktopFive.update(lastQuota?.fiveHour, reset: resetDescription(lastQuota?.fiveHour))
+        desktopWeek.update(lastQuota?.weekly, reset: resetDescription(lastQuota?.weekly))
+        desktopFive.ring.warningThreshold = noticeThreshold; desktopWeek.ring.warningThreshold = noticeThreshold
+        desktopFive.frame = fiveHourView.frame; desktopWeek.frame = weeklyView.frame
+        desktopState.stringValue = stateLabel.stringValue; desktopState.isHidden = stateLabel.isHidden; desktopState.frame = stateLabel.frame
+        desktopAdditional.stringValue = additionalLabel.stringValue; desktopAdditional.frame = additionalLabel.frame
+        let secondary = desktopTheme?.palette.secondary ?? NSColor.secondaryLabelColor
+        desktopState.textColor = secondary; desktopAdditional.textColor = secondary
+        if let theme = desktopTheme {
+            theme.frame = content.bounds
+            theme.data = themeView?.data ?? ThemeData(fiveHour: nil, weekly: nil, fiveReset: "—", weekReset: "—", accessibility: "Limits unavailable")
+        }
+        let size = content.frame.size
+        if window.contentView?.frame.size != size {
+            let old = window.frame
+            window.setFrame(NSRect(x: old.origin.x, y: old.maxY - size.height, width: size.width, height: size.height), display: true)
+        }
     }
     @objc func menuRefresh() { menuPopover?.performClose(nil); refreshNow() }
     @objc func menuUpdates() { menuPopover?.performClose(nil); checkForUpdates() }
@@ -713,10 +792,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         bars.stale = stale
         updateAge()
         layoutPanel(message: message)
+        publishWidgetSnapshot()
         status.button?.setAccessibilityLabel("Codex. \(state). \(describe("5 hours", lastQuota?.fiveHour)). \(describe("Week", lastQuota?.weekly)). \(updatedLabel.stringValue)")
         let interval: TimeInterval
         switch result { case .success: interval = schedule.record(success: true); case .failure: interval = schedule.record(success: false) }
         if wakePending { wakePending = false; refreshNow() } else { scheduleRefresh(after: interval) }
+    }
+    func publishWidgetSnapshot() {
+        // Render the same views used by the popup, so every theme stays in sync.
+        content.layoutSubtreeIfNeeded()
+        let bounds = content.bounds
+        var image: Data?
+        if bounds.width > 0, bounds.height > 0,
+           let bitmap = content.bitmapImageRepForCachingDisplay(in: bounds) {
+            content.cacheDisplay(in: bounds, to: bitmap)
+            image = bitmap.representation(using: .png, properties: [:])
+        }
+        let summary = "\(describe("5 hours", lastQuota?.fiveHour)). \(describe("Week", lastQuota?.weekly)). \(state)"
+        WidgetSnapshot(five: lastQuota?.fiveHour?.remaining, week: lastQuota?.weekly?.remaining,
+                       fiveReset: lastQuota?.fiveHour?.reset, weekReset: lastQuota?.weekly?.reset,
+                       updated: lastUpdate, stale: stale || lastQuota == nil, threshold: noticeThreshold,
+                       panelImage: image, accessibility: summary).write()
+        WidgetCenter.shared.reloadTimelines(ofKind: WidgetSnapshot.widgetKind)
     }
     func applicationWillTerminate(_ notification: Notification) {
         requestID += 1
