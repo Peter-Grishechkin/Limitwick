@@ -67,4 +67,9 @@ swiftc ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} -target "$(uname -m)-apple-macosx14
 codesign --force --sign - --entitlements "$WIDGET_ENTITLEMENTS" "$WIDGET"
 codesign --force --sign - "$APP/Contents/Frameworks/Lottie.framework"
 codesign --force --sign - --entitlements "$APP_ENTITLEMENTS" "$APP"
+# A release build shares bundle IDs with the installed app; unregister it so WidgetKit keeps using the installed copy.
+if [ "$CONFIGURATION" = release ]; then
+    pluginkit -r "$WIDGET" 2>/dev/null || true
+    /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$APP" 2>/dev/null || true
+fi
 echo "Built: $APP"

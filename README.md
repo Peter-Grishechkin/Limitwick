@@ -259,6 +259,7 @@ Limitwick checks for new versions quietly at launch and once a day. When an upda
 | **A limit is missing** | The service did not report that limit. Reset times appear only when the service provides them. |
 | **No activity animation for Claude** | Check the status text in **Settings → Configure: Claude**. Install the hooks if needed and start a new Claude Code session. |
 | **No activity animation for Codex** | Make sure the hooks are installed and trusted in Codex, and that the session was started after they were trusted. |
+| **Widget gallery shows old widgets after an update** | Another copy of the app, for example a second **Limitwick.app** or **CodexBar.app** in Downloads or Applications, can supply its old widgets. **Settings** lists such copies under **Other copies**. Keep one copy in Applications, move the rest to the Trash, empty the Trash, and log out and back in. Then remove the old widget from the desktop and add a new one from the gallery. |
 | **No notifications** | Turn on the notification type in Settings and allow alerts in **Notification Settings…**. |
 | **macOS blocks the app** | Allow it in **System Settings → Privacy & Security**. The app is not notarized by Apple. |
 

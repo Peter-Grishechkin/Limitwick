@@ -80,3 +80,10 @@ func isMajorUpdate(_ availableVersion: String, installedVersion: String) -> Bool
           let installed = installedVersion.split(separator: ".").first.flatMap({ Int($0) }) else { return false }
     return available > installed
 }
+
+// Another registered copy with the same bundle ID can supply stale widgets to the gallery.
+func otherAppCopies(_ urls: [URL], running: URL, exists: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }) -> [URL] {
+    func key(_ url: URL) -> String { url.resolvingSymlinksInPath().standardizedFileURL.path }
+    var seen: Set<String> = [key(running)]
+    return urls.filter { !key($0).contains("/AppTranslocation/") && exists($0) && seen.insert(key($0)).inserted }
+}

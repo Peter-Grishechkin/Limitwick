@@ -83,6 +83,13 @@ extension AppDelegate {
             let activityToggle = NSButton(checkboxWithTitle: "Show \(settingsProvider.capitalized) activity in menu bar", target: self, action: #selector(activitySettingChanged(_:)))
             activityToggle.state = settings.activityEnabled(for: settingsProvider) ? .on : .off
             var items = [heading("AI services"), row("Show limits", providerPicker), claudeSetup, heading("Provider settings"), row("Configure", editPicker), heading("Appearance"), row("Theme", themePicker), row("Mode", appearancePicker), activityToggle] as [NSView]
+            let copies = otherCopies
+            if !copies.isEmpty {
+                let paths = copies.map { ($0.path as NSString).abbreviatingWithTildeInPath }.joined(separator: "\n")
+                let warning = NSTextField(wrappingLabelWithString: "Another copy of Limitwick is on this Mac, so the widget gallery may show its old widgets. Move it to the Trash, empty the Trash, and log out and back in.\n\(paths)")
+                warning.font = .systemFont(ofSize: 11); warning.tag = 902; warning.widthAnchor.constraint(equalToConstant: 372).isActive = true
+                items = [heading("Other copies"), warning, NSButton(title: "Show in Finder", target: self, action: #selector(revealOtherCopies))] + items
+            }
             if settingsProvider == "claude" {
                 let help = NSTextField(wrappingLabelWithString: claudeHookStatusText)
                 help.font = .systemFont(ofSize: 11); help.tag = 902; help.widthAnchor.constraint(equalToConstant: 372).isActive = true
@@ -110,6 +117,11 @@ extension AppDelegate {
         if let surface = settingsWindow?.contentView { themeSurfaces.removeAll { $0 === surface } }
         settingsWindow?.close(); settingsWindow = nil; claudeHookStatus = nil; showSettings()
     }
+    var otherCopies: [URL] {
+        guard let id = Bundle.main.bundleIdentifier else { return [] }
+        return otherAppCopies(NSWorkspace.shared.urlsForApplications(withBundleIdentifier: id), running: Bundle.main.bundleURL)
+    }
+    @objc func revealOtherCopies() { NSWorkspace.shared.activateFileViewerSelecting(otherCopies) }
     var claudeHookStatusText: String {
         guard ClaudeActivityMonitor.hooksInstalled() else { return "Claude Code hooks are not installed. Install them to show Claude Code activity in the menu bar." }
         if !settings.activityEnabled(for: "claude") { return "Claude Code hooks are installed. Turn on activity above to show it in the menu bar." }
