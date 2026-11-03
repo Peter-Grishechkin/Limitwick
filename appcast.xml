@@ -2,6 +2,16 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Codex Bar 1.7.4</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Keep the limits panel visible when Settings is open, including when clicking outside or switching apps.
+- Continue to allow closing the panel using the menu bar icon or Escape.&lt;/div&gt;</description>
+      <sparkle:version>1.7.4</sparkle:version>
+      <sparkle:shortVersionString>1.7.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 00:09:19 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/codex-bar/releases/download/v1.7.4/CodexBar-1.7.4-macOS-Apple-Silicon.zip" sparkle:edSignature="eXTusZSg1EH4vnKQWUd9FIUiNDCBx0QAN7Pvv2c54KkYhr0Qye0T2s6R+mNmMF75NeAUDTLS2XYJuoW3JaLeCw==" length="1290488" type="application/octet-stream" />
+    </item>
+    <item>
       <title>Codex Bar 1.7.3</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Fix the limits panel reopening when clicking the menu bar icon while Settings is open.
 - Keep dismissing the panel by clicking outside it or pressing Escape.&lt;/div&gt;</description>
