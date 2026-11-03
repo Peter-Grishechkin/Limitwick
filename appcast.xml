@@ -2,6 +2,18 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Codex Bar 1.9.0</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Check for compatible updates quietly at launch and once a day, without automatic update pop-ups.
+- Highlight available updates in the context menu and show the version; selecting it opens Sparkle&amp;#x27;s update window.
+- Show a small red dot in the menu bar when an update to a new major version is available.
+- Keep the last known update visible if a later check fails.&lt;/div&gt;</description>
+      <sparkle:version>1.9.0</sparkle:version>
+      <sparkle:shortVersionString>1.9.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 02:19:39 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/codex-bar/releases/download/v1.9.0/CodexBar-1.9.0-macOS-Apple-Silicon.zip" sparkle:edSignature="ddL+jXdDtD5Ld0OrqN0B0l/u3fBGAlvP1hJn4yBIFfKiq4G+AU/vtbSOqMZ0kCsOPXOHWf9q3/O3b0fEVwigAA==" length="1430995" type="application/octet-stream" />
+    </item>
+    <item>
       <title>Codex Bar 1.8.1</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Adapt all six themes to the horizontal desktop widget with dedicated 2:1 layouts, preserving their colors and indicators.
 - Keep the widget layout independent of the popup height and show when previous data is displayed.&lt;/div&gt;</description>
