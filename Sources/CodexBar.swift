@@ -67,6 +67,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
     let notices = UNUserNotificationCenter.current()
     var noticeStatus = NSTextField(wrappingLabelWithString: "")
     var lowToggle: NSButton?
+    var claudeHookStatus: NSTextField?
     var resetToggle: NSButton?
     lazy var noticeService = NoticeService(settings: settings, authorize: { [weak self] completion in
         self?.notices.getNotificationSettings { status in
@@ -147,6 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         button.addSubview(claudeActivityIcon)
         claudeActivity.onChange = { [weak self] state in self?.showClaudeActivity(state) }
         if settings.activityEnabled(for: "claude") { claudeActivity.start() }
+        refreshClaudeHooks()
         activity.onChange = { [weak self] state in self?.showActivity(state) }
         if activityEnabled { activity.start() }
         updateBadge.frame = NSRect(x: button.bounds.width - 6, y: button.bounds.height - 6, width: 5, height: 5)
@@ -302,6 +304,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
     func showClaudeActivity(_ state: ActivityDisplay?) {
         claudeActivityState = state
         layoutStatusBars(); claudeActivityIcon.show(settings.providers.includesClaude ? state : nil); updateStatusAccessibility()
+        claudeHookStatus?.stringValue = claudeHookStatusText
     }
     @objc func accessibilityDisplayChanged(_ notification: Notification) { activityIcon.show(activityState); claudeActivityIcon.show(claudeActivityState) }
     func checkUpdateInformation() {

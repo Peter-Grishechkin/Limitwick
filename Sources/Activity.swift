@@ -146,6 +146,7 @@ final class ClaudeActivityMonitor {
     private var timer: Timer?
     private let directory: URL
     var onChange: ((ActivityDisplay?) -> Void)?
+    private(set) var lastEvent: TimeInterval?
     init(base: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches/CodexBar/ClaudeActivity", isDirectory: true)) {
         directory = base.appendingPathComponent("listener-\(getpid())", isDirectory: true)
     }
@@ -173,6 +174,7 @@ final class ClaudeActivityMonitor {
             if let data = try? Data(contentsOf: url), data.count < 4096, let event = try? JSONDecoder().decode(Event.self, from: data), abs(event.time - now) < 30, !event.session.isEmpty, event.session.count <= 100 { events.append(event) }
             try? FileManager.default.removeItem(at: url)
         }
+        if let latest = events.map(\.time).max() { lastEvent = max(lastEvent ?? 0, latest) }
         for event in events.sorted(by: { $0.time < $1.time }) {
             if let prior = sessions[event.session], prior.timestamp > event.time { continue }
             switch event.event {

@@ -84,12 +84,13 @@ extension AppDelegate {
             activityToggle.state = settings.activityEnabled(for: settingsProvider) ? .on : .off
             var items = [heading("AI services"), row("Show limits", providerPicker), claudeSetup, heading("Provider settings"), row("Configure", editPicker), heading("Appearance"), row("Theme", themePicker), row("Mode", appearancePicker), activityToggle] as [NSView]
             if settingsProvider == "claude" {
-                let help = NSTextField(wrappingLabelWithString: ClaudeActivityMonitor.hooksInstalled() ? "Claude Code hooks are installed. Restart Claude Code if activity does not appear." : "Claude Code activity requires hooks, which are not installed. Install them, then restart Claude Code.")
+                let help = NSTextField(wrappingLabelWithString: claudeHookStatusText)
                 help.font = .systemFont(ofSize: 11); help.tag = 902; help.widthAnchor.constraint(equalToConstant: 372).isActive = true
-                let install = NSButton(title: "Install Claude hooks", target: self, action: #selector(installClaudeHooks))
-                let remove = NSButton(title: "Remove Claude hooks", target: self, action: #selector(removeClaudeHooks))
-                let buttons = NSStackView(views: [install, remove]); buttons.orientation = .horizontal; buttons.spacing = 8
-                items += [help, buttons]
+                claudeHookStatus = help
+                let button = ClaudeActivityMonitor.hooksInstalled()
+                    ? NSButton(title: "Remove Claude hooks", target: self, action: #selector(removeClaudeHooks))
+                    : NSButton(title: "Install Claude hooks", target: self, action: #selector(installClaudeHooks))
+                items += [help, button]
             }
             items += [heading("Notifications"), low, reset, thresholdRow, noticeStatus, openSettings]
             let content = stack(items, spacing: 12)
@@ -107,29 +108,48 @@ extension AppDelegate {
     }
     func reloadSettingsWindow() {
         if let surface = settingsWindow?.contentView { themeSurfaces.removeAll { $0 === surface } }
-        settingsWindow?.close(); settingsWindow = nil; showSettings()
+        settingsWindow?.close(); settingsWindow = nil; claudeHookStatus = nil; showSettings()
+    }
+    var claudeHookStatusText: String {
+        guard ClaudeActivityMonitor.hooksInstalled() else { return "Claude Code hooks are not installed. Install them to show Claude Code activity in the menu bar." }
+        if !settings.activityEnabled(for: "claude") { return "Claude Code hooks are installed. Turn on activity above to show it in the menu bar." }
+        if claudeActivity.lastEvent != nil { return "Claude Code hooks are installed. Receiving activity from Claude Code." }
+        return "Claude Code hooks are installed. Waiting for activity: it appears in Claude Code sessions started after installation."
     }
     @objc func installClaudeHooks() { runClaudeHookSetup("install") }
     @objc func removeClaudeHooks() { runClaudeHookSetup("remove") }
-    func runClaudeHookSetup(_ action: String) {
-        guard let path = Bundle.main.path(forResource: "claude-activity-setup", ofType: "py", inDirectory: "useAnimations") else { return }
+    // Returns an error description, or nil on success.
+    func claudeHookSetup(_ action: String) -> String? {
+        guard let path = Bundle.main.path(forResource: "claude-activity-setup", ofType: "py", inDirectory: "useAnimations") else { return "The hook installer is missing from the app." }
         let process = Process(); let errors = Pipe()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/python3"); process.arguments = [path, action]
         process.standardError = errors; process.standardOutput = Pipe()
-        do {
-            try process.run(); process.waitUntilExit()
-            let detail = String(data: errors.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            let alert = NSAlert()
-            alert.messageText = process.terminationStatus == 0 ? "Claude hooks \(action == "install" ? "installed" : "removed")" : "Could not update Claude hooks"
-            alert.informativeText = process.terminationStatus == 0 ? "Restart Claude Code to apply the change." : detail
-            alert.runModal()
-            if process.terminationStatus == 0 && action == "install" {
-                settings.setActivityEnabled(true, for: "claude"); claudeActivity.start()
-            }
-            reloadSettingsWindow()
-        } catch {
-            let alert = NSAlert(error: error); alert.runModal()
+        do { try process.run() } catch { return error.localizedDescription }
+        process.waitUntilExit()
+        let detail = String(data: errors.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        return process.terminationStatus == 0 ? nil : (detail.isEmpty ? "The hook installer failed." : detail)
+    }
+    // Keeps installed hooks pointing at the current helper script; never installs them on its own.
+    func refreshClaudeHooks() {
+        guard ClaudeActivityMonitor.hooksInstalled() else { return }
+        DispatchQueue.global(qos: .utility).async { [weak self] in _ = self?.claudeHookSetup("refresh") }
+    }
+    @discardableResult func runClaudeHookSetup(_ action: String) -> Bool {
+        let failure = claudeHookSetup(action)
+        let alert = NSAlert()
+        if let failure = failure {
+            alert.messageText = "Could not update Claude hooks"; alert.informativeText = failure
+        } else if action == "install" {
+            alert.messageText = "Claude hooks installed"
+            alert.informativeText = "Activity appears in Claude Code sessions started from now on. To include a session that is already open, type /exit in it, then run claude --continue to resume the conversation."
+            settings.setActivityEnabled(true, for: "claude"); claudeActivity.start()
+        } else {
+            alert.messageText = "Claude hooks removed"
+            alert.informativeText = "New Claude Code sessions no longer send activity. Sessions that are already open stop after they are restarted."
         }
+        alert.runModal()
+        reloadSettingsWindow()
+        return failure == nil
     }
     @objc func providerChanged(_ sender: NSPopUpButton) {
         guard ProviderSelection.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
@@ -162,6 +182,10 @@ extension AppDelegate {
         if settingsProvider == "codex" {
             if enabled { activity.start() } else { activity.stop(); showActivity(nil) }
         } else {
+            if enabled && !ClaudeActivityMonitor.hooksInstalled() {
+                // Installing here means hooks exist before the next Claude Code session starts.
+                guard runClaudeHookSetup("install") else { settings.setActivityEnabled(false, for: "claude"); reloadSettingsWindow(); return }
+            }
             if enabled { claudeActivity.start() } else { claudeActivity.stop(); showClaudeActivity(nil) }
         }
     }

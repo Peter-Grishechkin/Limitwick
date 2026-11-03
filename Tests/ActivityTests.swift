@@ -87,6 +87,7 @@ import Lottie
         precondition(!ClaudeActivityMonitor.hooksInstalled(config: config))
         try #"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/usr/bin/python3 /Applications/CodexBar.app/Contents/Resources/useAnimations/claude-activity-hook.py"}]}]}}"#.write(to: config.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)
         precondition(ClaudeActivityMonitor.hooksInstalled(config: config))
+        precondition(claude.lastEvent != nil)
         print("Activity tests passed")
     }
 }

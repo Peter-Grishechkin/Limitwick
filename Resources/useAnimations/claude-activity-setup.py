@@ -4,22 +4,43 @@ import json
 import os
 from pathlib import Path
 import shlex
+import shutil
 import sys
 import tempfile
 
 EVENTS = ('UserPromptSubmit', 'PreToolUse', 'PostToolUse', 'PostToolUseFailure', 'Stop', 'StopFailure', 'SessionEnd', 'Notification')
 MARKER = '/useAnimations/claude-activity-hook.py'
 
+# A copy outside the app bundle keeps hooks working when the app is moved or a build is deleted.
+# The copy stays after removal: open sessions keep calling it, and a missing script exits with 2, which blocks tools.
+def stable_helper():
+    target = Path.home() / 'Library/Application Support/CodexBar/useAnimations/claude-activity-hook.py'
+    target.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    fd, temp = tempfile.mkstemp(prefix='.claude-activity-hook-', dir=target.parent)
+    try:
+        with os.fdopen(fd, 'wb') as f, open(Path(__file__).resolve().with_name('claude-activity-hook.py'), 'rb') as source:
+            shutil.copyfileobj(source, f)
+        os.chmod(temp, 0o755)
+        os.replace(temp, target)
+    finally:
+        if os.path.exists(temp): os.unlink(temp)
+    return str(target)
+
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ('install', 'remove'):
-        raise SystemExit('Usage: claude-activity-setup.py install|remove')
+    if len(sys.argv) != 2 or sys.argv[1] not in ('install', 'remove', 'refresh'):
+        raise SystemExit('Usage: claude-activity-setup.py install|remove|refresh')
     root = Path(os.environ.get('CLAUDE_CONFIG_DIR', Path.home() / '.claude'))
     path = root / 'settings.json'
     data = json.loads(path.read_text()) if path.exists() else {}
     if not isinstance(data, dict) or not isinstance(data.get('hooks', {}), dict):
         raise SystemExit('Unexpected settings format; nothing changed.')
     hooks = data.setdefault('hooks', {})
-    helper = str(Path(__file__).resolve().with_name('claude-activity-hook.py'))
+    if sys.argv[1] == 'refresh':
+        # Only updates an existing installation, moving older bundle paths to the stable copy.
+        if MARKER not in json.dumps(hooks):
+            return
+        sys.argv[1] = 'install'
+    helper = stable_helper() if sys.argv[1] == 'install' else ''
     for event in EVENTS:
         groups = hooks.get(event, [])
         if not isinstance(groups, list):
