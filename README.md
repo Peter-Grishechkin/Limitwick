@@ -41,7 +41,7 @@ Settings can enable separate low-quota and confirmed-reset notifications. Both a
 
 ## Download
 
-Download [Codex Bar v1.7.2 for Apple Silicon](https://github.com/frankydzoro/codex-bar/releases/tag/v1.7.2), unzip the archive, and move CodexBar.app to Applications. The release requires macOS 13 or later and a signed-in Codex CLI.
+Download [Codex Bar v1.7.3 for Apple Silicon](https://github.com/frankydzoro/codex-bar/releases/tag/v1.7.3), unzip the archive, and move CodexBar.app to Applications. The release requires macOS 13 or later and a signed-in Codex CLI.
 
 ## Build and run
 

@@ -267,7 +267,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let controller = NSViewController()
         controller.view = content
         popover.contentViewController = controller
-        popover.behavior = .transient
+        // Handle dismissal ourselves so a status-item click cannot close the
+        // popover on mouse-down and immediately reopen it on mouse-up.
+        popover.behavior = .applicationDefined
         popover.delegate = self
         applyTheme()
         updateWarningThreshold()
@@ -333,8 +335,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         globalClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: clicks) { [weak self] _ in
             self?.popover.close()
         }
-        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: clicks) { [weak self] event in
+        localClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [clicks, .keyDown]) { [weak self] event in
             guard let self = self else { return event }
+            if event.type == .keyDown {
+                if event.keyCode == 53 { self.popover.close(); return nil }
+                return event
+            }
             if event.window !== self.content.window && event.window !== self.status.button?.window {
                 self.popover.close()
             }
