@@ -4,6 +4,25 @@ if [[ "${FAKE_CLAUDE_SCENARIO:-}" == 'login' ]]; then
   printf 'Not authenticated. Run /login\r\n'
   exit 0
 fi
+if [[ "${FAKE_CLAUDE_SCENARIO:-}" == 'trust' ]]; then
+  # Claude Code can reset the selection to "No, exit" right after the first draw, losing an early arrow key.
+  dialog() { printf '\033[2J\033[HQuick safety check\r\n%s No, exit\r\n%s Yes, I trust this folder\r\n' "$1" "$2"; }
+  stty -icanon -echo
+  dialog '❯' ' '
+  downs=0
+  while IFS= read -rsn1 key; do
+    if [[ "$key" == $'\033' ]]; then
+      IFS= read -rsn2 rest
+      [[ "$rest" == '[B' ]] && downs=$((downs + 1))
+      (( downs == 2 )) && dialog ' ' '❯'
+    elif [[ "$key" == $'\r' || -z "$key" ]]; then
+      (( downs >= 2 )) || exit 1
+      break
+    fi
+  done
+  stty icanon echo
+  printf '\033[2J\033[HClaude Code ready\r\n'
+fi
 while IFS= read -r input; do
   if [[ "$input" == '/usage' ]]; then
     if [[ "${FAKE_CLAUDE_SCENARIO:-}" == 'error' ]]; then

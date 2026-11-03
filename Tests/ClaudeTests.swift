@@ -36,6 +36,11 @@ import Foundation
         case .success(let parsed): precondition(parsed.fiveHour?.remaining == 77 && parsed.weekly?.remaining == 59)
         case .failure(let error): fatalError("Fake CLI failed: \(error)")
         }
+        setenv("FAKE_CLAUDE_SCENARIO", "trust", 1)
+        switch ClaudeClient(timeout: 12).fetch(path: path, directory: directory) {
+        case .success(let parsed): precondition(parsed.fiveHour?.remaining == 77)
+        case .failure(let error): fatalError("Trust dialog was not accepted: \(error)")
+        }
         setenv("FAKE_CLAUDE_SCENARIO", "login", 1)
         if case .failure(ClaudeError.notSignedIn) = ClaudeClient(timeout: 5).fetch(path: path, directory: directory) {} else { fatalError("Login error not detected") }
         setenv("FAKE_CLAUDE_SCENARIO", "error", 1)

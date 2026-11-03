@@ -171,8 +171,8 @@ final class ClaudeClient {
         try? tty.close()
         defer { lock.lock(); if process.isRunning { kill(process.processIdentifier, SIGKILL) }; lock.unlock(); process.waitUntilExit(); close(master); lock.lock(); active = nil; lock.unlock() }
         let deadline = ProcessInfo.processInfo.systemUptime + timeout
-        var screen = ClaudeScreen(), sent = false, trustAccepted = false, trustSelectionSent = false, trustVisible = false, lastData = ProcessInfo.processInfo.systemUptime
-        var trustReadyAt: TimeInterval?
+        var screen = ClaudeScreen(), sent = false, trustAccepted = false, trustOnNo = false, trustVisible = false, lastData = ProcessInfo.processInfo.systemUptime
+        var trustReadyAt: TimeInterval?, trustKeySentAt: TimeInterval?
         var best: Quota?
         var bytes = 0
         while ProcessInfo.processInfo.systemUptime < deadline {
@@ -187,9 +187,10 @@ final class ClaudeClient {
                     screen.append(String(decoding: buffer[0..<count], as: UTF8.self)); lastData = ProcessInfo.processInfo.systemUptime
                     let current = screen.text.lowercased()
                     trustVisible = current.contains("yes, i trust this folder") && current.contains("no, exit")
+                    trustOnNo = false
                     if !trustAccepted && trustVisible {
-                        if !trustSelectionSent && current.range(of: #"❯\s*(?:\d+\.\s*)?no, exit"#, options: .regularExpression) != nil {
-                            _ = write(master, "\u{1b}[B", 3); trustSelectionSent = true
+                        if current.range(of: #"❯\s*(?:\d+\.\s*)?no, exit"#, options: .regularExpression) != nil {
+                            trustOnNo = true; trustReadyAt = nil
                         } else if current.range(of: #"❯\s*(?:\d+\.\s*)?yes, i trust this folder"#, options: .regularExpression) != nil {
                             if trustReadyAt == nil { trustReadyAt = ProcessInfo.processInfo.systemUptime + 0.5 }
                         } else {
@@ -202,10 +203,14 @@ final class ClaudeClient {
                 }
             }
             let elapsed = timeout - (deadline - ProcessInfo.processInfo.systemUptime)
+            // Claude Code may reset the selection to "No, exit" after its first draw, so repeat the arrow key until it sticks.
+            if !trustAccepted && trustOnNo && ProcessInfo.processInfo.systemUptime - (trustKeySentAt ?? 0) > 1 {
+                _ = write(master, "\u{1b}[B", 3); trustKeySentAt = ProcessInfo.processInfo.systemUptime
+            }
             if !trustAccepted, let ready = trustReadyAt, ProcessInfo.processInfo.systemUptime >= ready {
                 _ = write(master, "\r", 1); trustAccepted = true; trustReadyAt = nil
                 // The dialog can disappear without a full-screen erase.
-                screen = ClaudeScreen(); trustVisible = false; lastData = ProcessInfo.processInfo.systemUptime
+                screen = ClaudeScreen(); trustVisible = false; trustOnNo = false; lastData = ProcessInfo.processInfo.systemUptime
             }
             if !sent && !trustVisible && elapsed > 3 && (ProcessInfo.processInfo.systemUptime - lastData > 0.5 || elapsed > 10) { _ = write(master, "/usage\r", 7); sent = true }
             if let quota = best, ProcessInfo.processInfo.systemUptime - lastData > 1.2 { return .success(quota) }
