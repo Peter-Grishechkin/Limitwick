@@ -4,11 +4,11 @@ import AppKit
 // changing the widget's proportions. Coordinates are in a 340 × 170 canvas.
 final class WidgetThemeView: ThemeView {
     let theme: PanelTheme
-    let previous: Bool
+    let status: String
     private let paletteView: ThemeView?
-    init(theme: PanelTheme, data: ThemeData, previous: Bool, appearance: NSAppearance?) {
+    init(theme: PanelTheme, data: ThemeData, status: String, appearance: NSAppearance?) {
         self.theme = theme
-        self.previous = previous
+        self.status = status
         self.paletteView = theme.makeView()
         super.init(frame: NSRect(x: 0, y: 0, width: 340, height: 170))
         self.appearance = appearance
@@ -30,10 +30,9 @@ final class WidgetThemeView: ThemeView {
         case .capsules: drawCapsules()
         case .terminal: drawTerminal()
         }
-        if previous {
-            fill(NSRect(x: 112, y: 151, width: 116, height: 14), palette.background, radius: 4)
-            text("Previous data", NSRect(x: 112, y: 151, width: 116, height: 14), size: 9, color: palette.secondary, alignment: .center)
-        }
+        let footer = [data.providerName, status.isEmpty ? nil : status].compactMap { $0 }.joined(separator: " · ")
+        fill(NSRect(x: 0, y: 155, width: 340, height: 15), palette.background)
+        text(footer, NSRect(x: 8, y: 155, width: 324, height: 15), size: 10, color: palette.secondary, alignment: .center)
     }
     private var items: [(Int, Double?, String)] { [(0, data.fiveHour, data.fiveReset), (1, data.weekly, data.weekReset)] }
     private func reset(_ value: String, _ rect: NSRect, color: NSColor, mono: Bool = false, alignment: NSTextAlignment = .left) {

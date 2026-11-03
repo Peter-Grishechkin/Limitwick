@@ -1,21 +1,55 @@
 import Foundation
+
 @main struct SnapshotTests {
     static func main() throws {
-        let old = #"{"five":42,"week":81,"stale":true,"threshold":20}"#.data(using: .utf8)!
-        let decoded = try JSONDecoder().decode(WidgetSnapshot.self, from: old)
-        precondition(decoded.five == 42 && decoded.week == 81 && decoded.stale && decoded.panelImage == nil && decoded.appVersion == nil)
-        let sample = WidgetSnapshot(five: 31, week: 55, fiveReset: Date(timeIntervalSince1970: 100), weekReset: nil, updated: Date(timeIntervalSince1970: 90), stale: false, threshold: 20, panelImage: Data([1, 2, 3]), accessibility: "panel", appVersion: "1.9.0")
-        let roundTrip = try JSONDecoder().decode(WidgetSnapshot.self, from: JSONEncoder().encode(sample))
-        precondition(roundTrip.five == 31 && roundTrip.week == 55 && roundTrip.panelImage == Data([1, 2, 3]) && roundTrip.accessibility == "panel" && roundTrip.appVersion == "1.9.0")
-        var both = sample
-        both.provider = "both"; both.claudeFive = 73; both.claudeWeek = 20
-        let restoredBoth = try JSONDecoder().decode(WidgetSnapshot.self, from: JSONEncoder().encode(both))
-        precondition(restoredBoth.provider == "both" && restoredBoth.five == 31 && restoredBoth.claudeFive == 73 && restoredBoth.claudeWeek == 20)
+        let suite = "Limitwick.WidgetTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let variants = WidgetVariant.all
+        precondition(variants.count == 24 && Set(variants.map(\.kind)).count == 24)
+        precondition(PanelTheme.allCases.map(\.rawValue) == WidgetVariant.themes)
+        let registrations = try String(contentsOfFile: "Widget/CodexWidget.swift", encoding: .utf8)
+            .split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { $0.hasPrefix("QuotaWidget(.") }
+        precondition(registrations == variants.map {
+            "QuotaWidget(.\($0.source.rawValue), .\($0.theme), .\($0.appearance.rawValue))"
+        })
         #if LIMITWICK_DEVELOPMENT
-        precondition(WidgetSnapshot.widgetKind == "CodexBarQuotaWideDevelopment" && WidgetSnapshot.group == "group.local.codexbar.development.shared")
+        precondition(variants.allSatisfy { $0.kind.hasPrefix("LimitwickDevelopmentQuota.") })
+        precondition(WidgetSnapshot.group == "group.local.codexbar.development.shared")
         #else
-        precondition(WidgetSnapshot.widgetKind == "CodexBarQuotaWideV2" && WidgetSnapshot.group == "group.local.codexbar.shared")
+        precondition(variants.allSatisfy { $0.kind.hasPrefix("LimitwickQuota.") })
+        precondition(WidgetSnapshot.group == "group.local.codexbar.shared")
         #endif
-        print("Widget snapshot compatibility checks passed")
+
+        let installed = WidgetVariant.installed(in: Set(variants.filter { $0.source == .claude }.prefix(2).map(\.kind))
+            .union(["CodexBarQuotaWideV2", "unknown"]))
+        let sources = Set(installed.map(\.source))
+        precondition(installed.count == 2 && sources == [.claude])
+        precondition(WidgetSource.claude.needsRefresh(menuVisible: false, installed: sources))
+        precondition(!WidgetSource.codex.needsRefresh(menuVisible: false, installed: sources))
+        precondition(WidgetSource.codex.needsRefresh(menuVisible: true, installed: sources))
+
+        defaults.set(Data(#"{"five":42,"week":81,"updated":90,"stale":true,"threshold":17}"#.utf8), forKey: "quotaSnapshot")
+        let codex = WidgetSnapshot.migrate(.codex, defaults: defaults)!
+        precondition(codex.five == 42 && codex.week == 81 && codex.state == .stale && codex.threshold == 17)
+        precondition(codex.updated == Date(timeIntervalSinceReferenceDate: 90))
+        precondition(WidgetSnapshot.migrate(.claude, defaults: defaults) == nil)
+
+        defaults.set(Data(#"{"provider":"both","five":42,"claudeFive":73,"claudeWeek":20,"claudeFiveReset":120,"updated":90,"threshold":17}"#.utf8), forKey: "quotaSnapshot")
+        let claude = WidgetSnapshot.migrate(.claude, defaults: defaults)!
+        precondition(claude.five == 73 && claude.week == 20 && claude.state == .stale && claude.updated == nil)
+        precondition(claude.fiveReset == Date(timeIntervalSinceReferenceDate: 120))
+        precondition(codex.write(.codex, defaults: defaults))
+        precondition(claude.write(.claude, defaults: defaults))
+        precondition(!claude.write(.claude, defaults: defaults))
+        precondition(WidgetSnapshot.read(.codex, defaults: defaults) == codex)
+        precondition(WidgetSnapshot.read(.claude, defaults: defaults) == claude)
+
+        defaults.set(Data(#"{"provider":"claude","five":56,"threshold":11}"#.utf8), forKey: "quotaSnapshot")
+        precondition(WidgetSnapshot.migrate(.claude, defaults: defaults)?.five == 56)
+        precondition(WidgetSnapshot.migrate(.codex, defaults: defaults) == nil)
+        print("Widget variants, source selection and snapshot compatibility checks passed")
     }
 }

@@ -54,7 +54,7 @@ fi
 ditto "$SPARKLE_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 ditto "$LOTTIE_DIR/Lottie.xcframework/macos-arm64_x86_64/Lottie.framework" "$APP/Contents/Frameworks/Lottie.framework"
 ditto Resources/useAnimations "$APP/Contents/Resources/useAnimations"
-swiftc ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} -target "$(uname -m)-apple-macosx13.0" -module-cache-path "$PWD/build/module-cache" -F "$APP/Contents/Frameworks" -framework Sparkle -framework Lottie -Xlinker -rpath -Xlinker '@executable_path/../Frameworks' Sources/QuotaClient.swift Sources/ClaudeClient.swift Sources/P1Support.swift Sources/AppSettings.swift Sources/NoticeService.swift Sources/RefreshCoordinator.swift Sources/Activity.swift Sources/Themes.swift Sources/WidgetTheme.swift Widget/SharedSnapshot.swift Sources/InterfaceViews.swift Sources/PanelInterface.swift Sources/ThemeInterface.swift Sources/SettingsInterface.swift Sources/MenuInterface.swift Sources/Limitwick.swift -o "$APP/Contents/MacOS/Limitwick"
+swiftc ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} -target "$(uname -m)-apple-macosx13.0" -module-cache-path "$PWD/build/module-cache" -F "$APP/Contents/Frameworks" -framework Sparkle -framework Lottie -Xlinker -rpath -Xlinker '@executable_path/../Frameworks' Sources/QuotaClient.swift Sources/ClaudeClient.swift Sources/P1Support.swift Sources/AppSettings.swift Sources/NoticeService.swift Sources/RefreshCoordinator.swift Sources/Activity.swift Sources/Themes.swift Widget/SharedSnapshot.swift Sources/InterfaceViews.swift Sources/PanelInterface.swift Sources/ThemeInterface.swift Sources/SettingsInterface.swift Sources/MenuInterface.swift Sources/Limitwick.swift -o "$APP/Contents/MacOS/Limitwick"
 WIDGET="$APP/Contents/PlugIns/CodexWidget.appex"
 cp Widget/Info.plist "$WIDGET/Contents/Info.plist"
 if [ "$CONFIGURATION" = development ]; then
@@ -63,7 +63,7 @@ if [ "$CONFIGURATION" = development ]; then
 fi
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Info.plist)" "$WIDGET/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")" "$WIDGET/Contents/Info.plist"
-swiftc ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} -target "$(uname -m)-apple-macosx14.0" -module-cache-path "$PWD/build/module-cache" -application-extension -parse-as-library -Xlinker -e -Xlinker _NSExtensionMain Widget/SharedSnapshot.swift Widget/CodexWidget.swift -o "$WIDGET/Contents/MacOS/CodexWidget"
+swiftc ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} -target "$(uname -m)-apple-macosx14.0" -module-cache-path "$PWD/build/module-cache" -application-extension -parse-as-library -Xlinker -e -Xlinker _NSExtensionMain Sources/QuotaClient.swift Sources/P1Support.swift Sources/Themes.swift Sources/WidgetTheme.swift Widget/SharedSnapshot.swift Widget/CodexWidget.swift -o "$WIDGET/Contents/MacOS/CodexWidget"
 codesign --force --sign - --entitlements "$WIDGET_ENTITLEMENTS" "$WIDGET"
 codesign --force --sign - "$APP/Contents/Frameworks/Lottie.framework"
 codesign --force --sign - --entitlements "$APP_ENTITLEMENTS" "$APP"

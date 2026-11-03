@@ -48,7 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
             DispatchQueue.main.async { completion(result) }
         }
     }, cancelFetch: { [weak self] in self?.client.cancel() }, schedule: { [weak self] interval, action in
-        guard self?.settings.providers.includesCodex == true else { return }
+        guard self?.shouldRefresh(.codex) == true else { return }
         self?.refreshTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { _ in action() }
     }, cancelTimer: { [weak self] in self?.refreshTimer?.invalidate(); self?.refreshTimer = nil })
     var claudeTimer: Timer?
@@ -60,7 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
             DispatchQueue.main.async { completion(result) }
         }
     }, cancelFetch: { [weak self] in self?.claudeClient.cancel() }, schedule: { [weak self] interval, action in
-        guard self?.settings.providers.includesClaude == true else { return }
+        guard self?.shouldRefresh(.claude) == true else { return }
         self?.claudeTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: false) { _ in action() }
     }, cancelTimer: { [weak self] in self?.claudeTimer?.invalidate(); self?.claudeTimer = nil })
     let settings = AppSettings()
@@ -109,6 +109,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
     var displayStale: Bool { settings.providers == .claude ? claudeStale : stale }
     var displayUpdate: Date? { settings.providers == .claude ? claudeUpdate : lastUpdate }
     var ageTimer: Timer?
+    private var widgetDiscoveryTimer: Timer?
+    private var installedWidgetKinds: Set<String> = []
+    private var widgetSources: Set<WidgetSource> = []
+    private var discoveringWidgets = false
+    private var terminating = false
     var globalClickMonitor: Any?
     var localClickMonitor: Any?
     var themeView: ThemeView?
@@ -208,7 +213,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         layoutPanel(message: "Loading…")
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(didWake(_:)), name: NSWorkspace.didWakeNotification, object: nil)
         if settings.desktopVisible { showDesktopWindow() }
-        publishWidgetSnapshot(previousSnapshot: WidgetSnapshot.read())
+        for source in WidgetSource.allCases {
+            var snapshot = WidgetSnapshot.read(source) ?? WidgetSnapshot.migrate(source) ?? WidgetSnapshot()
+            snapshot.state = snapshot.hasData ? .stale : .waiting
+            snapshot.threshold = settings.threshold(for: source.rawValue)
+            snapshot.write(source)
+        }
         refreshCoordinator.onStart = { [weak self] in self?.refreshStarted() }
         refreshCoordinator.onFinish = { [weak self] result in self?.finish(result) }
         claudeCoordinator.onStart = { [weak self] in self?.refreshStarted() }
@@ -219,8 +229,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
             self.listener.run(findPath: { QuotaClient.findCLI() }) { [weak self] in
                 DispatchQueue.main.async {
                     guard let self = self else { return }
-                    if self.settings.providers.includesCodex { self.refreshCoordinator.changed() }
+                    if self.shouldRefresh(.codex) { self.refreshCoordinator.changed() }
                 }
+            }
+        }
+        if #available(macOS 14, *) {
+            widgetDiscoveryTimer = Timer.scheduledTimer(withTimeInterval: 180, repeats: true) { [weak self] _ in
+                self?.discoverWidgets()
             }
         }
         ageTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in self?.updateAge() }
@@ -274,8 +289,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
     }
     @objc func didWake(_ notification: Notification) {
         updateAge()
-        if settings.providers.includesCodex { refreshCoordinator.changed() }
-        if settings.providers.includesClaude { claudeCoordinator.changed() }
+        discoverWidgets()
+        if shouldRefresh(.codex) { refreshCoordinator.changed() }
+        if shouldRefresh(.claude) { claudeCoordinator.changed() }
     }
     var updateMenuTitle: String {
         availableUpdate.map { "Update to \($0)…" } ?? "Check for Updates…"
@@ -339,9 +355,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         updaterController.checkForUpdates(nil)
     }
     @objc func refreshNow() {
-        if settings.providers.includesCodex { refreshCoordinator.refresh() }
-        if settings.providers.includesClaude { claudeCoordinator.refresh() }
+        discoverWidgets()
+        for source in WidgetSource.allCases where shouldRefresh(source) {
+            coordinator(for: source).refresh()
+        }
     }
+
+    func shouldRefresh(_ source: WidgetSource) -> Bool {
+        let visible = source == .codex ? settings.providers.includesCodex : settings.providers.includesClaude
+        return source.needsRefresh(menuVisible: visible, installed: widgetSources)
+    }
+
+    private func coordinator(for source: WidgetSource) -> RefreshCoordinator {
+        source == .codex ? refreshCoordinator : claudeCoordinator
+    }
+
+    private func discoverWidgets() {
+        guard #available(macOS 14, *), !discoveringWidgets else { return }
+        discoveringWidgets = true
+        WidgetCenter.shared.getCurrentConfigurations { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self, !self.terminating else { return }
+                self.discoveringWidgets = false
+                guard case .success(let configurations) = result else { return }
+                let variants = WidgetVariant.installed(in: Set(configurations.map(\.kind)))
+                let previousSources = self.widgetSources
+                let previousKinds = self.installedWidgetKinds
+                self.installedWidgetKinds = Set(variants.map(\.kind))
+                self.widgetSources = Set(variants.map(\.source))
+                for kind in self.installedWidgetKinds.subtracting(previousKinds) {
+                    WidgetCenter.shared.reloadTimelines(ofKind: kind)
+                }
+                self.stopUnusedRefreshTimers()
+                for source in self.widgetSources.subtracting(previousSources) {
+                    let visible = source == .codex ? self.settings.providers.includesCodex : self.settings.providers.includesClaude
+                    if !visible { self.coordinator(for: source).refresh() }
+                }
+            }
+        }
+    }
+
+    func stopUnusedRefreshTimers() {
+        if !shouldRefresh(.codex) { refreshTimer?.invalidate(); refreshTimer = nil }
+        if !shouldRefresh(.claude) { claudeTimer?.invalidate(); claudeTimer = nil }
+    }
+
     func layoutStatusBars() {
         let dual = settings.providers == .both
         let layout = ActivityBarLayout(codex: settings.providers.includesCodex, claude: settings.providers.includesClaude,
@@ -384,6 +442,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         case .failure(let error):
             stale = lastQuota != nil; lastFailure = error.localizedDescription
         }
+        publishWidgetSnapshot(.codex)
         updatePresentation()
     }
     func finishClaude(_ result: Result<Quota, Error>) {
@@ -394,9 +453,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         case .failure(let error):
             claudeStale = claudeQuota != nil; claudeFailure = error.localizedDescription
         }
+        publishWidgetSnapshot(.claude)
         updatePresentation()
     }
-    func updatePresentation(publishSnapshot: Bool = true) {
+    func updatePresentation() {
         let dual = settings.providers == .both
         let first = presentations.first
         let quota = displayQuota
@@ -425,57 +485,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         activityIcon.show(settings.providers.includesCodex ? activityState : nil)
         claudeActivityIcon.show(settings.providers.includesClaude ? claudeActivityState : nil)
         layoutPanel(message: messages.isEmpty ? nil : messages.joined(separator: "\n"))
-        if publishSnapshot { publishWidgetSnapshot() }
-        updateStatusAccessibility()
     }
-    func publishWidgetSnapshot(previousSnapshot: WidgetSnapshot? = WidgetSnapshot.read()) {
-        let previous = previousSnapshot.flatMap { snapshot -> WidgetSnapshot? in
-            let provider = snapshot.provider ?? "codex"
-            return settings.providers != .both && settings.providers.rawValue == provider ? snapshot : nil
+
+    func publishWidgetSnapshot(_ source: WidgetSource) {
+        let quota = source == .codex ? lastQuota : claudeQuota
+        let updated = source == .codex ? lastUpdate : claudeUpdate
+        let failure = source == .codex ? lastFailure : claudeFailure
+        var snapshot = WidgetSnapshot.read(source) ?? WidgetSnapshot()
+        if let quota {
+            snapshot.five = quota.fiveHour?.remaining
+            snapshot.week = quota.weekly?.remaining
+            snapshot.fiveReset = quota.fiveHour?.reset
+            snapshot.weekReset = quota.weekly?.reset
+            snapshot.updated = updated
         }
-        let five = displayQuota?.fiveHour ?? previous?.five.map { QuotaWindow(durationMinutes: 300, remaining: $0, reset: previous?.fiveReset) }
-        let week = displayQuota?.weekly ?? previous?.week.map { QuotaWindow(durationMinutes: 10080, remaining: $0, reset: previous?.weekReset) }
-        let summary = settings.providers != .both && displayQuota == nil && previous != nil
-            ? "\(settings.providers.title). \(describe("5 hours", five)). \(describe("Week", week)). Previous data."
-            : presentations.map { "\($0.name). \(describe("5 hours", $0.quota?.fiveHour)). \(describe("Week", $0.quota?.weekly)). \($0.status)" }.joined(separator: ". ")
-        let widget: NSView
-        if settings.providers == .both {
-            let both = MultiProviderView(frame: NSRect(x: 0, y: 0, width: 340, height: 170))
-            both.providers = presentations; both.colors = palette(for: content.effectiveAppearance); both.threshold = noticeThreshold; both.providerThresholds = ["codex": settings.threshold(for: "codex"), "claude": settings.threshold(for: "claude")]
-            widget = both
-        } else {
-            widget = WidgetThemeView(theme: selectedTheme,
-                data: ThemeData(fiveHour: five?.remaining, weekly: week?.remaining,
-                                fiveReset: resetDescription(five), weekReset: resetDescription(week),
-                                accessibility: summary, warningThreshold: noticeThreshold, providerName: activeProvider.capitalized),
-                previous: displayStale || displayQuota == nil, appearance: content.effectiveAppearance)
+        if failure != nil {
+            snapshot.state = snapshot.hasData ? .stale : .unavailable
+        } else if quota != nil {
+            snapshot.state = snapshot.hasData ? .current : .unavailable
         }
-        var image: Data?
-        if let bitmap = widget.bitmapImageRepForCachingDisplay(in: widget.bounds) {
-            widget.cacheDisplay(in: widget.bounds, to: bitmap)
-            image = bitmap.representation(using: .png, properties: [:])
+        snapshot.threshold = settings.threshold(for: source.rawValue)
+        guard snapshot.write(source), #available(macOS 14, *) else { return }
+        for variant in WidgetVariant.installed(in: installedWidgetKinds) where variant.source == source {
+            WidgetCenter.shared.reloadTimelines(ofKind: variant.kind)
         }
-        var snapshot = WidgetSnapshot(five: five?.remaining, week: week?.remaining,
-                       fiveReset: five?.reset, weekReset: week?.reset,
-                       updated: displayUpdate ?? previous?.updated, stale: displayStale || displayQuota == nil, threshold: noticeThreshold,
-                       panelImage: image, accessibility: summary, appVersion: installedVersion)
-        snapshot.provider = settings.providers.rawValue
-        if settings.providers == .both {
-            snapshot.claudeFive = claudeQuota?.fiveHour?.remaining
-            snapshot.claudeWeek = claudeQuota?.weekly?.remaining
-            snapshot.claudeFiveReset = claudeQuota?.fiveHour?.reset
-            snapshot.claudeWeekReset = claudeQuota?.weekly?.reset
-        }
-        snapshot.write()
-        WidgetCenter.shared.reloadTimelines(ofKind: WidgetSnapshot.widgetKind)
     }
     func applicationWillTerminate(_ notification: Notification) {
         stopClickMonitoring()
         NSWorkspace.shared.notificationCenter.removeObserver(self)
+        terminating = true
+        widgetDiscoveryTimer?.invalidate()
         refreshCoordinator.stop(); claudeCoordinator.stop(); ageTimer?.invalidate(); updateCheckTimer?.invalidate()
         activity.stop(); claudeActivity.stop(); listener.cancel()
     }
-    func updateAge() { updatePresentation(publishSnapshot: false) }
+    func updateAge() { updatePresentation() }
     func resetDescription(_ window: QuotaWindow?) -> String {
         ResetText.describe(window?.reset)
     }

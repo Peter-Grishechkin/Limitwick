@@ -15,9 +15,9 @@ Limitwick checks for compatible releases quietly at launch and once a day. When 
 ## Widget
 
 
-On macOS 14 or later, open the desktop widget gallery (right-click the desktop and choose Edit Widgets), find **Limitwick**, and add its horizontal medium widget. The widget uses a horizontal layout in the selected theme. It reads the latest snapshot prepared by Limitwick; keep the app running for fresh data. macOS controls widget refresh timing, so the displayed values may lag behind the app. If an update fails, the panel image reports the error and the age of the previous data. The shared snapshot contains a rendered image of the panel, the two percentages, reset times, update time, error state, and warning threshold; it does not contain credentials or account identifiers. The desktop widget requires macOS 14 or later.
+On macOS 14 or later, open the desktop widget gallery and find **Limitwick**. Choose from 24 horizontal medium widgets. Each of the six themes comes in Light and Dark for Codex and Claude. The appearance and provider are fixed for each variant. Remove the old universal widget and add your chosen variants from the gallery.
 
-The widget was tested locally on macOS 14. Widget discovery, shared data access, and updates from a downloaded release can vary with macOS and signing.
+Widgets read a local quota snapshot for their provider. Limitwick checks which widgets are installed at launch, after wake, when you refresh manually, and every three minutes. A provider with an installed widget can refresh even when it is hidden in the menu bar. Keep Limitwick running for fresh data. macOS controls when widgets redraw, so their values may lag behind the app.
 
 
 ## Data and connectivity

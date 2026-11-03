@@ -14,9 +14,9 @@ build/notice-tests
 swiftc -module-cache-path "$PWD/build/module-cache" Sources/QuotaClient.swift Sources/P1Support.swift Sources/Themes.swift Sources/InterfaceViews.swift Tests/PanelThemeTests.swift -o build/panel-theme-tests
 build/panel-theme-tests
 
-swiftc -module-cache-path "$PWD/build/module-cache" Widget/SharedSnapshot.swift Tests/WidgetSnapshotTests.swift -o build/widget-snapshot-tests
+swiftc -module-cache-path "$PWD/build/module-cache" Sources/QuotaClient.swift Sources/P1Support.swift Sources/Themes.swift Widget/SharedSnapshot.swift Tests/WidgetSnapshotTests.swift -o build/widget-snapshot-tests
 build/widget-snapshot-tests
-swiftc -D LIMITWICK_DEVELOPMENT -module-cache-path "$PWD/build/module-cache" Widget/SharedSnapshot.swift Tests/WidgetSnapshotTests.swift -o build/widget-snapshot-development-tests
+swiftc -D LIMITWICK_DEVELOPMENT -module-cache-path "$PWD/build/module-cache" Sources/QuotaClient.swift Sources/P1Support.swift Sources/Themes.swift Widget/SharedSnapshot.swift Tests/WidgetSnapshotTests.swift -o build/widget-snapshot-development-tests
 build/widget-snapshot-development-tests
 
 if [ ! -d build/Limitwick-Development.app/Contents/Frameworks/Lottie.framework ]; then

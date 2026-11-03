@@ -154,8 +154,7 @@ extension AppDelegate {
     @objc func providerChanged(_ sender: NSPopUpButton) {
         guard ProviderSelection.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
         settings.providers = ProviderSelection.allCases[sender.indexOfSelectedItem]
-        if !settings.providers.includesCodex { refreshTimer?.invalidate(); refreshTimer = nil }
-        if !settings.providers.includesClaude { claudeTimer?.invalidate(); claudeTimer = nil }
+        stopUnusedRefreshTimers()
         applyTheme()
         updateWarningThreshold()
         updatePresentation()
@@ -166,14 +165,12 @@ extension AppDelegate {
         settings.setTheme(PanelTheme.allCases[sender.indexOfSelectedItem].rawValue, for: settingsProvider)
         applyTheme()
         resizeWindowToContent(settingsWindow)
-        publishWidgetSnapshot()
     }
     @objc func appearanceChanged(_ sender: NSPopUpButton) {
         guard AppearanceMode.allCases.indices.contains(sender.indexOfSelectedItem) else { return }
         settings.setAppearance(AppearanceMode.allCases[sender.indexOfSelectedItem].rawValue, for: settingsProvider)
         applyTheme()
         resizeWindowToContent(settingsWindow)
-        publishWidgetSnapshot()
     }
     var activityEnabled: Bool { settings.activityEnabled(for: "codex") }
     @objc func activitySettingChanged(_ sender: NSButton) {
@@ -196,7 +193,7 @@ extension AppDelegate {
         settings.setThreshold(sender.integerValue, for: settingsProvider)
         updateWarningThreshold()
         layoutPanel(message: stateLabel.isHidden ? nil : stateLabel.stringValue)
-        publishWidgetSnapshot()
+        if let source = WidgetSource(rawValue: settingsProvider) { publishWidgetSnapshot(source) }
         (settingsWindow?.contentView?.viewWithTag(501) as? NSTextField)?.stringValue = "\(sender.integerValue)%"
     }
     @objc func noticeSettingChanged(_ sender: NSButton) {

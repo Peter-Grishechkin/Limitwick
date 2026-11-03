@@ -9,7 +9,7 @@ Limitwick is a small macOS menu bar app that shows how much of your **Codex** an
 - Click for a panel with percentages, reset times, and time remaining, in one of six themes.
 - Optional activity animation while Codex or Claude Code is working or using a tool.
 - Optional notifications for low quota and confirmed resets.
-- Picture-in-Picture window and a macOS desktop widget.
+- Picture-in-Picture window and 24 macOS desktop widget variants.
 - Automatic refresh, refresh after wake, and built-in updates.
 
 ## Contents
@@ -106,7 +106,7 @@ Open **Settings…** from the menu. The window has four sections.
 
 ### Appearance
 
-- **Theme:** the look of the panel, menu, Picture-in-Picture window, and widget. See [Themes](#themes).
+- **Theme:** the look of the panel, menu, and Picture-in-Picture window. See [Themes](#themes).
 - **Mode:** **Light**, **Dark**, or **Auto**. Auto follows the macOS appearance.
 - **Show … activity in menu bar:** shows an animation next to the bars while the selected service is working. See [Activity indicator](#activity-indicator).
 
@@ -174,12 +174,14 @@ Notifications are sent only after a successful refresh. Limitwick cannot reliabl
 
 **Picture-in-Picture** is a separate window with the panel, in the selected theme. Open it from the menu and drag it wherever you like. It stays open while the app runs, can be covered by other windows, and reopens in the same place the next time the app launches.
 
-To add the **desktop widget** (macOS 14 or later):
+To add a **desktop widget** (macOS 14 or later):
 
 1. Right-click the desktop and choose **Edit Widgets**.
-2. Find **Limitwick** and add the medium widget.
+2. Find **Limitwick** and choose a medium widget by theme, provider, and Light or Dark appearance.
 
-The widget shows the same panel in a horizontal layout. It gets data from the running app, so keep Limitwick open. macOS decides when to refresh widgets, so the widget can lag behind the app.
+Each of the six themes is available in Light and Dark for both Codex and Claude. You can place several variants side by side. Each keeps its own theme and appearance, and it receives limits even when its provider is hidden from the menu bar. Keep Limitwick running for fresh data. macOS controls when the widget redraws.
+
+If you used the previous universal widget, remove it and add a new variant from the gallery.
 
 ## Themes
 
@@ -243,7 +245,7 @@ Limitwick checks for new versions quietly at launch and once a day. When an upda
 - Limitwick does not ask for your password and does not store credentials. It uses the sign-in of your existing Codex CLI and Claude Code.
 - Codex usage comes from a local `codex app-server`. Claude usage comes from running `/usage` in Claude Code in a hidden terminal. While doing so, Claude Code runs with hooks and MCP servers turned off and with no tools allowed.
 - The app has no server of its own. Codex and Claude Code contact their own services, and update checks contact GitHub.
-- The widget snapshot contains the panel image and the quota values, but no credentials or account IDs.
+- Widgets read local quota snapshots containing values, reset times, and update status. The snapshots contain no credentials or account IDs.
 
 ## Troubleshooting
 
