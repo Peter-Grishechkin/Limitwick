@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-root = Path(tempfile.mkdtemp(prefix='codexbar-hooks-test-'))
+root = Path(tempfile.mkdtemp(prefix='limitwick-hooks-test-'))
 env = os.environ.copy()
 env['CODEX_HOME'] = str(root / 'codex')
 env['HOME'] = str(root / 'home')

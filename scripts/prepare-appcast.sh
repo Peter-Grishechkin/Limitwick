@@ -10,13 +10,13 @@ VERSION="$1"
 ARCHIVE="$2"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Expected a version like 1.5.0" >&2; exit 2; }
 [ -f "$ARCHIVE" ] || { echo "Archive not found: $ARCHIVE" >&2; exit 2; }
-NAME="CodexBar-$VERSION-macOS-Apple-Silicon.zip"
+NAME="Limitwick-$VERSION-macOS-Apple-Silicon.zip"
 [ "$(basename "$ARCHIVE")" = "$NAME" ] || { echo "Expected archive name: $NAME" >&2; exit 2; }
 # Refuse a mislabeled archive before adding an update to the feed.
-PLIST="$(mktemp -t codexbar-release-plist)"
-NOTES="$(mktemp -t codexbar-release-notes)"
+PLIST="$(mktemp -t limitwick-release-plist)"
+NOTES="$(mktemp -t limitwick-release-notes)"
 trap 'rm -f "$PLIST" "$NOTES"' EXIT
-unzip -p "$ARCHIVE" CodexBar.app/Contents/Info.plist > "$PLIST"
+unzip -p "$ARCHIVE" Limitwick.app/Contents/Info.plist > "$PLIST"
 for KEY in CFBundleShortVersionString CFBundleVersion; do
     VALUE="$(/usr/libexec/PlistBuddy -c "Print :$KEY" "$PLIST")"
     [ "$VALUE" = "$VERSION" ] || { echo "$KEY in archive is $VALUE, expected $VERSION" >&2; exit 1; }
@@ -40,7 +40,7 @@ if channel is None:
 if any(item.findtext(f'{{{ns}}}version') == version for item in channel.findall('item')):
     raise SystemExit('Version already exists in appcast')
 item = ET.Element('item')
-ET.SubElement(item, 'title').text = f'Codex Bar {version}'
+ET.SubElement(item, 'title').text = f'Limitwick {version}'
 with open(notes_path, encoding='utf-8') as notes:
     ET.SubElement(item, 'description').text = notes.read().strip()
 ET.SubElement(item, f'{{{ns}}}version').text = version

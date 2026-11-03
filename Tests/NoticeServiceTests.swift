@@ -2,7 +2,7 @@ import Foundation
 
 @main struct NoticeServiceTests {
     static func main() {
-        let suite = "codexbar-tests-\(UUID().uuidString)"
+        let suite = "limitwick-tests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let settings = AppSettings(defaults)

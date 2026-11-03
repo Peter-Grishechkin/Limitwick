@@ -82,7 +82,7 @@ private final class AppServerConnection {
         try input.fileHandleForWriting.write(contentsOf: data)
     }
     func initialize() throws {
-        try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "codex_bar", "version": "1.7.0"]]])
+        try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "limitwick", "version": "1.7.0"]]])
     }
     func close() {
         try? input.fileHandleForWriting.close()

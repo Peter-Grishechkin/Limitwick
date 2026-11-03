@@ -89,7 +89,7 @@ import Darwin
         if case .failure(QuotaError.disconnected) = run("truncated") {} else { fatalError("truncated stream") }
         if case .failure(QuotaError.invalidResponse) = run("large") {} else { fatalError("large stream") }
         if case .failure(QuotaError.timeout) = run("late", timeout: 0.1) {} else { fatalError("late reply must time out") }
-        let pidFile = NSTemporaryDirectory() + "codexbar-test-\(UUID().uuidString)"
+        let pidFile = NSTemporaryDirectory() + "limitwick-test-\(UUID().uuidString)"
         setenv("FAKE_PID_FILE", pidFile, 1)
         if case .failure(QuotaError.timeout) = run("timeout", timeout: 0.3) {} else { fatalError("process timeout") }
         let pidText = try String(contentsOfFile: pidFile, encoding: .utf8)

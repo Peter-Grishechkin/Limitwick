@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Send only lifecycle metadata to running Codex Bar instances."""
+"""Send only lifecycle metadata to running Limitwick instances."""
 import glob
 import json
 import os

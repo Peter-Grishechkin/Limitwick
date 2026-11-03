@@ -211,7 +211,7 @@ extension AppDelegate {
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 switch settings.authorizationStatus {
-                case .denied: self.noticeStatus.stringValue = "Notifications are blocked by macOS. Enable Codex Bar in System Settings → Notifications."
+                case .denied: self.noticeStatus.stringValue = "Notifications are blocked by macOS. Enable Limitwick in System Settings → Notifications."
                 case .authorized, .provisional, .ephemeral: self.noticeStatus.stringValue = "Notifications are allowed. Reset alerts require a successful refresh."
                 default: self.noticeStatus.stringValue = "Enable an alert above to request notification permission."
                 }

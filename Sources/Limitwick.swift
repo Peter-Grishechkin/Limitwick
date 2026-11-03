@@ -158,7 +158,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         let savedUpdate = settings.availableUpdate
         if savedUpdate?["installed"] == installedVersion { availableUpdate = savedUpdate?["available"] }
         updateUpdateUI()
-        #if !CODEXBAR_DEVELOPMENT
+        #if !LIMITWICK_DEVELOPMENT
         updaterController.updater.automaticallyChecksForUpdates = false
         updaterController.startUpdater()
         checkUpdateInformation()
@@ -182,10 +182,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         let settingsItem = NSMenuItem(title: "Settings…", action: #selector(showSettings), keyEquivalent: ",")
         settingsItem.target = self
         contextMenu.addItem(settingsItem)
-        let about = NSMenuItem(title: "About Codex Bar", action: #selector(showAbout), keyEquivalent: "")
+        let about = NSMenuItem(title: "About Limitwick", action: #selector(showAbout), keyEquivalent: "")
         about.target = self
         contextMenu.addItem(about)
-        #if !CODEXBAR_DEVELOPMENT
+        #if !LIMITWICK_DEVELOPMENT
         checkUpdates.target = self
         contextMenu.addItem(checkUpdates)
         #endif
@@ -498,7 +498,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         return formatter.string(from: date)
     }
 }
-@main struct CodexBarMain {
+@main struct LimitwickMain {
     static func main() {
         let app = NSApplication.shared
         UserDefaults.standard.register(defaults: ["NSStatusItem Preferred Position Item-0": 120])

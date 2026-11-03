@@ -11,7 +11,7 @@ import Foundation
         both.provider = "both"; both.claudeFive = 73; both.claudeWeek = 20
         let restoredBoth = try JSONDecoder().decode(WidgetSnapshot.self, from: JSONEncoder().encode(both))
         precondition(restoredBoth.provider == "both" && restoredBoth.five == 31 && restoredBoth.claudeFive == 73 && restoredBoth.claudeWeek == 20)
-        #if CODEXBAR_DEVELOPMENT
+        #if LIMITWICK_DEVELOPMENT
         precondition(WidgetSnapshot.widgetKind == "CodexBarQuotaWideDevelopment" && WidgetSnapshot.group == "group.local.codexbar.development.shared")
         #else
         precondition(WidgetSnapshot.widgetKind == "CodexBarQuotaWideV2" && WidgetSnapshot.group == "group.local.codexbar.shared")

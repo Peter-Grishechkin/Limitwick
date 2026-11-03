@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Install/remove Codex Bar lifecycle hooks while preserving other hooks."""
+"""Install/remove Limitwick lifecycle hooks while preserving other hooks."""
 import json
 import os
 import pathlib
@@ -42,7 +42,7 @@ def main():
         else:
             hooks.pop(event, None)
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
-    fd, temp = tempfile.mkstemp(prefix='.codexbar-hooks-', dir=root)
+    fd, temp = tempfile.mkstemp(prefix='.limitwick-hooks-', dir=root)
     try:
         with os.fdopen(fd, 'w') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
@@ -51,7 +51,7 @@ def main():
     finally:
         if os.path.exists(temp):
             os.unlink(temp)
-    print('Codex Bar hooks ' + ('installed; review and trust them in Codex.' if sys.argv[1] == 'install' else 'removed.'))
+    print('Limitwick hooks ' + ('installed; review and trust them in Codex.' if sys.argv[1] == 'install' else 'removed.'))
 
 if __name__ == '__main__':
     main()

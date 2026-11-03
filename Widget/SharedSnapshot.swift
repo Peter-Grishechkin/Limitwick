@@ -1,7 +1,7 @@
 import Foundation
 
 struct WidgetSnapshot: Codable {
-    #if CODEXBAR_DEVELOPMENT
+    #if LIMITWICK_DEVELOPMENT
     static let widgetKind = "CodexBarQuotaWideDevelopment"
     static let group = "group.local.codexbar.development.shared"
     #else

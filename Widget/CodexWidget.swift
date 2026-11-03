@@ -76,7 +76,7 @@ private struct WidgetContent: View {
                     Text(updated, style: .relative)
                 }.font(.system(size: 10)).foregroundColor(.secondary).lineLimit(1)
             } else {
-                Text("Open Codex Bar to update").font(.system(size: 10)).foregroundColor(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+                Text("Open Limitwick to update").font(.system(size: 10)).foregroundColor(.secondary).lineLimit(1).minimumScaleFactor(0.7)
             }
         }.padding(8)
         }
@@ -105,8 +105,8 @@ private struct WidgetView: View {
                 WidgetContent(entry: entry)
             } else {
                 VStack(spacing: 8) {
-                    Text("Codex Bar").font(.headline)
-                    Text("Open Codex Bar to load your limits.")
+                    Text("Limitwick").font(.headline)
+                    Text("Open Limitwick to load your limits.")
                         .font(.subheadline).foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
                 }.padding()
@@ -135,10 +135,10 @@ struct CodexWidget: Widget {
             .supportedFamilies([.systemMedium])
     }
     private var widgetDisplayName: String {
-        #if CODEXBAR_DEVELOPMENT
-        return "Codex Bar Development"
+        #if LIMITWICK_DEVELOPMENT
+        return "Limitwick Development"
         #else
-        return "Codex Bar"
+        return "Limitwick"
         #endif
     }
 }

@@ -1,13 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 cd "$(dirname "$0")"
-CONFIGURATION="${CODEXBAR_BUILD_CONFIGURATION:-development}"
+CONFIGURATION="${LIMITWICK_BUILD_CONFIGURATION:-development}"
 case "$CONFIGURATION" in
-    development) DEFAULT_APP="$PWD/build/CodexBar-Development.app"; SWIFT_FLAGS=(-D CODEXBAR_DEVELOPMENT) ;;
-    release) DEFAULT_APP="$PWD/build/CodexBar.app"; SWIFT_FLAGS=() ;;
-    *) echo "Unknown CODEXBAR_BUILD_CONFIGURATION: $CONFIGURATION" >&2; exit 1 ;;
+    development) DEFAULT_APP="$PWD/build/Limitwick-Development.app"; SWIFT_FLAGS=(-D LIMITWICK_DEVELOPMENT) ;;
+    release) DEFAULT_APP="$PWD/build/Limitwick.app"; SWIFT_FLAGS=() ;;
+    *) echo "Unknown LIMITWICK_BUILD_CONFIGURATION: $CONFIGURATION" >&2; exit 1 ;;
 esac
-APP="${CODEXBAR_BUILD_APP:-$DEFAULT_APP}"
+APP="${LIMITWICK_BUILD_APP:-$DEFAULT_APP}"
 SPARKLE_VERSION="2.10.1"
 SPARKLE_DIR="$PWD/build/sparkle-$SPARKLE_VERSION"
 ARCHIVE="$SPARKLE_DIR/Sparkle-$SPARKLE_VERSION.tar.xz"
@@ -43,23 +43,23 @@ cp Widget/App.entitlements "$APP_ENTITLEMENTS"
 cp Widget/Widget.entitlements "$WIDGET_ENTITLEMENTS"
 if [ "$CONFIGURATION" = development ]; then
     /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier local.codexbar.development' "$APP/Contents/Info.plist"
-    /usr/libexec/PlistBuddy -c 'Set :CFBundleName Codex Bar Development' "$APP/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c 'Set :CFBundleName Limitwick Development' "$APP/Contents/Info.plist"
     /usr/libexec/PlistBuddy -c 'Set :com.apple.security.application-groups:0 group.local.codexbar.development.shared' "$APP_ENTITLEMENTS"
     /usr/libexec/PlistBuddy -c 'Set :com.apple.security.application-groups:0 group.local.codexbar.development.shared' "$WIDGET_ENTITLEMENTS"
 fi
 # Development builds may use a distinct build number to refresh WidgetKit's cache.
-if [ -n "${CODEXBAR_BUILD_NUMBER:-}" ]; then
-    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $CODEXBAR_BUILD_NUMBER" "$APP/Contents/Info.plist"
+if [ -n "${LIMITWICK_BUILD_NUMBER:-}" ]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $LIMITWICK_BUILD_NUMBER" "$APP/Contents/Info.plist"
 fi
 ditto "$SPARKLE_DIR/Sparkle.framework" "$APP/Contents/Frameworks/Sparkle.framework"
 ditto "$LOTTIE_DIR/Lottie.xcframework/macos-arm64_x86_64/Lottie.framework" "$APP/Contents/Frameworks/Lottie.framework"
 ditto Resources/useAnimations "$APP/Contents/Resources/useAnimations"
-swiftc ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} -target "$(uname -m)-apple-macosx13.0" -module-cache-path "$PWD/build/module-cache" -F "$APP/Contents/Frameworks" -framework Sparkle -framework Lottie -Xlinker -rpath -Xlinker '@executable_path/../Frameworks' Sources/QuotaClient.swift Sources/ClaudeClient.swift Sources/P1Support.swift Sources/AppSettings.swift Sources/NoticeService.swift Sources/RefreshCoordinator.swift Sources/Activity.swift Sources/Themes.swift Sources/WidgetTheme.swift Widget/SharedSnapshot.swift Sources/InterfaceViews.swift Sources/PanelInterface.swift Sources/ThemeInterface.swift Sources/SettingsInterface.swift Sources/MenuInterface.swift Sources/CodexBar.swift -o "$APP/Contents/MacOS/CodexBar"
+swiftc ${SWIFT_FLAGS[@]+"${SWIFT_FLAGS[@]}"} -target "$(uname -m)-apple-macosx13.0" -module-cache-path "$PWD/build/module-cache" -F "$APP/Contents/Frameworks" -framework Sparkle -framework Lottie -Xlinker -rpath -Xlinker '@executable_path/../Frameworks' Sources/QuotaClient.swift Sources/ClaudeClient.swift Sources/P1Support.swift Sources/AppSettings.swift Sources/NoticeService.swift Sources/RefreshCoordinator.swift Sources/Activity.swift Sources/Themes.swift Sources/WidgetTheme.swift Widget/SharedSnapshot.swift Sources/InterfaceViews.swift Sources/PanelInterface.swift Sources/ThemeInterface.swift Sources/SettingsInterface.swift Sources/MenuInterface.swift Sources/Limitwick.swift -o "$APP/Contents/MacOS/Limitwick"
 WIDGET="$APP/Contents/PlugIns/CodexWidget.appex"
 cp Widget/Info.plist "$WIDGET/Contents/Info.plist"
 if [ "$CONFIGURATION" = development ]; then
     /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier local.codexbar.development.widget' "$WIDGET/Contents/Info.plist"
-    /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Codex Bar Development' "$WIDGET/Contents/Info.plist"
+    /usr/libexec/PlistBuddy -c 'Set :CFBundleDisplayName Limitwick Development' "$WIDGET/Contents/Info.plist"
 fi
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Info.plist)" "$WIDGET/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$APP/Contents/Info.plist")" "$WIDGET/Contents/Info.plist"

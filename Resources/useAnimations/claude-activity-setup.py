@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Install or remove only Codex Bar's Claude Code hooks."""
+"""Install or remove only Limitwick's Claude Code hooks."""
 import json
 import os
 from pathlib import Path
@@ -60,7 +60,7 @@ def main():
         else: hooks.pop(event, None)
     if not hooks: data.pop('hooks', None)
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
-    fd, temp = tempfile.mkstemp(prefix='.codexbar-hooks-', dir=root)
+    fd, temp = tempfile.mkstemp(prefix='.limitwick-hooks-', dir=root)
     try:
         with os.fdopen(fd, 'w') as f:
             json.dump(data, f, ensure_ascii=False, indent=2); f.write('\n')

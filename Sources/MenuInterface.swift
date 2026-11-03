@@ -6,13 +6,13 @@ extension AppDelegate {
         menuPopover?.performClose(nil); popover.performClose(nil)
         if aboutWindow == nil {
             let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
-            let title = heading("Codex Bar")
+            let title = heading("Limitwick")
             let versionLabel = NSTextField(labelWithString: "Version \(version)"); versionLabel.tag = 902
             let description = NSTextField(wrappingLabelWithString: "A menu bar app for Codex usage limits."); description.widthAnchor.constraint(equalToConstant: 312).isActive = true
             let github = NSButton(title: "GitHub", target: self, action: #selector(openGitHub))
             let close = NSButton(title: "Close", target: self, action: #selector(closeAbout))
             let buttons = NSStackView(views: [github, close]); buttons.orientation = .horizontal; buttons.spacing = 8
-            aboutWindow = makeWindow(title: "About Codex Bar", content: stack([title, versionLabel, description, buttons], spacing: 14), width: 360)
+            aboutWindow = makeWindow(title: "About Limitwick", content: stack([title, versionLabel, description, buttons], spacing: 14), width: 360)
         }
         NSApp.activate(ignoringOtherApps: true); aboutWindow?.makeKeyAndOrderFront(nil)
     }
@@ -25,8 +25,8 @@ extension AppDelegate {
         let menu = NSPopover(); menu.behavior = .transient; menu.appearance = nil
         let view = MenuView(); surface(view)
         let desktopTitle = desktopWindow?.isVisible == true ? "Hide Picture-in-Picture" : "Show Picture-in-Picture"
-        var commands: [(String, Selector, String)] = [("Refresh", #selector(menuRefresh), "r"), (desktopTitle, #selector(toggleDesktopWindow), ""), ("Settings…", #selector(showSettings), ","), ("About Codex Bar", #selector(showAbout), "")]
-        #if !CODEXBAR_DEVELOPMENT
+        var commands: [(String, Selector, String)] = [("Refresh", #selector(menuRefresh), "r"), (desktopTitle, #selector(toggleDesktopWindow), ""), ("Settings…", #selector(showSettings), ","), ("About Limitwick", #selector(showAbout), "")]
+        #if !LIMITWICK_DEVELOPMENT
         commands.append((updateMenuTitle, #selector(menuUpdates), ""))
         #endif
         commands.append(("Quit", #selector(menuQuit), "q"))

@@ -2,7 +2,7 @@
 
 Esta traducción se proporciona para facilitar la lectura. El [texto en inglés de la licencia](../LICENSE) es el que tiene validez legal.
 
-Derechos de autor © 2026 Peter Grishechkin y colaboradores de Codex Bar
+Derechos de autor © 2026 Peter Grishechkin y colaboradores de Limitwick
 
 Por la presente se concede permiso, de forma gratuita, a toda persona que obtenga una copia de este software y de los archivos de documentación asociados (el «Software») para utilizarlo sin restricciones, incluidos, entre otros, los derechos a usar, copiar, modificar, fusionar, publicar, distribuir, sublicenciar y/o vender copias del Software, y a permitir que las personas a quienes se les proporcione el Software hagan lo mismo, sujeto a la siguiente condición:
 
