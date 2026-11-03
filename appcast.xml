@@ -2,6 +2,17 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 1.13.0</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Choose from 24 separate medium desktop widgets. Each of the six themes is available in Light and Dark for both Codex and Claude.
+- Widget appearance is independent of the app panel. Installed widgets can receive limits for a provider hidden from the menu bar while Limitwick is running.
+- The previous universal widget has been replaced. Open Edit Widgets and add the variants you want.&lt;/div&gt;</description>
+      <sparkle:version>1.13.0</sparkle:version>
+      <sparkle:shortVersionString>1.13.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 18:18:36 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/codex-bar/releases/download/v1.13.0/Limitwick-1.13.0-macOS-Apple-Silicon.zip" sparkle:edSignature="ay5eqj5TkYqBjHsDdpaVoXx07UsuhY4LCjUyIugAJE+tYJZmVZ+yU6Huuwae4QpnSumWXtVs14Ml7oW6bfXlDw==" length="3855454" type="application/octet-stream" />
+    </item>
+    <item>
       <title>Limitwick 1.12.0</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Codex Bar is now called **Limitwick**. The app, menu, About window, notifications and desktop widget use the new name, and release archives are named `Limitwick-&amp;lt;version&amp;gt;-macOS-Apple-Silicon.zip`.
 - Updating keeps your settings, widget data and installed activity hooks: the bundle identifier, app group and storage folders are unchanged. An app updated in place may keep its old file name in Applications; you can rename it to Limitwick.app if you like.
