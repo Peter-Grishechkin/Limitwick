@@ -2,6 +2,16 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 1.13.1</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Settings now warns when another copy of Limitwick is on your Mac. A second copy, for example in Downloads or under the old name CodexBar.app, can make the widget gallery show old widgets after an update. The warning lists the copies and opens them in Finder so you can remove them.
+- The README troubleshooting section explains how to fix old widgets in the gallery: keep one copy in Applications, move the rest to the Trash, empty the Trash, and log out and back in.&lt;/div&gt;</description>
+      <sparkle:version>1.13.1</sparkle:version>
+      <sparkle:shortVersionString>1.13.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 03 Nov 2026 18:51:10 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/codex-bar/releases/download/v1.13.1/Limitwick-1.13.1-macOS-Apple-Silicon.zip" sparkle:edSignature="aR2ivLM+xAPXdQ56KvFm6VncKYusjW8cOPUXV7j2WUriCbGrBmKFSFLRrXzlcX7H8HLtiLc6BfigoIzag71sAg==" length="3834317" type="application/octet-stream" />
+    </item>
+    <item>
       <title>Limitwick 1.13.0</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Choose from 24 separate medium desktop widgets. Each of the six themes is available in Light and Dark for both Codex and Claude.
 - Widget appearance is independent of the app panel. Installed widgets can receive limits for a provider hidden from the menu bar while Limitwick is running.
