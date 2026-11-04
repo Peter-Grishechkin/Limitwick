@@ -2,6 +2,20 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.1.2</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Menu bar: when both Codex and Claude are tracked, the bars are now labeled with neutral text labels, CX and CL, instead of the previous symbols, which resembled the providers&amp;#x27; logos.
+- README: Limitwick is an independent project and is not affiliated with, sponsored by, or endorsed by Anthropic or OpenAI.&lt;/div&gt;</description>
+      <sparkle:version>2.1.2</sparkle:version>
+      <sparkle:shortVersionString>2.1.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Wed, 04 Nov 2026 02:13:46 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.1.2/Limitwick-2.1.2-macOS-Apple-Silicon.zip" sparkle:edSignature="dDyjih3NTc0htBg4HfaauS8fVFWjX9uBP+9JPavjht+JZ4OFlZMWTV6kWSa1HOTihBSNbSrPFH/hHMfKnj7sDw==" length="3887545" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.1.2</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.1.1</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Codex activity: Settings now shows whether Codex hooks are installed and whether activity is arriving, with Install Codex hooks and Remove Codex hooks buttons. The Codex activity box stays clear until the hooks are installed; checking it installs them. Previously the box looked enabled even without hooks, and the menu bar showed no activity.
 - After installing Codex hooks, trust them in Codex Settings → Hooks or with `/hooks` in the Codex CLI, then restart open Codex sessions. Codex does not run hooks that have not been trusted.&lt;/div&gt;</description>
