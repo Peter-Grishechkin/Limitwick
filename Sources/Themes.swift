@@ -81,6 +81,26 @@ class ThemeView: NSView {
     func percent(_ value: Double?) -> String { value.map { "\(Int($0.rounded()))%" } ?? "—" }
     func fraction(_ value: Double?) -> CGFloat { CGFloat(max(0, min(1, (value ?? 0) / 100))) }
     func background() { fill(bounds, palette.background) }
+    func measure(_ value: String, width: CGFloat, font: NSFont, wrap: Bool = false) -> NSSize {
+        let style = NSMutableParagraphStyle(); style.lineBreakMode = wrap ? .byWordWrapping : .byTruncatingTail
+        let size = (value as NSString).boundingRect(with: NSSize(width: width, height: 10000), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font, .paragraphStyle: style]).size
+        return NSSize(width: ceil(size.width), height: ceil(size.height))
+    }
+    // Capsules draw text over a fill that can end anywhere. A plate in the track color keeps every
+    // glyph on one background, so text never changes color in the middle of a letter.
+    func plate(_ box: NSRect, clip: NSRect, clipRadius: CGFloat, radius: CGFloat = 8) {
+        NSGraphicsContext.saveGraphicsState()
+        NSBezierPath(roundedRect: clip, xRadius: clipRadius, yRadius: clipRadius).addClip()
+        fill(box, palette.track, radius: radius)
+        NSGraphicsContext.restoreGraphicsState()
+    }
+    // Quota percentage with a smaller "left" so the number reads as what remains.
+    func percentLeft(_ value: Double?, _ rect: NSRect, size: CGFloat, weight: NSFont.Weight, color: NSColor, secondary: NSColor) {
+        let style = NSMutableParagraphStyle(); style.alignment = .center
+        let result = NSMutableAttributedString(string: percent(value), attributes: [.font: NSFont.systemFont(ofSize: size, weight: weight), .foregroundColor: color, .paragraphStyle: style])
+        if value != nil { result.append(NSAttributedString(string: " left", attributes: [.font: NSFont.systemFont(ofSize: (size / 2).rounded(), weight: .regular), .foregroundColor: secondary, .paragraphStyle: style])) }
+        result.draw(in: rect)
+    }
     func resetHeight(_ value: String, width: CGFloat, font: NSFont) -> CGFloat {
         let style = NSMutableParagraphStyle(); style.lineBreakMode = .byWordWrapping
         return ceil((value as NSString).boundingRect(with: NSSize(width: width, height: 10000), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font, .paragraphStyle: style]).height) + 2
@@ -104,12 +124,12 @@ class ThemeView: NSView {
 final class IndustrialThemeView: ThemeView {
     var extraReset: CGFloat { max(0, max(resetHeight("RST  " + data.fiveReset, width: 136, font: .monospacedSystemFont(ofSize: 11, weight: .regular)), resetHeight("RST  " + data.weekReset, width: 136, font: .monospacedSystemFont(ofSize: 11, weight: .regular))) - 28) }
     override var preferredContentHeight: CGFloat { 184 + extraReset }
-    override var palette: ThemePalette { dark ? ThemePalette(background: .init(white: 0.08, alpha: 1), surface: .init(white: 0.10, alpha: 1), text: .init(white: 0.92, alpha: 1), secondary: .init(white: 0.72, alpha: 1), track: .init(white: 0.25, alpha: 1), accent: .init(white: 0.72, alpha: 1), second: .init(calibratedRed: 0.47, green: 0.64, blue: 0.82, alpha: 1)) : ThemePalette(background: .init(calibratedRed: 0.93, green: 0.93, blue: 0.90, alpha: 1), surface: .init(white: 0.95, alpha: 1), text: .init(white: 0.13, alpha: 1), secondary: .init(white: 0.32, alpha: 1), track: .init(white: 0.72, alpha: 1), accent: .init(white: 0.25, alpha: 1), second: .init(calibratedRed: 0.20, green: 0.38, blue: 0.56, alpha: 1)) }
+    override var palette: ThemePalette { dark ? ThemePalette(background: .init(white: 0.08, alpha: 1), surface: .init(white: 0.10, alpha: 1), text: .init(white: 0.92, alpha: 1), secondary: .init(white: 0.72, alpha: 1), track: .init(white: 0.25, alpha: 1), accent: .init(white: 0.72, alpha: 1), second: .init(calibratedRed: 0.47, green: 0.64, blue: 0.82, alpha: 1)) : ThemePalette(background: .init(calibratedRed: 0.93, green: 0.93, blue: 0.90, alpha: 1), surface: .init(white: 0.95, alpha: 1), text: .init(white: 0.13, alpha: 1), secondary: .init(white: 0.32, alpha: 1), track: .init(white: 0.72, alpha: 1), accent: .init(white: 0.25, alpha: 1), second: .init(calibratedRed: 0.14, green: 0.29, blue: 0.45, alpha: 1)) }
     override func draw(_ dirtyRect: NSRect) {
         background(); let p = palette; let mono = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular)
         for (i, value, reset) in [(0, data.fiveHour, data.fiveReset), (1, data.weekly, data.weekReset)] {
             let x = CGFloat(12 + i * 164); let w: CGFloat = 152
-            text(i == 0 ? "5H / LIMIT" : "WEEK / LIMIT", NSRect(x: x+8, y: 17, width: w-16, height: 16), size: 10, color: p.text, font: mono)
+            text(i == 0 ? "5H / LEFT" : "WEEK / LEFT", NSRect(x: x+8, y: 17, width: w-16, height: 16), size: 10, color: p.text, font: mono)
             text(percent(value), NSRect(x: x+6, y: 44, width: w-12, height: 57), size: 44, color: p.text, font: .systemFont(ofSize: 44, weight: .regular))
             for n in 0...10 { let xx = x+8+CGFloat(n)*13.5; line(NSPoint(x: xx, y: 110), NSPoint(x: xx, y: n % 5 == 0 ? 119 : 116), p.secondary) }
             bar(NSRect(x: x+8, y: 123, width: 135, height: 13), value: value, color: i == 0 ? p.accent : p.second)
@@ -124,7 +144,9 @@ final class DotThemeView: ThemeView {
     override var preferredContentHeight: CGFloat { 186 + extraReset }
     override var palette: ThemePalette { dark ? ThemePalette(background: .black, surface: .init(white: 0.10, alpha: 1), text: .white, secondary: .init(white: 0.72, alpha: 1), track: .init(white: 0.27, alpha: 1), accent: .white, second: .white) : ThemePalette(background: .init(white: 0.92, alpha: 1), surface: .white, text: .black, secondary: .init(white: 0.34, alpha: 1), track: .init(white: 0.81, alpha: 1), accent: .black, second: .black) }
     // Three-by-five dot glyphs are rendered locally; no external font is needed.
-    let glyphs: [Character: [String]] = ["0":["111","101","101","101","111"],"1":["010","110","010","010","111"],"2":["111","001","111","100","111"],"3":["111","001","111","001","111"],"4":["101","101","111","001","001"],"5":["111","100","111","001","111"],"6":["111","100","111","101","111"],"7":["111","001","010","010","010"],"8":["111","101","111","101","111"],"9":["111","101","111","001","111"],"%":["101","001","010","100","101"],"—":["000","000","111","000","000"]]
+    let glyphs: [Character: [String]] = ["0":["111","101","101","101","111"],"1":["010","110","010","010","111"],"2":["111","001","111","100","111"],"3":["111","001","111","001","111"],"4":["101","101","111","001","001"],"5":["111","100","111","001","111"],"6":["111","100","111","101","111"],"7":["111","001","010","010","010"],"8":["111","101","111","101","111"],"9":["111","101","111","001","111"],"%":["11001","11010","00100","01011","10011"],"—":["000","000","111","000","000"]]
+    // Glyphs differ in width ("%" is five columns: two dots, a diagonal, two dots), so advance per glyph.
+    func dotsWidth(_ value: String, step: CGFloat) -> CGFloat { value.reduce(0) { $0 + CGFloat((glyphs[$1]?[0].count ?? 0) + 1) } * step - step }
     override func draw(_ dirtyRect: NSRect) {
         background(); let p = palette
         NSGraphicsContext.saveGraphicsState()
@@ -132,10 +154,10 @@ final class DotThemeView: ThemeView {
         defer { NSGraphicsContext.restoreGraphicsState() }
         for (i, value, reset) in [(0, data.fiveHour, data.fiveReset), (1, data.weekly, data.weekReset)] {
             let x = CGFloat(12 + i*164); fill(NSRect(x: x, y: 10, width: 152, height: 174 + extraReset), p.surface, radius: 16)
-            text(i == 0 ? "5H" : "W", NSRect(x: x+13, y: 19, width: 120, height: 23), size: 18, color: p.text, font: .monospacedSystemFont(ofSize: 18, weight: .medium))
-            let s = percent(value); let step: CGFloat = 7.5; let width = CGFloat(s.count) * step * 4 - step
-            var gx = x + (152-width)/2
-            for character in s { if let rows = glyphs[character] { for (row, bits) in rows.enumerated() { for (col, bit) in bits.enumerated() where bit == "1" { fill(NSRect(x: gx+CGFloat(col)*step, y: 51+CGFloat(row)*step, width: 6.2, height: 6.2), p.text, radius: 3.1) } } }; gx += step*4 }
+            text(i == 0 ? "5H left" : "Week left", NSRect(x: x+13, y: 19, width: 126, height: 23), size: 18, color: p.text, font: .monospacedSystemFont(ofSize: 18, weight: .medium))
+            let s = percent(value); let step: CGFloat = 7.5
+            var gx = x + (152-dotsWidth(s, step: step))/2
+            for character in s { if let rows = glyphs[character] { for (row, bits) in rows.enumerated() { for (col, bit) in bits.enumerated() where bit == "1" { fill(NSRect(x: gx+CGFloat(col)*step, y: 51+CGFloat(row)*step, width: 6.2, height: 6.2), p.text, radius: 3.1) } }; gx += CGFloat(rows[0].count + 1)*step } }
             for column in 0..<10 {
                 for row in 0..<2 {
                     let dot = NSRect(x: x+13+CGFloat(column)*13, y: 103+CGFloat(row)*13, width: 9, height: 9)
@@ -163,7 +185,7 @@ final class PaperThemeView: ThemeView {
         background(); let p = palette
         for (i, value, reset) in [(0, data.fiveHour, data.fiveReset), (1, data.weekly, data.weekReset)] {
             let y = CGFloat(14 + i*86) + (i == 1 ? extra(data.fiveReset) : 0)
-            text(i == 0 ? "5-Hour Quota" : "Weekly Quota", NSRect(x: 16, y: y+6, width: 190, height: 22), size: 15, color: p.text, font: .monospacedSystemFont(ofSize: 15, weight: .regular))
+            text(i == 0 ? "5H quota left" : "Week quota left", NSRect(x: 16, y: y+6, width: 190, height: 22), size: 15, color: p.text, font: .monospacedSystemFont(ofSize: 15, weight: .regular))
             text(percent(value), NSRect(x: 208, y: y-2, width: 116, height: 34), size: 28, color: p.text, font: NSFont(name: "Times New Roman", size: 28) ?? .systemFont(ofSize: 28), alignment: .right)
             bar(NSRect(x: 16, y: y+42, width: 308, height: 3), value: value, color: p.accent, radius: 1.5)
             text(reset, NSRect(x: 16, y: y+52, width: 308, height: 20 + extra(reset)), size: 11, color: p.secondary, wrap: true)
@@ -176,7 +198,7 @@ final class CapsuleThemeView: ThemeView {
     func extra(_ reset: String) -> CGFloat { max(0, resetHeight(reset, width: 125, font: .systemFont(ofSize: 11)) - 48) }
     override var preferredContentHeight: CGFloat { 167 + extra(data.fiveReset) + extra(data.weekReset) }
     override var outerInset: CGFloat { 14 }
-    // A deeper red keeps white dates on the warning fill above 4.5:1.
+    // Deeper than systemRed, so the large warning fill stays calm next to the light track.
     override var warningColor: NSColor { .init(calibratedRed: 0.76, green: 0.15, blue: 0.13, alpha: 1) }
     override var palette: ThemePalette { dark ? ThemePalette(background: .init(calibratedRed: 0.07, green: 0.09, blue: 0.11, alpha: 1), surface: .init(white: 0.1, alpha: 1), text: .white, secondary: .init(white: 0.80, alpha: 1), track: .init(calibratedRed: 0.13, green: 0.16, blue: 0.21, alpha: 1), accent: .init(calibratedRed: 0.25, green: 0.34, blue: 0.49, alpha: 1), second: .init(calibratedRed: 0.19, green: 0.46, blue: 0.44, alpha: 1)) : ThemePalette(background: .init(calibratedRed: 0.94, green: 0.95, blue: 0.97, alpha: 1), surface: .white, text: .init(calibratedRed: 0.13, green: 0.17, blue: 0.23, alpha: 1), secondary: .init(white: 0.31, alpha: 1), track: .init(calibratedRed: 0.85, green: 0.87, blue: 0.90, alpha: 1), accent: .init(calibratedRed: 0.31, green: 0.37, blue: 0.48, alpha: 1), second: .init(calibratedRed: 0.16, green: 0.42, blue: 0.40, alpha: 1)) }
     override func draw(_ dirtyRect: NSRect) {
@@ -194,24 +216,24 @@ final class CapsuleThemeView: ThemeView {
                 NSGraphicsContext.restoreGraphicsState()
             }
             fill(NSRect(x: 21, y: y+(pillHeight-54)/2, width: 54, height: 54), dark ? .init(white: 0.08, alpha: 1) : .white, radius: 27)
-            let symbol = i == 0 ? "5h" : "W"
+            let symbol = i == 0 ? "5H" : "W"
             let symbolFont = NSFont.systemFont(ofSize: 23, weight: .bold)
             let symbolHeight = (symbol as NSString).size(withAttributes: [.font: symbolFont]).height
             text(symbol, NSRect(x: 21, y: y+(pillHeight-symbolHeight)/2, width: 54, height: symbolHeight+1), size: 23, color: p.text, font: symbolFont, alignment: .center)
+            // The date and the percentage sit on plates in the track color, so the fill never runs under a glyph.
             let dateFont = NSFont.systemFont(ofSize: 11)
-            let paragraph = NSMutableParagraphStyle(); paragraph.lineBreakMode = .byWordWrapping
-            let dateHeight = ceil((reset as NSString).boundingRect(with: NSSize(width: 125, height: 10000), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: dateFont, .paragraphStyle: paragraph]).height)
-            let dateRect = NSRect(x: 83, y: y+(pillHeight-dateHeight)/2, width: 125, height: dateHeight+1)
+            let dateSize = measure(reset, width: 125, font: dateFont, wrap: true)
+            let dateRect = NSRect(x: 87, y: y+(pillHeight-dateSize.height)/2, width: 125, height: dateSize.height+1)
+            plate(NSRect(x: 81, y: dateRect.minY-3, width: dateSize.width+12, height: dateSize.height+6), clip: rect, clipRadius: 34)
             text(reset, dateRect, size: 11, color: p.text, font: dateFont, wrap: true)
-            if !dark, !data.stale, value != nil, fraction(value) > 0 {
-                // Redraw only the part over the filled capsule in a light color.
-                NSGraphicsContext.saveGraphicsState()
-                NSBezierPath(roundedRect: rect, xRadius: 34, yRadius: 34).addClip()
-                NSBezierPath(rect: progress).addClip()
-                text(reset, dateRect, size: 11, color: .white, font: dateFont, wrap: true)
-                NSGraphicsContext.restoreGraphicsState()
-            }
-            text(percent(value), NSRect(x: 211, y: y+(pillHeight-36)/2, width: 103, height: 36), size: 23, color: p.text, font: .systemFont(ofSize: 23, weight: .bold), alignment: .right)
+            let percentFont = NSFont.systemFont(ofSize: 23, weight: .bold), leftFont = NSFont.systemFont(ofSize: 11)
+            let percentSize = measure(percent(value), width: 100, font: percentFont), leftSize = measure("left", width: 100, font: leftFont)
+            let showLeft = value != nil
+            let blockWidth = max(percentSize.width, showLeft ? leftSize.width : 0), blockHeight = percentSize.height + (showLeft ? leftSize.height - 4 : 0)
+            let blockTop = y + (pillHeight-blockHeight)/2
+            plate(NSRect(x: 308-blockWidth-8, y: blockTop-3, width: blockWidth+16, height: blockHeight+6), clip: rect, clipRadius: 34, radius: 10)
+            text(percent(value), NSRect(x: 308-blockWidth, y: blockTop, width: blockWidth, height: percentSize.height), size: 23, color: p.text, font: percentFont, alignment: .right)
+            if showLeft { text("left", NSRect(x: 308-blockWidth, y: blockTop+percentSize.height-4, width: blockWidth, height: leftSize.height), size: 11, color: p.secondary, font: leftFont, alignment: .right) }
         }
     }
 }
@@ -235,7 +257,7 @@ final class TerminalThemeView: ThemeView {
         let bold = NSFont.monospacedSystemFont(ofSize: 11, weight: .semibold)
         // A console readout: prompt, fixed-width rows and text-based progress bars.
         text(">", NSRect(x: 17, y: 14, width: 12, height: 18), size: 11, color: p.accent, font: bold)
-        text("\(data.providerName?.uppercased() ?? "CODEX") / LIMITS", NSRect(x: 30, y: 14, width: 270, height: 18), size: 11, color: p.text, font: bold)
+        text("\(data.providerName?.uppercased() ?? "CODEX") / LIMITS LEFT", NSRect(x: 30, y: 14, width: 270, height: 18), size: 11, color: p.text, font: bold)
         line(NSPoint(x: 17, y: 36), NSPoint(x: 323, y: 36), p.track)
         for (i, value, reset) in [(0, data.fiveHour, data.fiveReset), (1, data.weekly, data.weekReset)] {
             let y = CGFloat(48 + i*59) + (i == 1 ? extra(data.fiveReset) : 0)

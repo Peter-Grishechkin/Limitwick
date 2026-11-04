@@ -53,8 +53,8 @@ final class WidgetThemeView: ThemeView {
                 else { path.appendArc(withCenter: center, radius: radius, startAngle: 90, endAngle: 90 + 360 * fraction(value), clockwise: false) }
                 quotaColor(value, normal: p.accent).setStroke(); path.stroke()
             }
-            text(i == 0 ? "5" : "W", NSRect(x: x+46, y: 34, width: 60, height: 20), size: 16, color: p.secondary, font: .systemFont(ofSize: 16, weight: .medium), alignment: .center)
-            text(percent(value), NSRect(x: x+10, y: 75, width: 132, height: 30), size: 24, color: p.text, font: .systemFont(ofSize: 24, weight: .semibold), alignment: .center)
+            text(i == 0 ? "5H" : "W", NSRect(x: x+46, y: 34, width: 60, height: 20), size: 16, color: p.secondary, font: .systemFont(ofSize: 16, weight: .medium), alignment: .center)
+            percentLeft(value, NSRect(x: x+10, y: 75, width: 132, height: 30), size: 24, weight: .semibold, color: p.text, secondary: p.secondary)
             reset(date, NSRect(x: x+8, y: 110, width: 136, height: 32), color: p.secondary, alignment: .center)
         }
     }
@@ -62,7 +62,7 @@ final class WidgetThemeView: ThemeView {
         let p = palette, mono = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular)
         for (i, value, date) in items {
             let x = CGFloat(12 + i*164)
-            text(i == 0 ? "5H / LIMIT" : "WEEK / LIMIT", NSRect(x: x+8, y: 12, width: 136, height: 15), size: 10, color: p.text, font: mono)
+            text(i == 0 ? "5H / LEFT" : "WEEK / LEFT", NSRect(x: x+8, y: 12, width: 136, height: 15), size: 10, color: p.text, font: mono)
             text(percent(value), NSRect(x: x+6, y: 31, width: 140, height: 49), size: 39, color: p.text)
             for n in 0...10 { let xx = x+8+CGFloat(n)*13.5; line(NSPoint(x: xx, y: 87), NSPoint(x: xx, y: n % 5 == 0 ? 94 : 92), p.secondary) }
             bar(NSRect(x: x+8, y: 99, width: 135, height: 10), value: value, color: i == 0 ? p.accent : p.second)
@@ -71,16 +71,18 @@ final class WidgetThemeView: ThemeView {
         line(NSPoint(x: 170, y: 10), NSPoint(x: 170, y: 149), p.track)
     }
     private func drawDots() {
-        let p = palette, glyphs = DotThemeView().glyphs
+        let p = palette, dotView = DotThemeView(), glyphs = dotView.glyphs
         for (i, value, date) in items {
             let x = CGFloat(12 + i*164)
             fill(NSRect(x: x, y: 10, width: 152, height: 148), p.surface, radius: 16)
-            text(i == 0 ? "5H" : "W", NSRect(x: x+13, y: 17, width: 120, height: 21), size: 16, color: p.text, font: .monospacedSystemFont(ofSize: 16, weight: .medium))
+            text(i == 0 ? "5H left" : "Week left", NSRect(x: x+13, y: 17, width: 126, height: 21), size: 16, color: p.text, font: .monospacedSystemFont(ofSize: 16, weight: .medium))
             let s = percent(value), step: CGFloat = 6
-            var gx = x + (152 - (CGFloat(s.count)*step*4-step))/2
+            var gx = x + (152 - dotView.dotsWidth(s, step: step))/2
             for character in s {
-                if let rows = glyphs[character] { for (row, bits) in rows.enumerated() { for (col, bit) in bits.enumerated() where bit == "1" { fill(NSRect(x: gx+CGFloat(col)*step, y: 42+CGFloat(row)*step, width: 5, height: 5), p.text, radius: 2.5) } } }
-                gx += step*4
+                if let rows = glyphs[character] {
+                    for (row, bits) in rows.enumerated() { for (col, bit) in bits.enumerated() where bit == "1" { fill(NSRect(x: gx+CGFloat(col)*step, y: 42+CGFloat(row)*step, width: 5, height: 5), p.text, radius: 2.5) } }
+                    gx += CGFloat(rows[0].count + 1)*step
+                }
             }
             for column in 0..<10 { for row in 0..<2 {
                 let dot = NSRect(x: x+13+CGFloat(column)*13, y: 82+CGFloat(row)*12, width: 8, height: 8)
@@ -95,7 +97,7 @@ final class WidgetThemeView: ThemeView {
         let p = palette
         for (i, value, date) in items {
             let y = CGFloat(12 + i*75)
-            text(i == 0 ? "5-Hour Quota" : "Weekly Quota", NSRect(x: 16, y: y+3, width: 190, height: 20), size: 14, color: p.text, font: .monospacedSystemFont(ofSize: 14, weight: .regular))
+            text(i == 0 ? "5H quota left" : "Week quota left", NSRect(x: 16, y: y+3, width: 190, height: 20), size: 14, color: p.text, font: .monospacedSystemFont(ofSize: 14, weight: .regular))
             text(percent(value), NSRect(x: 208, y: y-3, width: 116, height: 32), size: 26, color: p.text, font: NSFont(name: "Times New Roman", size: 26), alignment: .right)
             bar(NSRect(x: 16, y: y+32, width: 308, height: 3), value: value, color: p.accent, radius: 1.5)
             reset(date, NSRect(x: 16, y: y+42, width: 308, height: 25), color: p.secondary)
@@ -110,17 +112,26 @@ final class WidgetThemeView: ThemeView {
             let progress = NSRect(x: 80, y: y, width: 246*fraction(value), height: 64)
             if value != nil && progress.width > 0 { NSGraphicsContext.saveGraphicsState(); NSBezierPath(roundedRect: rect, xRadius: 32, yRadius: 32).addClip(); fill(progress, quotaColor(value, normal: i == 0 ? p.accent : p.second)); NSGraphicsContext.restoreGraphicsState() }
             fill(NSRect(x: 21, y: y+7, width: 50, height: 50), dark ? .init(white: 0.08, alpha: 1) : .white, radius: 25)
-            text(i == 0 ? "5h" : "W", NSRect(x: 21, y: y+18, width: 50, height: 30), size: 22, color: p.text, font: .systemFont(ofSize: 22, weight: .bold), alignment: .center)
-            let dateRect = NSRect(x: 83, y: y+17, width: 125, height: 32)
+            text(i == 0 ? "5H" : "W", NSRect(x: 21, y: y+18, width: 50, height: 30), size: 22, color: p.text, font: .systemFont(ofSize: 22, weight: .bold), alignment: .center)
+            // Plates in the track color keep the date and percentage on one background wherever the fill ends.
+            let dateFont = NSFont.systemFont(ofSize: 9), dateSize = measure(date, width: 125, font: dateFont, wrap: true)
+            let dateRect = NSRect(x: 87, y: y+(64-dateSize.height)/2, width: 125, height: dateSize.height+1)
+            plate(NSRect(x: 81, y: dateRect.minY-3, width: dateSize.width+12, height: dateSize.height+6), clip: rect, clipRadius: 32)
             reset(date, dateRect, color: p.text)
-            if !dark, !data.stale, value != nil, fraction(value) > 0 { NSGraphicsContext.saveGraphicsState(); NSBezierPath(roundedRect: rect, xRadius: 32, yRadius: 32).addClip(); NSBezierPath(rect: progress).addClip(); reset(date, dateRect, color: .white); NSGraphicsContext.restoreGraphicsState() }
-            text(percent(value), NSRect(x: 211, y: y+18, width: 103, height: 30), size: 22, color: p.text, font: .systemFont(ofSize: 22, weight: .bold), alignment: .right)
+            let percentFont = NSFont.systemFont(ofSize: 22, weight: .bold), leftFont = NSFont.systemFont(ofSize: 10)
+            let percentSize = measure(percent(value), width: 100, font: percentFont), leftSize = measure("left", width: 100, font: leftFont)
+            let showLeft = value != nil
+            let blockWidth = max(percentSize.width, showLeft ? leftSize.width : 0), blockHeight = percentSize.height + (showLeft ? leftSize.height - 4 : 0)
+            let blockTop = y + (64-blockHeight)/2
+            plate(NSRect(x: 308-blockWidth-8, y: blockTop-3, width: blockWidth+16, height: blockHeight+6), clip: rect, clipRadius: 32, radius: 10)
+            text(percent(value), NSRect(x: 308-blockWidth, y: blockTop, width: blockWidth, height: percentSize.height), size: 22, color: p.text, font: percentFont, alignment: .right)
+            if showLeft { text("left", NSRect(x: 308-blockWidth, y: blockTop+percentSize.height-4, width: blockWidth, height: leftSize.height), size: 10, color: p.secondary, font: leftFont, alignment: .right) }
         }
     }
     private func drawTerminal() {
         let p = palette, mono = NSFont.monospacedSystemFont(ofSize: 10, weight: .regular), bold = NSFont.monospacedSystemFont(ofSize: 10, weight: .semibold)
         text(">", NSRect(x: 17, y: 10, width: 12, height: 16), size: 10, color: p.accent, font: bold)
-        text("\(data.providerName?.uppercased() ?? "CODEX") / LIMITS", NSRect(x: 30, y: 10, width: 270, height: 16), size: 10, color: p.text, font: bold)
+        text("\(data.providerName?.uppercased() ?? "CODEX") / LIMITS LEFT", NSRect(x: 30, y: 10, width: 270, height: 16), size: 10, color: p.text, font: bold)
         line(NSPoint(x: 17, y: 29), NSPoint(x: 323, y: 29), p.track)
         for (i, value, date) in items {
             let y = CGFloat(38 + i*57)

@@ -28,13 +28,14 @@ final class QuotaTile: NSView {
     let symbolLabel = NSTextField(labelWithString: "")
     let valueLabel = NSTextField(labelWithString: "—")
     let resetLabel = NSTextField(wrappingLabelWithString: "Reset unavailable")
+    static let tileSecondary = NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .secondaryLabelColor : NSColor(white: 0.40, alpha: 1) }
 
     init(symbol: String) {
         self.symbol = symbol
         super.init(frame: NSRect(x: 0, y: 0, width: 152, height: 180))
         ring.frame = NSRect(x: 31, y: 77, width: 90, height: 90)
         // The percentage is the reading; the period letter inside the ring only labels it.
-        symbolLabel.stringValue = symbol
+        symbolLabel.stringValue = symbol == "5" ? "5H" : symbol
         symbolLabel.font = .systemFont(ofSize: 22, weight: .medium)
         symbolLabel.textColor = .secondaryLabelColor
         symbolLabel.alignment = .center
@@ -44,7 +45,7 @@ final class QuotaTile: NSView {
         valueLabel.frame = NSRect(x: 8, y: 43, width: 136, height: 33)
         resetLabel.font = .systemFont(ofSize: 11)
         // The system secondary gray is 3.9:1 on the light tile; a darker gray keeps 4.5:1.
-        resetLabel.textColor = NSColor(name: nil) { $0.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua ? .secondaryLabelColor : NSColor(white: 0.40, alpha: 1) }
+        resetLabel.textColor = QuotaTile.tileSecondary
         resetLabel.alignment = .center
         resetLabel.maximumNumberOfLines = 0
         resetLabel.frame = NSRect(x: 6, y: 8, width: 140, height: 34)
@@ -71,10 +72,15 @@ final class QuotaTile: NSView {
     func update(_ window: QuotaWindow?, reset: String, stale: Bool = false) {
         ring.value = window?.remaining
         ring.stale = stale
-        valueLabel.stringValue = window.map { "\(Int($0.remaining.rounded()))%" } ?? "—"
+        let percent = window.map { "\(Int($0.remaining.rounded()))%" } ?? "—"
+        // The smaller "left" makes the number read as what remains, not what was used.
+        let style = NSMutableParagraphStyle(); style.alignment = .center
+        let shown = NSMutableAttributedString(string: percent, attributes: [.font: valueLabel.font!, .foregroundColor: NSColor.labelColor, .paragraphStyle: style])
+        if window != nil { shown.append(NSAttributedString(string: " left", attributes: [.font: NSFont.systemFont(ofSize: 13), .foregroundColor: QuotaTile.tileSecondary, .paragraphStyle: style])) }
+        valueLabel.attributedStringValue = shown
         resetLabel.stringValue = reset
         let period = symbol == "5" ? "5 hours" : "Week"
-        setAccessibilityLabel("\(period), \(window == nil ? "unavailable" : valueLabel.stringValue + " remaining"), \(reset)")
+        setAccessibilityLabel("\(period), \(window == nil ? "unavailable" : percent + " remaining"), \(reset)")
     }
 }
 
