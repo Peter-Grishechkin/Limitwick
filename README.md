@@ -329,3 +329,5 @@ The default build is `build/Limitwick-Development.app`. It uses its own identifi
 ## License
 
 [MIT License](LICENSE) · [Español](docs/LICENSE.es-419.md) · [Русский](docs/LICENSE.ru.md)
+
+Limitwick is an independent project. It is not affiliated with, sponsored by, or endorsed by Anthropic or OpenAI. Claude, Codex and other product names belong to their respective owners.

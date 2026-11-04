@@ -210,26 +210,16 @@ final class UpdateBadge: NSView {
     }
 }
 
-// Compact marks distinguish providers without changing the existing quota bars.
+// Compact text labels distinguish providers without changing the existing quota bars.
+// Provider logos are not used: Anthropic declined permission for the Claude mark.
 func drawProviderMark(_ provider: String, in rect: NSRect, color: NSColor) {
-    NSGraphicsContext.saveGraphicsState()
-    color.setStroke()
-    let center = NSPoint(x: rect.midX, y: rect.midY), radius = min(rect.width, rect.height) * 0.43
-    let path = NSBezierPath(); path.lineWidth = max(1, radius * 0.24); path.lineCapStyle = .round
-    if provider == "Claude" {
-        for i in 0..<8 {
-            let angle = CGFloat(i) * .pi / 4
-            path.move(to: NSPoint(x: center.x + cos(angle) * radius * 0.22, y: center.y + sin(angle) * radius * 0.22))
-            path.line(to: NSPoint(x: center.x + cos(angle) * radius, y: center.y + sin(angle) * radius))
-        }
-    } else {
-        for i in 0..<6 {
-            let a = CGFloat(i) * .pi / 3, b = a + .pi * 0.68
-            path.move(to: NSPoint(x: center.x + cos(a) * radius, y: center.y + sin(a) * radius))
-            path.line(to: NSPoint(x: center.x + cos(b) * radius * 0.65, y: center.y + sin(b) * radius * 0.65))
-        }
-    }
-    path.stroke(); NSGraphicsContext.restoreGraphicsState()
+    let size = min(rect.width, rect.height) * 0.66
+    let heavy = NSFont.systemFont(ofSize: size, weight: .heavy)
+    let font = heavy.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: size) } ?? heavy
+    let label = NSAttributedString(string: provider == "Claude" ? "CL" : "CX",
+                                   attributes: [.font: font, .foregroundColor: color, .kern: -0.2])
+    let box = label.size()
+    label.draw(at: NSPoint(x: rect.midX - box.width / 2, y: rect.midY - box.height / 2 + size * 0.035))
 }
 
 final class ProviderMark: NSView {
