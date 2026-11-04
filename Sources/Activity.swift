@@ -138,7 +138,9 @@ final class ActivityIcon: LottieAnimationView {
         else { loopMode = state == .completed ? .playOnce : .loop; play() }
     }
     private func recolor() {
-        let color = NSColor.white.usingColorSpace(.deviceRGB) ?? .white
+        // Follows the menu bar like the CX/CL labels and bars: dark on a light bar, light on a dark one.
+        var color = NSColor.white
+        effectiveAppearance.performAsCurrentDrawingAppearance { color = NSColor.labelColor.usingColorSpace(.deviceRGB) ?? .white }
         let provider = ColorValueProvider(LottieColor(r: Double(color.redComponent), g: Double(color.greenComponent), b: Double(color.blueComponent), a: Double(color.alphaComponent)))
         setValueProvider(provider, keypath: AnimationKeypath(keypath: "**.Color"))
     }

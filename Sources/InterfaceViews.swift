@@ -215,8 +215,8 @@ final class UpdateBadge: NSView {
 // The capital letters are as tall as `rect`, which the menu bar sets to the height of the two bars.
 func drawProviderMark(_ provider: String, in rect: NSRect, color: NSColor) {
     func rounded(_ size: CGFloat) -> NSFont {
-        let heavy = NSFont.systemFont(ofSize: size, weight: .heavy)
-        return heavy.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: size) } ?? heavy
+        let base = NSFont.systemFont(ofSize: size, weight: .medium)
+        return base.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: size) } ?? base
     }
     let probe = rounded(100)
     let font = rounded(rect.height * 100 / probe.capHeight)
