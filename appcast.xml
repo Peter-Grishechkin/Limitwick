@@ -2,6 +2,25 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.2.0</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- The panel, the Picture-in-Picture window and the widgets now show the same card, drawn from one source, in four themes: Industrial, Dot Matrix, Paper and Terminal.
+- Reset time is on two lines: &amp;quot;RST 3d 4h&amp;quot; and below it the clock time or date.
+- A footer under each card names the service and the age of the data: &amp;quot;Codex · Updated 2 min ago&amp;quot;. When a refresh failed, the card is dimmed and the footer reads &amp;quot;Codex · Previous data · Updated 12 min ago&amp;quot;; the error message is shown under the card in the panel and in Picture-in-Picture.
+- Low quota: the filled part and the digits turn red in every theme.
+- Terminal is redrawn as a DOS console in the VT323 font (SIL Open Font License) with a double frame and a 20-cell gauge.
+- Classic and Capsules are removed. A saved choice of either one switches to Industrial; widgets of those two themes disappear from the gallery, add a new variant instead.
+- Widgets are medium only: 16 variants (4 themes × Codex or Claude × Light or Dark). The panel no longer lists other limit windows.&lt;/div&gt;</description>
+      <sparkle:version>2.2.0</sparkle:version>
+      <sparkle:shortVersionString>2.2.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Wed, 04 Nov 2026 20:12:38 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.2.0/Limitwick-2.2.0-macOS-Apple-Silicon.zip" sparkle:edSignature="uooKLnLwGYACLKcBpvWPSzzTS8NgbYzEp/y3IPOLz7QbKEVX3yeXeUCStlabhwGiqkEFDZeE8PqrPzFnkMnuBg==" length="4076733" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.2.0</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.1.7</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Panel themes now say the number is what is left: &amp;quot;72% left&amp;quot; in Classic, &amp;quot;5H / LEFT&amp;quot; in Industrial, &amp;quot;5H left&amp;quot; in Dot Matrix, &amp;quot;5H quota left&amp;quot; in Paper, &amp;quot;left&amp;quot; under the percentage in Capsules, &amp;quot;LIMITS LEFT&amp;quot; in Terminal. The two periods are named 5H and Week in every theme.
 - Capsules: the date and percentage sit on plates in the track color, so no letter changes color in the middle where the fill ends. In the dark theme this also removes white date text on the green fill (4.2:1).
