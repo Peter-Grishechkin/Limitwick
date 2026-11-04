@@ -2,6 +2,23 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.1.7</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Panel themes now say the number is what is left: &amp;quot;72% left&amp;quot; in Classic, &amp;quot;5H / LEFT&amp;quot; in Industrial, &amp;quot;5H left&amp;quot; in Dot Matrix, &amp;quot;5H quota left&amp;quot; in Paper, &amp;quot;left&amp;quot; under the percentage in Capsules, &amp;quot;LIMITS LEFT&amp;quot; in Terminal. The two periods are named 5H and Week in every theme.
+- Capsules: the date and percentage sit on plates in the track color, so no letter changes color in the middle where the fill ends. In the dark theme this also removes white date text on the green fill (4.2:1).
+- Dot Matrix: the percent sign is drawn as two dots and a diagonal instead of looking like a slash.
+- Industrial (light): the weekly fill is darker, 3.5:1 against the track instead of 2.5:1.
+- The same changes apply to the widgets.&lt;/div&gt;</description>
+      <sparkle:version>2.1.7</sparkle:version>
+      <sparkle:shortVersionString>2.1.7</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Wed, 04 Nov 2026 16:47:54 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.1.7/Limitwick-2.1.7-macOS-Apple-Silicon.zip" sparkle:edSignature="fKEe+Bls4aqGFZe4pyoQUo40YMCl9FiRHePHPOIBMtlb8SgRSTDpkLStpR5eChCQE0RRonp2uBY7BIrWyj1qAA==" length="3896305" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.1.7</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.1.6</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Menu bar panel: it now fades in smoothly (0.18 s). The system popover animation on macOS 27 scaled up, paused for a frame and kept settling afterwards, which looked jerky. Closing is unchanged.&lt;/div&gt;</description>
       <sparkle:version>2.1.6</sparkle:version>
