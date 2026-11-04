@@ -2,6 +2,19 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.1.4</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Menu bar: the CX and CL labels are now as tall as the two bars, so the labels and indicators read as one unit. The bars are unchanged; with both providers shown, the menu bar item is 24 pt wider.&lt;/div&gt;</description>
+      <sparkle:version>2.1.4</sparkle:version>
+      <sparkle:shortVersionString>2.1.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Wed, 04 Nov 2026 13:36:22 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.1.4/Limitwick-2.1.4-macOS-Apple-Silicon.zip" sparkle:edSignature="5rEQk5ekyA55zuVhiWcf1AoG8ToOMjjmu4+Gxjm7gPrtS4bTVkcSV7DtCwNauo4FpHSjRcc1bMqKi3cuSaMtAQ==" length="3864856" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.1.4</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.1.3</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Widgets: on macOS 27 the desktop widgets stayed empty. macOS 27 no longer lets the widget of a locally signed app read the shared app group container, and a widget cannot ask for that permission. Limitwick now keeps widget snapshots in `~/Library/Application Support/Limitwick/Widget/`, and the widget has read-only access to that folder only. The last values from the old storage are carried over on first launch.&lt;/div&gt;</description>
       <sparkle:version>2.1.3</sparkle:version>
