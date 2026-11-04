@@ -2,6 +2,22 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.2.1</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Previous data: when a refresh has failed, the filled part of the bar (Industrial, Paper) and the filled dots (Dot Matrix) are dimmed one step further, so old values read as clearly stale.
+- The Industrial footer (&amp;quot;Codex · Updated 2 min ago&amp;quot;) is set in the system font, like Dot Matrix, instead of the monospaced one.
+- Hint text in Settings is 12 pt instead of 11 pt.
+- Dark mode: the red used for low quota is now exactly #FF453A (the blue channel was one step off).&lt;/div&gt;</description>
+      <sparkle:version>2.2.1</sparkle:version>
+      <sparkle:shortVersionString>2.2.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Wed, 04 Nov 2026 21:09:25 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.2.1/Limitwick-2.2.1-macOS-Apple-Silicon.zip" sparkle:edSignature="ldMDIh4r5itMN2AV169kPMJ0I36GhlCnBJ0gLHEaQTk4A+8Ma0q+PdOS93FonXSOZDDQSFHBLpQlKaVG6YWDBQ==" length="4077101" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.2.1</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.2.0</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- The panel, the Picture-in-Picture window and the widgets now show the same card, drawn from one source, in four themes: Industrial, Dot Matrix, Paper and Terminal.
 - Reset time is on two lines: &amp;quot;RST 3d 4h&amp;quot; and below it the clock time or date.
