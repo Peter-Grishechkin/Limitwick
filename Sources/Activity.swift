@@ -113,12 +113,12 @@ struct ActivityBarLayout {
         var ci: CGFloat?, ai: CGFloat?, cm: CGFloat?, am: CGFloat?, cb: CGFloat?, ab: CGFloat?
         if codex {
             if codexActive { ci = x + 1; x += 22 }
-            if dual { cm = x + 1; x += 16 }
+            if dual { cm = x + 1; x += 28 }
             cb = x + 1; x += 34
         }
         if claude {
             if claudeActive { ai = x + 1; x += 22 }
-            if dual { am = x + 1; x += 16 }
+            if dual { am = x + 1; x += 28 }
             ab = x + 1; x += 34
         }
         width = x; codexIcon = ci; claudeIcon = ai; codexMark = cm; claudeMark = am; codexBars = cb; claudeBars = ab

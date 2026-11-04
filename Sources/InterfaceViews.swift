@@ -212,20 +212,25 @@ final class UpdateBadge: NSView {
 
 // Compact text labels distinguish providers without changing the existing quota bars.
 // Provider logos are not used: Anthropic declined permission for the Claude mark.
+// The capital letters are as tall as `rect`, which the menu bar sets to the height of the two bars.
 func drawProviderMark(_ provider: String, in rect: NSRect, color: NSColor) {
-    let size = min(rect.width, rect.height) * 0.66
-    let heavy = NSFont.systemFont(ofSize: size, weight: .heavy)
-    let font = heavy.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: size) } ?? heavy
+    func rounded(_ size: CGFloat) -> NSFont {
+        let heavy = NSFont.systemFont(ofSize: size, weight: .heavy)
+        return heavy.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: size) } ?? heavy
+    }
+    let probe = rounded(100)
+    let font = rounded(rect.height * 100 / probe.capHeight)
     let label = NSAttributedString(string: provider == "Claude" ? "CL" : "CX",
                                    attributes: [.font: font, .foregroundColor: color, .kern: -0.2])
     let box = label.size()
-    label.draw(at: NSPoint(x: rect.midX - box.width / 2, y: rect.midY - box.height / 2 + size * 0.035))
+    // Align the cap line, not the line box, so the glyphs match the bars' top and bottom edges.
+    label.draw(at: NSPoint(x: rect.midX - box.width / 2, y: rect.midY - font.capHeight / 2 + font.descender))
 }
 
 final class ProviderMark: NSView {
     var provider = "Codex" { didSet { needsDisplay = true } }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
-    override func draw(_ dirtyRect: NSRect) { drawProviderMark(provider, in: bounds, color: .labelColor) }
+    override func draw(_ dirtyRect: NSRect) { drawProviderMark(provider, in: bounds.insetBy(dx: 0, dy: 4), color: .labelColor) }
 }
 
 struct ProviderPresentation {

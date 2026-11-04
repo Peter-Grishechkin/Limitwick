@@ -8,8 +8,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
     let status = NSStatusBar.system.statusItem(withLength: 34)
     let bars = Bars(frame: NSRect(x: 0, y: 0, width: 32, height: 20))
     let claudeBars = Bars(frame: NSRect(x: 0, y: 0, width: 32, height: 20))
-    let codexMark = ProviderMark(frame: NSRect(x: 0, y: 0, width: 13, height: 13))
-    let claudeMark = ProviderMark(frame: NSRect(x: 0, y: 0, width: 13, height: 13))
+    let codexMark = ProviderMark(frame: NSRect(x: 0, y: 0, width: 25, height: 20))
+    let claudeMark = ProviderMark(frame: NSRect(x: 0, y: 0, width: 25, height: 20))
     let multiPanel = NSScrollView(frame: .zero)
     let multiDesktop = NSScrollView(frame: .zero)
     let providersPanel = ThemedProvidersView(frame: .zero)
@@ -413,8 +413,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         activityIcon.isHidden = layout.codexIcon == nil; claudeActivityIcon.isHidden = layout.claudeIcon == nil
         if let x = layout.codexIcon { activityIcon.frame.origin = NSPoint(x: x, y: y) }
         if let x = layout.claudeIcon { claudeActivityIcon.frame.origin = NSPoint(x: x, y: y) }
-        if let x = layout.codexMark { codexMark.frame = NSRect(x: x, y: y + 3, width: 13, height: 13) }
-        if let x = layout.claudeMark { claudeMark.frame = NSRect(x: x, y: y + 3, width: 13, height: 13) }
+        if let x = layout.codexMark { codexMark.frame = NSRect(x: x, y: y, width: 25, height: 20) }
+        if let x = layout.claudeMark { claudeMark.frame = NSRect(x: x, y: y, width: 25, height: 20) }
         if let x = layout.codexBars ?? (dual ? nil : layout.claudeBars) { bars.frame = NSRect(x: x, y: y, width: 32, height: 20) }
         if dual, let x = layout.claudeBars { claudeBars.frame = NSRect(x: x, y: y, width: 32, height: 20) }
         status.length = layout.width
