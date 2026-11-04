@@ -2,6 +2,20 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.1.5</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Menu bar: the CX and CL labels are lighter (medium weight instead of heavy).
+- Menu bar: the activity indicator (terminal, loading, checkmark) now follows the menu bar like the labels and bars: dark on a light menu bar, light on a dark one. Previously it was always white.&lt;/div&gt;</description>
+      <sparkle:version>2.1.5</sparkle:version>
+      <sparkle:shortVersionString>2.1.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Wed, 04 Nov 2026 14:19:53 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.1.5/Limitwick-2.1.5-macOS-Apple-Silicon.zip" sparkle:edSignature="CCiL9hodqf+g/rXdfJDE5KjtCv/RDmypnuVRIEilZHnghOy21y+SG5E6JkavKhaKSRaPm8OOnnQH8waa4aKJCQ==" length="3840573" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.1.5</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.1.4</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Menu bar: the CX and CL labels are now as tall as the two bars, so the labels and indicators read as one unit. The bars are unchanged; with both providers shown, the menu bar item is 24 pt wider.&lt;/div&gt;</description>
       <sparkle:version>2.1.4</sparkle:version>
