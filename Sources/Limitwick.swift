@@ -254,8 +254,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         menuPopover?.performClose(nil)
         if popover.isShown { popover.performClose(nil) }
         else {
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            showPanel(relativeTo: button)
             if popover.isShown { startClickMonitoring() }
+        }
+    }
+    /// On macOS 27 the system NSPopover show animation scales up, pauses for a frame and then keeps
+    /// settling for ~0.25 s. Show without it and fade the window in with one ease-out instead.
+    /// Closing and content-size changes keep the system animation.
+    func showPanel(relativeTo button: NSView) {
+        popover.animates = false
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        popover.animates = true
+        guard let window = popover.contentViewController?.view.window else { return }
+        window.alphaValue = 0
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0.18
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            window.animator().alphaValue = 1
         }
     }
     func startClickMonitoring() {
@@ -281,7 +296,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         if let monitor = globalClickMonitor { NSEvent.removeMonitor(monitor); globalClickMonitor = nil }
         if let monitor = localClickMonitor { NSEvent.removeMonitor(monitor); localClickMonitor = nil }
     }
-    func popoverDidClose(_ notification: Notification) { stopClickMonitoring() }
+    func popoverDidClose(_ notification: Notification) {
+        stopClickMonitoring()
+        popover.contentViewController?.view.window?.alphaValue = 1
+    }
     @objc func activeApplicationChanged(_ notification: Notification) {
         guard let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
               app.processIdentifier != ProcessInfo.processInfo.processIdentifier,
