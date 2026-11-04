@@ -45,7 +45,7 @@ if [ "$CONFIGURATION" = development ]; then
     /usr/libexec/PlistBuddy -c 'Set :CFBundleIdentifier local.limitwick.development' "$APP/Contents/Info.plist"
     /usr/libexec/PlistBuddy -c 'Set :CFBundleName Limitwick Development' "$APP/Contents/Info.plist"
     /usr/libexec/PlistBuddy -c 'Set :com.apple.security.application-groups:0 group.local.limitwick.development.shared' "$APP_ENTITLEMENTS"
-    /usr/libexec/PlistBuddy -c 'Set :com.apple.security.application-groups:0 group.local.limitwick.development.shared' "$WIDGET_ENTITLEMENTS"
+    /usr/libexec/PlistBuddy -c 'Set :com.apple.security.temporary-exception.files.home-relative-path.read-only:0 /Library/Application\ Support/Limitwick/Widget-Development/' "$WIDGET_ENTITLEMENTS"
 fi
 # Development builds may use a distinct build number to refresh WidgetKit's cache.
 if [ -n "${LIMITWICK_BUILD_NUMBER:-}" ]; then

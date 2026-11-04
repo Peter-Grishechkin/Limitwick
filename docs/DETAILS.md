@@ -17,7 +17,7 @@ Limitwick checks for compatible releases quietly at launch and once a day. When 
 
 On macOS 14 or later, open the desktop widget gallery and find **Limitwick**. Choose from 24 horizontal medium widgets. Each of the six themes comes in Light and Dark for Codex and Claude. The appearance and provider are fixed for each variant. Remove the old universal widget and add your chosen variants from the gallery.
 
-Widgets read a local quota snapshot for their provider. Limitwick checks which widgets are installed at launch, after wake, when you refresh manually, and every three minutes. A provider with an installed widget can refresh even when it is hidden in the menu bar. Keep Limitwick running for fresh data. macOS controls when widgets redraw, so their values may lag behind the app.
+Widgets read a local quota snapshot for their provider from `~/Library/Application Support/Limitwick/Widget/` (read-only access; macOS 27 no longer lets an ad-hoc signed widget read the shared app group). Limitwick checks which widgets are installed at launch, after wake, when you refresh manually, and every three minutes. A provider with an installed widget can refresh even when it is hidden in the menu bar. Keep Limitwick running for fresh data. macOS controls when widgets redraw, so their values may lag behind the app.
 
 
 ## Data and connectivity

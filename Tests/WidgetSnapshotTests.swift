@@ -4,7 +4,8 @@ import Foundation
     static func main() throws {
         let suite = "Limitwick.WidgetTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
+        let directory = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("widget-snapshot-test-\(UUID().uuidString)")
+        defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: directory) }
 
         let variants = WidgetVariant.all
         precondition(variants.count == 24 && Set(variants.map(\.kind)).count == 24)
@@ -18,9 +19,11 @@ import Foundation
         #if LIMITWICK_DEVELOPMENT
         precondition(variants.allSatisfy { $0.kind.hasPrefix("LimitwickDevelopmentQuota.") })
         precondition(WidgetSnapshot.group == "group.local.limitwick.development.shared")
+        precondition(WidgetSnapshot.directory.path.hasSuffix("/Library/Application Support/Limitwick/Widget-Development"))
         #else
         precondition(variants.allSatisfy { $0.kind.hasPrefix("LimitwickQuota.") })
         precondition(WidgetSnapshot.group == "group.local.limitwick.shared")
+        precondition(WidgetSnapshot.directory.path.hasSuffix("/Library/Application Support/Limitwick/Widget"))
         #endif
 
         let installed = WidgetVariant.installed(in: Set(variants.filter { $0.source == .claude }.prefix(2).map(\.kind))
@@ -41,15 +44,21 @@ import Foundation
         let claude = WidgetSnapshot.migrate(.claude, defaults: defaults)!
         precondition(claude.five == 73 && claude.week == 20 && claude.state == .stale && claude.updated == nil)
         precondition(claude.fiveReset == Date(timeIntervalSinceReferenceDate: 120))
-        precondition(codex.write(.codex, defaults: defaults))
-        precondition(claude.write(.claude, defaults: defaults))
-        precondition(!claude.write(.claude, defaults: defaults))
-        precondition(WidgetSnapshot.read(.codex, defaults: defaults) == codex)
-        precondition(WidgetSnapshot.read(.claude, defaults: defaults) == claude)
+        precondition(WidgetSnapshot.read(.codex, directory: directory) == nil)
+        precondition(codex.write(.codex, directory: directory))
+        precondition(claude.write(.claude, directory: directory))
+        precondition(!claude.write(.claude, directory: directory))
+        precondition(WidgetSnapshot.read(.codex, directory: directory) == codex)
+        precondition(WidgetSnapshot.read(.claude, directory: directory) == claude)
+        precondition(FileManager.default.fileExists(atPath: directory.appendingPathComponent("claude.json").path))
 
         defaults.set(Data(#"{"provider":"claude","five":56,"threshold":11}"#.utf8), forKey: "quotaSnapshot")
         precondition(WidgetSnapshot.migrate(.claude, defaults: defaults)?.five == 56)
         precondition(WidgetSnapshot.migrate(.codex, defaults: defaults) == nil)
+
+        // A per-source snapshot from the old app group wins over the pre-2.0 single snapshot.
+        defaults.set(try JSONEncoder().encode(codex), forKey: "quotaSnapshot.v2.codex")
+        precondition(WidgetSnapshot.migrate(.codex, defaults: defaults) == codex)
         print("Widget variants, source selection and snapshot compatibility checks passed")
     }
 }

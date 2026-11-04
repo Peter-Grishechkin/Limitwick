@@ -46,11 +46,22 @@ struct WidgetSnapshot: Codable, Equatable {
         case waiting, current, stale, unavailable
     }
 
+    // Legacy store: macOS 27 blocks the sandboxed widget from an ad-hoc signed app group, so it is only read for migration.
     #if LIMITWICK_DEVELOPMENT
     static let group = "group.local.limitwick.development.shared"
+    static let folderName = "Widget-Development"
     #else
     static let group = "group.local.limitwick.shared"
+    static let folderName = "Widget"
     #endif
+
+    // The widget reads this folder through a home-relative read-only sandbox exception (see Widget.entitlements).
+    // NSHomeDirectory() points into the widget's container, so resolve the real home from the user record.
+    static var directory: URL {
+        let home = getpwuid(getuid())?.pointee.pw_dir.map { String(cString: $0) } ?? NSHomeDirectory()
+        return URL(fileURLWithPath: home, isDirectory: true)
+            .appendingPathComponent("Library/Application Support/Limitwick/\(folderName)", isDirectory: true)
+    }
 
     var five: Double? = nil
     var week: Double? = nil
@@ -64,20 +75,29 @@ struct WidgetSnapshot: Codable, Equatable {
 
     private static func key(_ source: WidgetSource) -> String { "quotaSnapshot.v2.\(source.rawValue)" }
 
-    static func read(_ source: WidgetSource, defaults: UserDefaults? = UserDefaults(suiteName: group)) -> Self? {
-        guard let data = defaults?.data(forKey: key(source)) else { return nil }
+    private static func file(_ source: WidgetSource, in directory: URL) -> URL {
+        directory.appendingPathComponent("\(source.rawValue).json")
+    }
+
+    static func read(_ source: WidgetSource, directory: URL = directory) -> Self? {
+        guard let data = try? Data(contentsOf: file(source, in: directory)) else { return nil }
         return try? JSONDecoder().decode(Self.self, from: data)
     }
 
     @discardableResult
-    func write(_ source: WidgetSource, defaults: UserDefaults? = UserDefaults(suiteName: group)) -> Bool {
-        guard let defaults, self != Self.read(source, defaults: defaults),
-              let data = try? JSONEncoder().encode(self) else { return false }
-        defaults.set(data, forKey: Self.key(source))
+    func write(_ source: WidgetSource, directory: URL = directory) -> Bool {
+        guard self != Self.read(source, directory: directory),
+              let data = try? JSONEncoder().encode(self),
+              (try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)) != nil,
+              (try? data.write(to: Self.file(source, in: directory), options: .atomic)) != nil else { return false }
         return true
     }
 
+    /// Snapshot from the app group used before the file store: the per-source v2 key, then the single pre-2.0 snapshot.
     static func migrate(_ source: WidgetSource, defaults: UserDefaults? = UserDefaults(suiteName: group)) -> Self? {
+        if let data = defaults?.data(forKey: key(source)), let snapshot = try? JSONDecoder().decode(Self.self, from: data) {
+            return snapshot
+        }
         guard let data = defaults?.data(forKey: "quotaSnapshot"),
               let old = try? JSONDecoder().decode(LegacySnapshot.self, from: data) else { return nil }
         return old.snapshot(for: source)
