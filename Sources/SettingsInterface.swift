@@ -59,7 +59,7 @@ extension AppDelegate {
                 ? "Claude limits not loading? Click Sign in, then type /login in Terminal."
                 : "Claude needs Claude Code. Click Install and sign in when Terminal asks.")
             let claudeButton = NSButton(title: claudeInstalled ? "Sign in to Claude…" : "Install Claude Code…", target: self, action: #selector(setUpClaude))
-            claudeSetup.font = .systemFont(ofSize: 11); claudeSetup.tag = 902
+            claudeSetup.font = .systemFont(ofSize: 12); claudeSetup.tag = 902
             claudeSetup.widthAnchor.constraint(equalToConstant: 372).isActive = true
             let editPicker = NSSegmentedControl(labels: ["Codex", "Claude"], trackingMode: .selectOne, target: self, action: #selector(settingsProviderChanged(_:)))
             editPicker.segmentDistribution = .fillEqually
@@ -85,8 +85,8 @@ extension AppDelegate {
             let field = NSTextField(labelWithString: "\(settings.threshold(for: settingsProvider))%"); field.tag = 501
             let thresholdControl = NSStackView(views: [field, threshold]); thresholdControl.orientation = .horizontal; thresholdControl.spacing = 8
             let thresholdHelp = NSTextField(wrappingLabelWithString: "Indicators turn red below this level. Low quota alerts use it too.")
-            thresholdHelp.font = .systemFont(ofSize: 11); thresholdHelp.tag = 902; thresholdHelp.widthAnchor.constraint(equalToConstant: 372).isActive = true
-            noticeStatus.maximumNumberOfLines = 0; noticeStatus.font = .systemFont(ofSize: 11); noticeStatus.tag = 902
+            thresholdHelp.font = .systemFont(ofSize: 12); thresholdHelp.tag = 902; thresholdHelp.widthAnchor.constraint(equalToConstant: 372).isActive = true
+            noticeStatus.maximumNumberOfLines = 0; noticeStatus.font = .systemFont(ofSize: 12); noticeStatus.tag = 902
             noticeStatus.isHidden = noticeStatus.stringValue.isEmpty
             noticeStatus.widthAnchor.constraint(equalToConstant: 372).isActive = true
             let openSettings = NSButton(title: "Notification Settings…", target: self, action: #selector(openNotificationSettings))
@@ -102,11 +102,11 @@ extension AppDelegate {
             if !copies.isEmpty {
                 let paths = copies.map { ($0.path as NSString).abbreviatingWithTildeInPath }.joined(separator: "\n")
                 let warning = NSTextField(wrappingLabelWithString: "Another copy of Limitwick is on this Mac, so the widget gallery may show its old widgets. Move it to the Trash, empty the Trash, and log out and back in.\n\(paths)")
-                warning.font = .systemFont(ofSize: 11); warning.tag = 902; warning.widthAnchor.constraint(equalToConstant: 372).isActive = true
+                warning.font = .systemFont(ofSize: 12); warning.tag = 902; warning.widthAnchor.constraint(equalToConstant: 372).isActive = true
                 items = [heading("Other copies"), warning, NSButton(title: "Show in Finder", target: self, action: #selector(revealOtherCopies))] + items
             }
             let help = NSTextField(wrappingLabelWithString: hookStatusText)
-            help.font = .systemFont(ofSize: 11); help.tag = 902; help.widthAnchor.constraint(equalToConstant: 372).isActive = true
+            help.font = .systemFont(ofSize: 12); help.tag = 902; help.widthAnchor.constraint(equalToConstant: 372).isActive = true
             hookStatus = help
             let name = settingsProvider.capitalized
             let hookButton = hooksInstalled

@@ -97,8 +97,8 @@ private extension View {
     func box(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat, _ alignment: Alignment = .leading) -> some View {
         frame(width: w, height: h, alignment: alignment).offset(x: x, y: y)
     }
-    func block(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat, _ color: RGB, radius: CGFloat = 0) -> some View {
-        RoundedRectangle(cornerRadius: radius, style: .continuous).fill(color.color).frame(width: w, height: h).offset(x: x, y: y)
+    func block(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat, _ color: RGB, radius: CGFloat = 0, opacity: Double = 1) -> some View {
+        RoundedRectangle(cornerRadius: radius, style: .continuous).fill(color.color.opacity(opacity)).frame(width: w, height: h).offset(x: x, y: y)
     }
 }
 
@@ -117,6 +117,8 @@ struct QuotaCardView: View {
     private func low(_ p: QuotaCardModel.Period) -> Bool { isLowQuota(p.remaining, threshold: model.threshold) }
     private func percent(_ v: Double?) -> String { v.map { "\(Int($0.rounded()))%" } ?? "—" }
     private func fraction(_ v: Double?) -> CGFloat { CGFloat(max(0, min(1, (v ?? 0) / 100))) }
+    /// Previous data: bar fills are already receded, and the mockup dims them once more.
+    private var fillOpacity: Double { model.stale ? 0.4 : 1 }
     private func fillColor(_ i: Int, _ p: QuotaCardModel.Period) -> RGB { low(p) ? ink.warning : (i == 0 ? ink.accent : ink.second) }
     private func digitColor(_ p: QuotaCardModel.Period, normal: RGB) -> RGB { low(p) ? ink.warning : normal }
 
@@ -159,11 +161,11 @@ struct QuotaCardView: View {
                     }
                 }.frame(width: 140, height: 7).offset(x: x + 8, y: 87)
                 block(x + 8, 99, 135, 10, ink.track)
-                if p.remaining != nil && fraction(p.remaining) > 0 { block(x + 8, 99, 135 * fraction(p.remaining), 10, fillColor(i, p)) }
+                if p.remaining != nil && fraction(p.remaining) > 0 { block(x + 8, 99, 135 * fraction(p.remaining), 10, fillColor(i, p), opacity: fillOpacity) }
                 reset(p, font: CardFonts.mono(10), first: ink.text, second: ink.secondary, alignment: .leading, size: 10).box(x + 8, 119, 136, 24, .topLeading)
             }
             block(170, 10, 1, 139, ink.track)
-            footerText(CardFonts.mono(10), nil).box(8, 155, 324, 15, .center)
+            footerText(.system(size: 10), nil).box(8, 155, 324, 15, .center)
         }
     }
 
@@ -205,7 +207,7 @@ struct QuotaCardView: View {
                             if amount > 0 {
                                 var clipped = ctx
                                 clipped.clip(to: Path(CGRect(x: dot.minX, y: dot.minY, width: dot.width * amount, height: dot.height)))
-                                clipped.fill(Path(ellipseIn: dot), with: .color(fillColor(i, p).color))
+                                clipped.fill(Path(ellipseIn: dot), with: .color(fillColor(i, p).color.opacity(fillOpacity)))
                             }
                         }
                     }
@@ -227,7 +229,7 @@ struct QuotaCardView: View {
                 Text(percent(p.remaining)).font(.custom("Times New Roman", size: 28)).foregroundColor(digitColor(p, normal: ink.text).color)
                     .lineLimit(1).box(208, y + 9, 116, 32, .trailing)
                 block(16, y + 44, 308, 3, ink.track, radius: 1.5)
-                if p.remaining != nil && fraction(p.remaining) > 0 { block(16, y + 44, 308 * fraction(p.remaining), 3, fillColor(i, p), radius: 1.5) }
+                if p.remaining != nil && fraction(p.remaining) > 0 { block(16, y + 44, 308 * fraction(p.remaining), 3, fillColor(i, p), radius: 1.5, opacity: fillOpacity) }
                 reset(p, font: CardFonts.mono(10), first: ink.text, second: ink.secondary, alignment: .leading, size: 10).box(16, y + 54, 308, 24, .topLeading)
             }
             block(16, 88, 308, 1, ink.track)

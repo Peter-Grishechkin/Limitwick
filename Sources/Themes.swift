@@ -62,7 +62,7 @@ struct CardTokens {
 
 extension PanelTheme {
     func tokens(dark: Bool) -> CardTokens {
-        let red = dark ? RGB(1.00, 0.27, 0.23) : RGB(1.00, 0.23, 0.19)
+        let red = dark ? RGB(1.00, 0.27, 0.2275) : RGB(1.00, 0.23, 0.19)
         switch (self, dark) {
         case (.industrial, false):
             return CardTokens(bg: RGB(0.93, 0.93, 0.90), surface: RGB(white: 0.95), text: RGB(white: 0.13), secondary: RGB(white: 0.32), track: RGB(white: 0.72), accent: RGB(white: 0.25), second: RGB(0.14, 0.29, 0.45), warning: red)
