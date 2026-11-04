@@ -41,7 +41,6 @@ extension AppDelegate {
                 switch self.selectedTheme {
                 case .industrial, .dots, .terminal: return .monospacedSystemFont(ofSize: 12, weight: .regular)
                 case .paper: return NSFont(name: "Times New Roman", size: 14) ?? .systemFont(ofSize: 13)
-                default: return .systemFont(ofSize: 13)
                 }
             }
             item.paletteProvider = { [weak self, weak view] in
@@ -96,11 +95,9 @@ extension AppDelegate {
             desktopContent.wantsLayer = true
             desktopContent.layer?.cornerRadius = 12
             desktopContent.layer?.masksToBounds = true
-            for label in [desktopState, desktopAdditional] {
-                label.font = .systemFont(ofSize: 12)
-                label.maximumNumberOfLines = 0
-            }
-            for view in [desktopFive, desktopWeek, desktopState, desktopAdditional, multiDesktop] as [NSView] { desktopContent.addSubview(view) }
+            desktopHost.sizingOptions = []
+            desktopHost.autoresizingMask = [.width, .height]
+            desktopContent.addSubview(desktopHost)
             window.contentView = desktopContent
             desktopWindow = window
             if !window.setFrameUsingName("DesktopWindow") { window.center() }
@@ -114,35 +111,11 @@ extension AppDelegate {
         guard let window = desktopWindow else { return }
         desktopContent.appearance = settings.providers == .both ? nil : appearanceMode.appearance
         desktopContent.layer?.backgroundColor = palette(for: desktopContent.effectiveAppearance).background.cgColor
-        let dual = settings.providers == .both
-        multiDesktop.isHidden = !dual
-        multiDesktop.frame = multiPanel.frame
-        if dual {
-            let height = providersDesktop.configureSeparately(presentations, systemAppearance: desktopContent.effectiveAppearance) { provider in
-                (theme(for: provider), mode(for: provider), settings.threshold(for: provider))
-            }
-            providersDesktop.frame = NSRect(x: 0, y: 0, width: 340, height: height)
-            if multiDesktop.documentView !== providersDesktop { multiDesktop.documentView = providersDesktop }
-            multiDesktop.drawsBackground = false; multiDesktop.hasVerticalScroller = true; multiDesktop.autohidesScrollers = true
-        }
-        desktopTheme?.isHidden = dual
-        desktopFive.isHidden = dual || desktopTheme != nil; desktopWeek.isHidden = dual || desktopTheme != nil
-        desktopFive.update(displayQuota?.fiveHour, reset: resetDescription(displayQuota?.fiveHour), stale: displayStale)
-        desktopWeek.update(displayQuota?.weekly, reset: resetDescription(displayQuota?.weekly), stale: displayStale)
-        desktopFive.ring.warningThreshold = noticeThreshold; desktopWeek.ring.warningThreshold = noticeThreshold
-        desktopFive.frame = fiveHourView.frame; desktopWeek.frame = weeklyView.frame
-        desktopState.stringValue = stateLabel.stringValue; desktopState.isHidden = dual || stateLabel.isHidden; desktopState.frame = stateLabel.frame
-        desktopAdditional.stringValue = additionalLabel.stringValue; desktopAdditional.isHidden = dual; desktopAdditional.frame = additionalLabel.frame
-        let secondary = desktopTheme?.palette.secondary ?? NSColor.secondaryLabelColor
-        desktopState.textColor = secondary; desktopAdditional.textColor = secondary
-        if let theme = desktopTheme {
-            theme.frame = content.bounds
-            theme.data = themeView?.data ?? ThemeData(fiveHour: nil, weekly: nil, fiveReset: "—", weekReset: "—", accessibility: "Limits unavailable")
-        }
         let size = content.frame.size
         if window.contentView?.frame.size != size {
             let old = window.frame
             window.setFrame(NSRect(x: old.origin.x, y: old.maxY - size.height, width: size.width, height: size.height), display: true)
         }
+        desktopHost.frame = desktopContent.bounds
     }
 }

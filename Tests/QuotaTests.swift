@@ -81,6 +81,15 @@ import Darwin
         check(reset(400 * 86400).contains("2028"), "reset next year shows the year")
         let wrapped = ResetText.describe(now.addingTimeInterval(367200), now: now, calendar: utc, locale: english)
         check(wrapped.filter { $0 == " " }.count == 1 && wrapped.contains("· "), "the line breaks only after the separator")
+        func parts(_ seconds: TimeInterval) -> [String] {
+            let value = ResetText.parts(now.addingTimeInterval(seconds), now: now, calendar: utc, locale: english)
+            return [value.relative, value.absolute.replacingOccurrences(of: "\u{00A0}", with: " ").replacingOccurrences(of: "\u{202F}", with: " ")]
+        }
+        check(parts(8100) == ["RST 2h 15m", "10:15 AM"], "card reset: relative time, then the clock time")
+        check(parts(367200) == ["RST 4d 6h", "Tue 2:00 PM"], "card reset within a week")
+        check(parts(20 * 86400) == ["RST 20d 0h", "Feb 4, 8:00 AM"], "card reset with a date")
+        check(parts(-1) == ["Reset passed", "7:59 AM"], "card reset passed")
+        check(ResetText.parts(nil, now: now).relative == "Reset unavailable" && ResetText.parts(nil, now: now).absolute.isEmpty, "card reset missing")
         var schedule = RefreshSchedule()
         check(schedule.record(success: false) == 360, "first failure backoff")
         check(schedule.record(success: false) == 720, "second failure backoff")

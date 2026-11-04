@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import Sparkle
 import Foundation
 import UserNotifications
@@ -10,10 +11,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
     let claudeBars = Bars(frame: NSRect(x: 0, y: 0, width: 32, height: 20))
     let codexMark = ProviderMark(frame: NSRect(x: 0, y: 0, width: 25, height: 20))
     let claudeMark = ProviderMark(frame: NSRect(x: 0, y: 0, width: 25, height: 20))
-    let multiPanel = NSScrollView(frame: .zero)
-    let multiDesktop = NSScrollView(frame: .zero)
-    let providersPanel = ThemedProvidersView(frame: .zero)
-    let providersDesktop = ThemedProvidersView(frame: .zero)
     let activity = ActivityMonitor()
     let claudeActivity = ClaudeActivityMonitor()
     let claudeActivityIcon = ActivityIcon(frame: NSRect(x: 0, y: 0, width: 19, height: 19))
@@ -21,12 +18,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
     let activityIcon = ActivityIcon(frame: NSRect(x: 1, y: 0, width: 19, height: 19))
     var activityState: ActivityDisplay?
     let popover = NSPopover()
-    let content = NSView(frame: NSRect(x: 0, y: 0, width: 340, height: 290))
-    let fiveHourView = QuotaTile(symbol: "5")
-    let weeklyView = QuotaTile(symbol: "W")
-    let stateLabel = NSTextField(wrappingLabelWithString: "")
-    let updatedLabel = NSTextField(labelWithString: "Last updated: —")
-    let additionalLabel = NSTextField(wrappingLabelWithString: "")
+    let content = NSView(frame: NSRect(x: 0, y: 0, width: 340, height: 170))
+    // The panel and the Picture-in-Picture window show the same SwiftUI cards.
+    let panelHost = NSHostingView(rootView: QuotaPanelView(entries: []))
+    let desktopHost = NSHostingView(rootView: QuotaPanelView(entries: []))
     let contextMenu = NSMenu()
     let refresh = NSMenuItem(title: "Refresh", action: #selector(refreshNow), keyEquivalent: "r")
     let client = QuotaClient()
@@ -119,14 +114,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
     private var terminating = false
     var globalClickMonitor: Any?
     var localClickMonitor: Any?
-    var themeView: ThemeView?
     var desktopWindow: NSWindow?
     let desktopContent = NSView()
-    let desktopFive = QuotaTile(symbol: "5")
-    let desktopWeek = QuotaTile(symbol: "W")
-    let desktopState = NSTextField(wrappingLabelWithString: "")
-    let desktopAdditional = NSTextField(wrappingLabelWithString: "")
-    var desktopTheme: ThemeView?
     var settingsWindow: NSWindow?
     var aboutWindow: NSWindow?
     var menuPopover: NSPopover?
@@ -134,9 +123,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
     var themeSurfaces: [ThemedSurface] = []
     var settingsProvider = "codex"
     var activeProvider: String { settings.providers == .claude ? "claude" : "codex" }
-    var selectedTheme: PanelTheme { PanelTheme(rawValue: settings.theme(for: activeProvider)) ?? .classic }
+    var selectedTheme: PanelTheme { PanelTheme(stored: settings.theme(for: activeProvider)) }
     var appearanceMode: AppearanceMode { AppearanceMode(rawValue: settings.appearance(for: activeProvider)) ?? .auto }
-    func theme(for provider: String) -> PanelTheme { PanelTheme(rawValue: settings.theme(for: provider)) ?? .classic }
+    func theme(for provider: String) -> PanelTheme { PanelTheme(stored: settings.theme(for: provider)) }
     func mode(for provider: String) -> AppearanceMode { AppearanceMode(rawValue: settings.appearance(for: provider)) ?? .auto }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -177,13 +166,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         button.action = #selector(statusItemClicked)
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
 
-        stateLabel.font = .systemFont(ofSize: 12)
-        stateLabel.textColor = .secondaryLabelColor
-        stateLabel.maximumNumberOfLines = 0
-        additionalLabel.font = .systemFont(ofSize: 12)
-        additionalLabel.textColor = .secondaryLabelColor
-        updatedLabel.font = .systemFont(ofSize: 12)
-        updatedLabel.textColor = .secondaryLabelColor
         refresh.target = self
         contextMenu.autoenablesItems = false
         contextMenu.addItem(refresh)
@@ -202,7 +184,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         let quit = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quit.target = NSApp
         contextMenu.addItem(quit)
-        for view in [fiveHourView, weeklyView, stateLabel, additionalLabel, multiPanel] as [NSView] { content.addSubview(view) }
+        panelHost.sizingOptions = []
+        panelHost.autoresizingMask = [.width, .height]
+        content.addSubview(panelHost)
         let controller = NSViewController()
         controller.view = content
         popover.contentViewController = controller
@@ -214,7 +198,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         updateWarningThreshold()
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(activeApplicationChanged(_:)), name: NSWorkspace.didActivateApplicationNotification, object: nil)
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(accessibilityDisplayChanged(_:)), name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
-        layoutPanel(message: "Loading…")
+        layoutPanel()
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(didWake(_:)), name: NSWorkspace.didWakeNotification, object: nil)
         if settings.desktopVisible { showDesktopWindow() }
         for source in WidgetSource.allCases {
@@ -439,9 +423,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         codexMark.isHidden = !dual; claudeMark.isHidden = !dual; claudeBars.isHidden = !dual
     }
     func ageDescription(_ date: Date?) -> String {
-        guard let date = date else { return "No data yet" }
-        let minutes = max(0, Int(Date().timeIntervalSince(date) / 60))
-        return minutes == 0 ? "Updated just now" : "Updated \(minutes) min ago"
+        QuotaCardModel.age(date)
     }
     var presentations: [ProviderPresentation] {
         var result: [ProviderPresentation] = []
@@ -450,7 +432,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
             if let failure = failure { status = failure + (quota != nil ? " · Previous data · " + ageDescription(date) : "") }
             else if running { status = quota == nil ? "Loading…" : "Updating… · " + ageDescription(date) }
             else { status = ageDescription(date) }
-            return ProviderPresentation(name: name, quota: quota, stale: stale, status: status, updated: date)
+            return ProviderPresentation(name: name, quota: quota, stale: stale, status: status, updated: date, failure: failure, running: running)
         }
         if settings.providers.includesCodex { result.append(info("Codex", lastQuota, stale, lastFailure, lastUpdate, refreshCoordinator.running)) }
         if settings.providers.includesClaude { result.append(info("Claude", claudeQuota, claudeStale, claudeFailure, claudeUpdate, claudeCoordinator.running)) }
@@ -480,34 +462,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         updatePresentation()
     }
     func updatePresentation() {
-        let dual = settings.providers == .both
         let first = presentations.first
         let quota = displayQuota
         bars.values = [quota?.fiveHour?.remaining, quota?.weekly?.remaining]
         bars.stale = displayStale
         claudeBars.values = [claudeQuota?.fiveHour?.remaining, claudeQuota?.weekly?.remaining]
         claudeBars.stale = claudeStale
-        fiveHourView.update(quota?.fiveHour, reset: resetDescription(quota?.fiveHour), stale: displayStale)
-        weeklyView.update(quota?.weekly, reset: resetDescription(quota?.weekly), stale: displayStale)
-        updatedLabel.stringValue = ageDescription(displayUpdate)
         state = first?.status ?? "Loading…"
-        let messages = presentations.compactMap { item -> String? in
-            guard item.status.contains("Previous data") || item.quota == nil else { return nil }
-            return dual ? "\(item.name): \(item.status)" : item.status
-        }
-        let extras = presentations.flatMap { item -> [String] in
-            let prefix = dual ? "\(item.name): " : ""
-            let durations = item.quota?.additional.map { prefix + "\(durationName($0.durationMinutes)): \(Int($0.remaining.rounded()))% remaining · \(ResetText.describe($0.reset))" } ?? []
-            let named = item.quota?.namedAdditional.map { prefix + "\($0.name) week: \(Int($0.remaining.rounded()))% remaining · \(ResetText.describe($0.reset))" } ?? []
-            let conflicts = item.quota?.conflictingDurations.map { prefix + "Conflicting \(durationName($0)) values; unavailable" } ?? []
-            return durations + named + conflicts
-        }
-        additionalLabel.stringValue = extras.joined(separator: "\n")
         refresh.isEnabled = !running; menuRefreshButton?.isEnabled = !running
         layoutStatusBars()
         activityIcon.show(settings.providers.includesCodex ? activityState : nil)
         claudeActivityIcon.show(settings.providers.includesClaude ? claudeActivityState : nil)
-        layoutPanel(message: messages.isEmpty ? nil : messages.joined(separator: "\n"))
+        layoutPanel()
     }
 
     func publishWidgetSnapshot(_ source: WidgetSource) {

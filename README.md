@@ -8,10 +8,10 @@ Limitwick is a small macOS menu bar app that shows how much of your **Codex** an
 
 - Track Codex, Claude, or both side by side.
 - Two bars in the menu bar: five-hour limit on top, weekly limit below.
-- Click for a panel with percentages, reset times, and time remaining, in one of six themes.
+- Click for a panel with percentages, reset times, and time remaining, in one of four themes.
 - Optional activity animation while Codex or Claude Code is working or using a tool.
 - Optional notifications for low quota and confirmed resets.
-- Picture-in-Picture window and 24 macOS desktop widget variants.
+- Picture-in-Picture window and 16 macOS desktop widget variants.
 - Automatic refresh, refresh after wake, and built-in updates.
 
 ## Contents
@@ -115,9 +115,9 @@ When **Both** is selected, Codex and Claude each get their own pair of bars with
 **Click** the menu bar icon to open the panel. For each service it shows:
 
 - remaining five-hour and weekly quota as a percentage;
-- when each limit resets, as a local date and time and as time remaining;
-- other limit windows, if the service reports any;
-- an error message and the age of the data if the last refresh failed.
+- when each limit resets: the time remaining ("RST 3d 4h") and below it the local date and time;
+- a footer with the service name and the age of the data ("Codex · Updated 2 min ago"); after a failed refresh it reads "Codex · Previous data · Updated 12 min ago";
+- under the card, the error message if the last refresh failed.
 
 Click outside the panel or switch to another app to close it.
 
@@ -156,7 +156,7 @@ When **Both** is selected, each service's block in the panel uses that service's
 
 ### Low quota
 
-**Warn below:** from 1% to 99%, 20% by default. Below this level the bars and rings turn red, even if notifications are off, and low quota alerts use the same level. Red appears only for this warning; the themes use other colors for normal values.
+**Warn below:** from 1% to 99%, 20% by default. Below this level the bars and the filled part of the card turn red, even if notifications are off, and low quota alerts use the same level. Red appears only for this warning; the themes use other colors for normal values.
 
 ### Notifications
 
@@ -221,14 +221,14 @@ Notifications are sent only after a successful refresh. Limitwick cannot reliabl
 
 ## Picture-in-Picture and widget
 
-**Picture-in-Picture** is a separate window with the panel, in the selected theme. Open it from the menu and drag it wherever you like. It stays open while the app runs, can be covered by other windows, and reopens in the same place the next time the app launches.
+**Picture-in-Picture** is a separate window with the same cards as the panel, in the selected theme. Open it from the menu and drag it wherever you like. It stays open while the app runs, can be covered by other windows, and reopens in the same place the next time the app launches.
 
 To add a **desktop widget** (macOS 14 or later):
 
 1. Right-click the desktop and choose **Edit Widgets**.
 2. Find **Limitwick** and choose a medium widget by theme, provider, and Light or Dark appearance.
 
-Each of the six themes is available in Light and Dark for both Codex and Claude. You can place several variants side by side. Each keeps its own theme and appearance, and it receives limits even when its provider is hidden from the menu bar. Keep Limitwick running for fresh data. macOS controls when the widget redraws.
+Each of the four themes is available in Light and Dark for both Codex and Claude. You can place several variants side by side. Each keeps its own theme and appearance, and it receives limits even when its provider is hidden from the menu bar. Keep Limitwick running for fresh data. macOS controls when the widget redraws.
 
 If you used the previous universal widget, remove it and add a new variant from the gallery.
 
@@ -238,38 +238,24 @@ Choose a theme in **Settings → Appearance → Theme**. The images follow your 
 
 <table>
   <tr>
-    <td align="center"><strong>Classic</strong><br>
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/images/theme-classic-dark.png">
-        <img src="docs/images/theme-classic-light.png" alt="Classic theme with circular quota indicators" width="396">
-      </picture>
-    </td>
     <td align="center"><strong>Industrial</strong><br>
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/images/theme-industrial-dark.png">
         <img src="docs/images/theme-industrial-light.png" alt="Industrial theme with gauges and bars" width="396">
       </picture>
     </td>
-  </tr>
-  <tr>
     <td align="center"><strong>Dot Matrix</strong><br>
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/images/theme-dots-dark.png">
         <img src="docs/images/theme-dots-light.png" alt="Dot Matrix theme" width="396">
       </picture>
     </td>
+  </tr>
+  <tr>
     <td align="center"><strong>Paper</strong><br>
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="docs/images/theme-paper-dark.png">
         <img src="docs/images/theme-paper-light.png" alt="Paper theme" width="396">
-      </picture>
-    </td>
-  </tr>
-  <tr>
-    <td align="center"><strong>Capsules</strong><br>
-      <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="docs/images/theme-capsules-dark.png">
-        <img src="docs/images/theme-capsules-light.png" alt="Capsules theme" width="396">
       </picture>
     </td>
     <td align="center"><strong>Terminal</strong><br>
@@ -280,6 +266,8 @@ Choose a theme in **Settings → Appearance → Theme**. The images follow your 
     </td>
   </tr>
 </table>
+
+The panel, the Picture-in-Picture window, and the widgets show the same card. Themes from earlier versions (Classic and Capsules) were removed in 2.2; a saved choice of either one switches to Industrial. Terminal is set in [VT323](https://fonts.google.com/specimen/VT323) (SIL Open Font License, `Resources/fonts/OFL-VT323.txt`).
 
 ## Refresh and updates
 
@@ -304,7 +292,7 @@ Limitwick checks for new versions quietly at launch and once a day. When an upda
 | **Codex login or network error** | Run `codex login status`, sign in if needed, check your connection, and choose **Refresh**. |
 | **Claude Code not found or not signed in** | Install Claude Code, run `claude` in Terminal, sign in, and choose **Refresh**. |
 | **Claude usage unavailable** | Run `/usage` in Claude Code to check the account and connection. Limitwick reads Claude Code's on-screen output, which can change when Claude Code updates. Reset times that cannot be read are shown as unavailable. |
-| **Bars are dimmed** | The last refresh failed, so the previous values are shown. The panel dims that service's indicators too and shows the error and how old the data is under its name. |
+| **Bars are dimmed** | The last refresh failed, so the previous values are shown. The panel dims that service's card too, marks it "Previous data" in the footer with the age of the data, and shows the error under the card. |
 | **A limit is missing** | The service did not report that limit. Reset times appear only when the service provides them. |
 | **No activity animation for Claude** | Check the status text on the Claude settings in **Settings**. Install the hooks if needed and start a new Claude Code session. |
 | **No activity animation for Codex** | Check the status text on the Codex settings in **Settings**. Install the hooks if needed, trust them in Codex, and start a new Codex session. |

@@ -8,7 +8,7 @@ import Foundation
         defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: directory) }
 
         let variants = WidgetVariant.all
-        precondition(variants.count == 24 && Set(variants.map(\.kind)).count == 24)
+        precondition(variants.count == 16 && Set(variants.map(\.kind)).count == 16)
         precondition(PanelTheme.allCases.map(\.rawValue) == WidgetVariant.themes)
         let registrations = try String(contentsOfFile: "Widget/LimitwickWidget.swift", encoding: .utf8)
             .split(separator: "\n").map { $0.trimmingCharacters(in: .whitespaces) }

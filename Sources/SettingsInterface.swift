@@ -283,7 +283,7 @@ extension AppDelegate {
     @objc func thresholdChanged(_ sender: NSStepper) {
         settings.setThreshold(sender.integerValue, for: settingsProvider)
         updateWarningThreshold()
-        layoutPanel(message: stateLabel.isHidden ? nil : stateLabel.stringValue)
+        layoutPanel()
         if let source = WidgetSource(rawValue: settingsProvider) { publishWidgetSnapshot(source) }
         (settingsWindow?.contentView?.viewWithTag(501) as? NSTextField)?.stringValue = "\(sender.integerValue)%"
     }

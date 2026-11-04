@@ -15,7 +15,7 @@ enum WidgetAppearance: String, CaseIterable {
 }
 
 struct WidgetVariant: Equatable {
-    static let themes = ["classic", "industrial", "dots", "paper", "capsules", "terminal"]
+    static let themes = PanelTheme.allCases.map(\.rawValue)
     #if LIMITWICK_DEVELOPMENT
     private static let prefix = "LimitwickDevelopmentQuota"
     #else

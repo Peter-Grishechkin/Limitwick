@@ -1,12 +1,14 @@
 import AppKit
+import SwiftUI
 
-// Renders README images from the real theme and status bar views with fixed demo values.
+// Renders README images from the real card and status bar views with fixed demo values.
 // Built and run by scripts/render-screenshots.sh.
 
 let scale: CGFloat = 2
 let output = URL(fileURLWithPath: CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "docs/images", isDirectory: true)
 let appearances: [(String, NSAppearance)] = [("light", NSAppearance(named: .aqua)!), ("dark", NSAppearance(named: .darkAqua)!)]
-let demo = (five: 72.0, week: 46.0, fiveReset: "in\u{00A0}2h\u{00A0}15m\u{00A0}· 4:30\u{00A0}PM", weekReset: "in\u{00A0}4d\u{00A0}6h\u{00A0}· Sat\u{00A0}8:15\u{00A0}PM")
+let demoNow = Calendar.current.date(bySettingHour: 14, minute: 15, second: 0, of: Date())!
+let demo = (five: 72.0, week: 46.0, fiveReset: demoNow.addingTimeInterval(2 * 3600 + 15 * 60), weekReset: demoNow.addingTimeInterval(4 * 86400 + 6 * 3600))
 
 func isDark(_ appearance: NSAppearance) -> Bool { appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua }
 
@@ -75,28 +77,12 @@ func label(_ value: String, at point: NSPoint, width: CGFloat, size: CGFloat, we
 
 // MARK: Panel
 
-final class ClassicPanel: NSView {
-    override func draw(_ dirtyRect: NSRect) { NSColor.windowBackgroundColor.setFill(); bounds.fill() }
-}
-
-func panel(_ theme: PanelTheme, appearance: NSAppearance) -> NSView {
-    if let view = theme.makeView() {
-        view.appearance = appearance
-        view.data = ThemeData(fiveHour: demo.five, weekly: demo.week, fiveReset: demo.fiveReset, weekReset: demo.weekReset, accessibility: "")
-        view.frame = NSRect(x: 0, y: 0, width: 340, height: view.preferredContentHeight + view.outerInset)
-        return view
-    }
-    let view = ClassicPanel(frame: .zero)
-    view.appearance = appearance
-    let five = QuotaTile(symbol: "5"), week = QuotaTile(symbol: "W")
-    five.update(QuotaWindow(durationMinutes: 300, remaining: demo.five, reset: nil), reset: demo.fiveReset)
-    week.update(QuotaWindow(durationMinutes: 10080, remaining: demo.week, reset: nil), reset: demo.weekReset)
-    let extra = max(five.extraResetHeight, week.extraResetHeight)
-    five.setExtraHeight(extra); week.setExtraHeight(extra)
-    five.frame.origin = NSPoint(x: 12, y: 12); week.frame.origin = NSPoint(x: 176, y: 12)
-    view.addSubview(five); view.addSubview(week)
-    view.frame = NSRect(x: 0, y: 0, width: 340, height: 204 + extra)
-    return view
+@MainActor func cardImage(_ theme: PanelTheme, appearance: NSAppearance) -> NSImage {
+    let model = QuotaCardModel.make(provider: "Codex", five: demo.five, week: demo.week, fiveReset: demo.fiveReset, weekReset: demo.weekReset,
+                                    stale: false, updated: demoNow.addingTimeInterval(-120), threshold: 20, now: demoNow, locale: Locale(identifier: "en_US_POSIX"))
+    let renderer = ImageRenderer(content: QuotaCardView(model: model, theme: theme, scheme: isDark(appearance) ? .dark : .light))
+    renderer.scale = scale
+    return NSImage(cgImage: renderer.cgImage!, size: NSSize(width: 340, height: theme.cardHeight))
 }
 
 // Draws a panel image as a floating popover: rounded corners, hairline border and soft shadow.
@@ -154,16 +140,15 @@ func wallpaper(_ rect: NSRect, dark: Bool) {
 
 // MARK: Images
 
-func renderThemes() {
-    let heights = PanelTheme.allCases.map { panel($0, appearance: appearances[0].1).frame.height }
+@MainActor func renderThemes() {
+    let heights = PanelTheme.allCases.map(\.cardHeight)
     let padding: CGFloat = 28
     let canvas = NSSize(width: 340 + padding * 2, height: heights.max()! + padding * 2)
     for theme in PanelTheme.allCases {
         for (name, appearance) in appearances {
-            let view = panel(theme, appearance: appearance)
-            let image = snapshot(view)
+            let image = cardImage(theme, appearance: appearance)
             let rep = render(canvas, appearance: appearance) {
-                drawFloating(image, in: NSRect(x: padding, y: canvas.height - padding - view.frame.height, width: 340, height: view.frame.height), dark: isDark(appearance))
+                drawFloating(image, in: NSRect(x: padding, y: canvas.height - padding - theme.cardHeight, width: 340, height: theme.cardHeight), dark: isDark(appearance))
             }
             save(rep, "theme-\(theme.rawValue)-\(name).png")
         }
@@ -207,12 +192,11 @@ func renderMenuBar() {
     }
 }
 
-func renderHero() {
+@MainActor func renderHero() {
     let size = NSSize(width: 880, height: 300), bar: CGFloat = 30
     for (name, appearance) in appearances {
         let dark = isDark(appearance)
-        let view = panel(.classic, appearance: appearance)
-        let image = snapshot(view)
+        let image = cardImage(.industrial, appearance: appearance)
         let item = snapshot(statusItem([72, 46], appearance: appearance))
         let frame = NSRect(origin: .zero, size: size)
         let scene = render(size, appearance: appearance) {
@@ -237,7 +221,7 @@ func renderHero() {
             (dark ? NSColor.white.withAlphaComponent(0.16) : NSColor.black.withAlphaComponent(0.10)).setFill()
             NSBezierPath(roundedRect: highlight, xRadius: 5, yRadius: 5).fill()
             item.draw(in: NSRect(x: x, y: menuBar.midY - 10, width: 34, height: 20))
-            let panelRect = NSRect(x: min(highlight.midX - 170, size.width - 340 - 16), y: menuBar.minY - 8 - view.frame.height, width: 340, height: view.frame.height)
+            let panelRect = NSRect(x: min(highlight.midX - 170, size.width - 340 - 16), y: menuBar.minY - 8 - PanelTheme.industrial.cardHeight, width: 340, height: PanelTheme.industrial.cardHeight)
             drawFloating(image, in: panelRect, dark: dark)
             // Product name on the left half.
             label("Limitwick", at: NSPoint(x: 48, y: 142), width: 380, size: 40, weight: .bold, color: dark ? .white : NSColor(white: 0.08, alpha: 1), alignment: .left)
@@ -253,7 +237,7 @@ func renderHero() {
 }
 
 @main struct ReadmeScreenshots {
-    static func main() {
+    @MainActor static func main() {
         _ = NSApplication.shared
         try! FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         renderThemes()

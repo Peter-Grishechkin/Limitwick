@@ -11,6 +11,19 @@ func durationName(_ minutes: Int) -> String {
 struct ResetText {
     static func describe(_ date: Date?, now: Date = Date(), calendar: Calendar = .current, locale: Locale = .current) -> String {
         guard let date = date else { return "Reset unavailable" }
+        let absolute = absoluteText(date, now: now, calendar: calendar, locale: locale)
+        let seconds = date.timeIntervalSince(now)
+        guard seconds > 0 else { return "Reset\u{00A0}passed\u{00A0}· \(absolute)" }
+        return unbroken("in \(relativeText(seconds))") + "\u{00A0}· \(absolute)"
+    }
+    /// Two lines for the card: "RST 3d 4h" and the moment of the reset ("4:30 PM", "Mon 4:30 PM", "Nov 8, 10:15 AM").
+    static func parts(_ date: Date?, now: Date = Date(), calendar: Calendar = .current, locale: Locale = .current) -> (relative: String, absolute: String) {
+        guard let date = date else { return ("Reset unavailable", "") }
+        let absolute = absoluteText(date, now: now, calendar: calendar, locale: locale)
+        let seconds = date.timeIntervalSince(now)
+        return (seconds > 0 ? "RST \(relativeText(seconds))" : "Reset passed", absolute)
+    }
+    private static func absoluteText(_ date: Date, now: Date, calendar: Calendar, locale: Locale) -> String {
         func format(_ template: String) -> String {
             let formatter = DateFormatter()
             formatter.locale = locale; formatter.calendar = calendar; formatter.timeZone = calendar.timeZone
@@ -21,16 +34,14 @@ struct ResetText {
         let day = calendar.isDate(date, inSameDayAs: now) ? nil
             : abs(date.timeIntervalSince(now)) < 6 * 86400 ? format("EEE") + " "
             : format(calendar.isDate(date, equalTo: now, toGranularity: .year) ? "MMMd" : "yMMMd") + ", "
-        let absolute = unbroken((day ?? "") + time)
-        let seconds = date.timeIntervalSince(now)
-        guard seconds > 0 else { return "Reset\u{00A0}passed\u{00A0}· \(absolute)" }
+        return unbroken((day ?? "") + time)
+    }
+    private static func relativeText(_ seconds: TimeInterval) -> String {
         let minutes = max(1, Int(ceil(seconds / 60)))
         let days = minutes / 1440, hours = (minutes % 1440) / 60, mins = minutes % 60
-        let relative: String
-        if days > 0 { relative = "\(days)d \(hours)h" }
-        else if hours > 0 { relative = "\(hours)h \(mins)m" }
-        else { relative = "\(mins)m" }
-        return unbroken("in \(relative)") + "\u{00A0}· \(absolute)"
+        if days > 0 { return "\(days)d \(hours)h" }
+        if hours > 0 { return "\(hours)h \(mins)m" }
+        return "\(mins)m"
     }
     private static func unbroken(_ text: String) -> String { text.replacingOccurrences(of: " ", with: "\u{00A0}") }
 }

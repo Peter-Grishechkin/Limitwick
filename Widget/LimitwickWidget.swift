@@ -21,8 +21,10 @@ private struct Provider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<Entry>) -> Void) {
-        let entry = currentEntry()
-        completion(Timeline(entries: [entry], policy: .after(entry.date.addingTimeInterval(900))))
+        // The footer shows the age of the data; three entries keep "Updated N min ago" within five minutes.
+        let now = Date(), snapshot = WidgetSnapshot.read(source)
+        let entries = (0..<3).map { Entry(date: now.addingTimeInterval(Double($0) * 300), snapshot: snapshot) }
+        completion(Timeline(entries: entries, policy: .after(now.addingTimeInterval(900))))
     }
 
     private func currentEntry() -> Entry {
@@ -33,7 +35,7 @@ private struct Provider: TimelineProvider {
 private struct QuotaWidget: Widget {
     let variant: WidgetVariant
 
-    init() { self.init(.codex, .classic, .light) }
+    init() { self.init(.codex, .industrial, .light) }
 
     init(_ source: WidgetSource, _ theme: PanelTheme, _ appearance: WidgetAppearance) {
         variant = WidgetVariant(source: source, theme: theme.rawValue, appearance: appearance)
@@ -52,7 +54,7 @@ private struct QuotaWidget: Widget {
     }
 
     private var displayName: String {
-        let title = PanelTheme(rawValue: variant.theme)?.title ?? variant.theme
+        let title = PanelTheme(stored: variant.theme).title
         return "\(title) · \(variant.source.title) · \(variant.appearance.rawValue.capitalized)"
     }
 }
@@ -61,75 +63,43 @@ private struct QuotaWidgetView: View {
     let variant: WidgetVariant
     let entry: Entry
 
+    private var theme: PanelTheme { PanelTheme(stored: variant.theme) }
+    private var scheme: ColorScheme { variant.appearance == .light ? .light : .dark }
+
     var body: some View {
-        let appearance = NSAppearance(named: variant.appearance == .light ? .aqua : .darkAqua)
-        Group {
-            if let image = render(appearance) {
-                Image(nsImage: image).resizable()
-            } else {
-                VStack {
-                    Text(variant.source.title)
-                    Text("5h: \(percent(entry.snapshot?.five)) · Week: \(percent(entry.snapshot?.week))")
-                    Text(status).font(.caption)
-                }
+        let model = self.model
+        QuotaCardFit(model: model, theme: theme, scheme: scheme)
+            .environment(\.colorScheme, scheme)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(model.accessibility)
+            .containerBackground(for: .widget) {
+                theme.tokens(dark: scheme == .dark).bg.color
             }
+    }
+
+    /// The card needs no extra rows: when there is nothing to show, the footer says why.
+    private var model: QuotaCardModel {
+        let snapshot = entry.snapshot
+        var model = QuotaCardModel.make(provider: variant.source.title, five: snapshot?.five, week: snapshot?.week,
+                                        fiveReset: snapshot?.fiveReset, weekReset: snapshot?.weekReset,
+                                        stale: snapshot?.state == .stale, loading: snapshot?.state == .waiting,
+                                        updated: snapshot?.updated, threshold: snapshot?.threshold ?? 20, now: entry.date)
+        if snapshot?.hasData != true {
+            let note: String
+            switch snapshot?.state {
+            case .none: note = "Open Limitwick to load limits"
+            case .waiting: note = "Waiting for limits"
+            default: note = "Limits unavailable · Check CLI sign-in"
+            }
+            model.footer = "\(variant.source.title) · \(note)"
         }
-        .environment(\.colorScheme, variant.appearance == .light ? .light : .dark)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(summary)
-        .containerBackground(for: .widget) {
-            Color(variant.appearance == .light ? .white : .black)
-        }
-    }
-
-    private var status: String {
-        switch entry.snapshot?.state {
-        case .none: "Open Limitwick to load limits"
-        case .waiting: "Waiting for limits"
-        case .current: ""
-        case .stale: "Previous data"
-        case .unavailable: "Limits unavailable · Check CLI sign-in"
-        }
-    }
-
-    private func percent(_ value: Double?) -> String {
-        value.map { "\(Int($0.rounded()))%" } ?? "—"
-    }
-
-    private func reset(_ date: Date?) -> String {
-        date.map { ResetText.describe($0, now: entry.date) } ?? "Reset unavailable"
-    }
-
-    private var summary: String {
-        "\(variant.source.title). Five hours: \(percent(entry.snapshot?.five)), \(reset(entry.snapshot?.fiveReset)). Week: \(percent(entry.snapshot?.week)), \(reset(entry.snapshot?.weekReset)). \(status)"
-    }
-
-    private func render(_ appearance: NSAppearance?) -> NSImage? {
-        let view = WidgetThemeView(theme: PanelTheme(rawValue: variant.theme) ?? .classic,
-            data: ThemeData(fiveHour: entry.snapshot?.five, weekly: entry.snapshot?.week,
-                            fiveReset: reset(entry.snapshot?.fiveReset), weekReset: reset(entry.snapshot?.weekReset),
-                            accessibility: summary, warningThreshold: entry.snapshot?.threshold ?? 20,
-                            providerName: variant.source.title, stale: entry.snapshot?.state == .stale),
-            status: status, appearance: appearance)
-        guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return nil }
-        if let appearance {
-            appearance.performAsCurrentDrawingAppearance { view.cacheDisplay(in: view.bounds, to: bitmap) }
-        } else {
-            view.cacheDisplay(in: view.bounds, to: bitmap)
-        }
-        let image = NSImage(size: view.bounds.size)
-        image.addRepresentation(bitmap)
-        return image
+        return model
     }
 }
 
 @main
 struct LimitwickWidgets: WidgetBundle {
     var body: some Widget {
-        QuotaWidget(.codex, .classic, .light)
-        QuotaWidget(.codex, .classic, .dark)
-        QuotaWidget(.claude, .classic, .light)
-        QuotaWidget(.claude, .classic, .dark)
         QuotaWidget(.codex, .industrial, .light)
         QuotaWidget(.codex, .industrial, .dark)
         QuotaWidget(.claude, .industrial, .light)
@@ -142,10 +112,6 @@ struct LimitwickWidgets: WidgetBundle {
         QuotaWidget(.codex, .paper, .dark)
         QuotaWidget(.claude, .paper, .light)
         QuotaWidget(.claude, .paper, .dark)
-        QuotaWidget(.codex, .capsules, .light)
-        QuotaWidget(.codex, .capsules, .dark)
-        QuotaWidget(.claude, .capsules, .light)
-        QuotaWidget(.claude, .capsules, .dark)
         QuotaWidget(.codex, .terminal, .light)
         QuotaWidget(.codex, .terminal, .dark)
         QuotaWidget(.claude, .terminal, .light)
