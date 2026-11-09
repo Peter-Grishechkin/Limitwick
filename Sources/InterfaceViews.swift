@@ -129,27 +129,48 @@ final class UpdateBadge: NSView {
     }
 }
 
-// Compact text labels distinguish providers without changing the existing quota bars.
-// Provider logos are not used: Anthropic declined permission for the Claude mark.
-// The capital letters are as tall as `rect`, which the menu bar sets to the height of the two bars.
+// Menu bar provider marks in the bar's own colour: a cloud with a prompt for Codex, Claude Code's pixel mascot for Claude.
+// Drawn in an unflipped 20 pt tall view; the glyphs span y 4…16 like the bars.
 func drawProviderMark(_ provider: String, in rect: NSRect, color: NSColor) {
-    func rounded(_ size: CGFloat) -> NSFont {
-        let base = NSFont.systemFont(ofSize: size, weight: .medium)
-        return base.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: size) } ?? base
+    let image = NSImage(size: rect.size, flipped: false) { bounds in
+        color.setFill()
+        let midX = bounds.midX.rounded(.down), midY = bounds.midY
+        if provider == "Claude" {
+            // Claude Code's terminal art: 16 × 5 cells, body, arms, eyes and legs. Cells are 1 pt wide and 2.5 pt
+            // tall (2 pt for the legs) so the mascot fills the bars' 12 pt like the cloud and stays crisp on Retina.
+            let rows: [[ClosedRange<Int>]] = [[2...13], [2...3, 5...10, 12...13], [0...15], [2...13], [3...3, 5...5, 10...10, 12...12]]
+            let heights: [CGFloat] = [2.5, 2.5, 2.5, 2.5, 2]
+            var top = midY + 6
+            let left = midX - 8
+            for (row, spans) in rows.enumerated() {
+                top -= heights[row]
+                for span in spans {
+                    NSRect(x: left + CGFloat(span.lowerBound), y: top, width: CGFloat(span.count), height: heights[row]).fill()
+                }
+            }
+        } else {
+            let x = bounds.midX - 8.5, y = midY - 6
+            let cloud = NSBezierPath(ovalIn: NSRect(x: x, y: y, width: 9, height: 9))
+            cloud.append(NSBezierPath(ovalIn: NSRect(x: x + 3.5, y: y + 2, width: 10, height: 10)))
+            cloud.append(NSBezierPath(ovalIn: NSRect(x: x + 9, y: y, width: 8, height: 8)))
+            cloud.append(NSBezierPath(roundedRect: NSRect(x: x + 3, y: y, width: 11, height: 5), xRadius: 2, yRadius: 2))
+            cloud.fill()
+            let prompt = NSBezierPath()
+            prompt.move(to: NSPoint(x: x + 5.5, y: y + 7.5)); prompt.line(to: NSPoint(x: x + 7.75, y: y + 5.5)); prompt.line(to: NSPoint(x: x + 5.5, y: y + 3.5))
+            prompt.move(to: NSPoint(x: x + 9.25, y: y + 3.5)); prompt.line(to: NSPoint(x: x + 12, y: y + 3.5))
+            prompt.lineWidth = 1.5; prompt.lineCapStyle = .round; prompt.lineJoinStyle = .round
+            NSGraphicsContext.current?.compositingOperation = .clear
+            prompt.stroke()
+        }
+        return true
     }
-    let probe = rounded(100)
-    let font = rounded(rect.height * 100 / probe.capHeight)
-    let label = NSAttributedString(string: provider == "Claude" ? "CL" : "CX",
-                                   attributes: [.font: font, .foregroundColor: color, .kern: -0.2])
-    let box = label.size()
-    // Align the cap line, not the line box, so the glyphs match the bars' top and bottom edges.
-    label.draw(at: NSPoint(x: rect.midX - box.width / 2, y: rect.midY - font.capHeight / 2 + font.descender))
+    image.draw(in: rect)
 }
 
 final class ProviderMark: NSView {
     var provider = "Codex" { didSet { needsDisplay = true } }
     override func hitTest(_ point: NSPoint) -> NSView? { nil }
-    override func draw(_ dirtyRect: NSRect) { drawProviderMark(provider, in: bounds.insetBy(dx: 0, dy: 4), color: .labelColor) }
+    override func draw(_ dirtyRect: NSRect) { drawProviderMark(provider, in: bounds, color: .labelColor) }
 }
 
 struct ProviderPresentation {

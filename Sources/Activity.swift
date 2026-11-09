@@ -113,12 +113,12 @@ struct ActivityBarLayout {
         var ci: CGFloat?, ai: CGFloat?, cm: CGFloat?, am: CGFloat?, cb: CGFloat?, ab: CGFloat?
         if codex {
             if codexActive { ci = x + 1; x += 22 }
-            if dual { cm = x + 1; x += 28 }
+            if dual { cm = x + 1; x += 21 }
             cb = x + 1; x += 34
         }
         if claude {
             if claudeActive { ai = x + 1; x += 22 }
-            if dual { am = x + 1; x += 28 }
+            if dual { am = x + 1; x += 21 }
             ab = x + 1; x += 34
         }
         width = x; codexIcon = ci; claudeIcon = ai; codexMark = cm; claudeMark = am; codexBars = cb; claudeBars = ab
@@ -138,7 +138,7 @@ final class ActivityIcon: LottieAnimationView {
         else { loopMode = state == .completed ? .playOnce : .loop; play() }
     }
     private func recolor() {
-        // Follows the menu bar like the CX/CL labels and bars: dark on a light bar, light on a dark one.
+        // Follows the menu bar like the provider marks and bars: dark on a light bar, light on a dark one.
         var color = NSColor.white
         effectiveAppearance.performAsCurrentDrawingAppearance { color = NSColor.labelColor.usingColorSpace(.deviceRGB) ?? .white }
         let provider = ColorValueProvider(LottieColor(r: Double(color.redComponent), g: Double(color.greenComponent), b: Double(color.blueComponent), a: Double(color.alphaComponent)))

@@ -9,8 +9,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
     let status = NSStatusBar.system.statusItem(withLength: 34)
     let bars = Bars(frame: NSRect(x: 0, y: 0, width: 32, height: 20))
     let claudeBars = Bars(frame: NSRect(x: 0, y: 0, width: 32, height: 20))
-    let codexMark = ProviderMark(frame: NSRect(x: 0, y: 0, width: 25, height: 20))
-    let claudeMark = ProviderMark(frame: NSRect(x: 0, y: 0, width: 25, height: 20))
+    let codexMark = ProviderMark(frame: NSRect(x: 0, y: 0, width: 18, height: 20))
+    let claudeMark = ProviderMark(frame: NSRect(x: 0, y: 0, width: 18, height: 20))
     let activity = ActivityMonitor()
     let claudeActivity = ClaudeActivityMonitor()
     let claudeActivityIcon = ActivityIcon(frame: NSRect(x: 0, y: 0, width: 19, height: 19))
@@ -415,8 +415,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         activityIcon.isHidden = layout.codexIcon == nil; claudeActivityIcon.isHidden = layout.claudeIcon == nil
         if let x = layout.codexIcon { activityIcon.frame.origin = NSPoint(x: x, y: y) }
         if let x = layout.claudeIcon { claudeActivityIcon.frame.origin = NSPoint(x: x, y: y) }
-        if let x = layout.codexMark { codexMark.frame = NSRect(x: x, y: y, width: 25, height: 20) }
-        if let x = layout.claudeMark { claudeMark.frame = NSRect(x: x, y: y, width: 25, height: 20) }
+        if let x = layout.codexMark { codexMark.frame = NSRect(x: x, y: y, width: 18, height: 20) }
+        if let x = layout.claudeMark { claudeMark.frame = NSRect(x: x, y: y, width: 18, height: 20) }
         if let x = layout.codexBars ?? (dual ? nil : layout.claudeBars) { bars.frame = NSRect(x: x, y: y, width: 32, height: 20) }
         if dual, let x = layout.claudeBars { claudeBars.frame = NSRect(x: x, y: y, width: 32, height: 20) }
         status.length = layout.width
