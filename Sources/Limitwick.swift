@@ -146,6 +146,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         claudeActivity.onChange = { [weak self] state in self?.showClaudeActivity(state) }
         if settings.activityEnabled(for: "claude") { claudeActivity.start() }
         refreshClaudeHooks()
+        refreshCodexHooks()
         removeLegacyCopies()
         activity.onChange = { [weak self] state in self?.showActivity(state) }
         if activityEnabled { activity.start() }

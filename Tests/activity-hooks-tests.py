@@ -1,5 +1,6 @@
 import json
 import shlex
+import shutil
 import os
 from pathlib import Path
 import subprocess
@@ -20,6 +21,40 @@ assert json.loads(config.read_text()) == original
 config.write_text('{bad json')
 result = subprocess.run(['/usr/bin/python3', setup, 'install'], env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 assert result.returncode != 0 and config.read_text() == '{bad json'
+
+# Hooks call a copy in Application Support, so they keep working after the app is deleted.
+def codex_commands():
+    return [h['command'] for groups in json.loads(config.read_text())['hooks'].values() for g in groups for h in g['hooks'] if 'activity-hook.py' in h['command']]
+def run_setup(script, action, environment=env):
+    return subprocess.run(['/usr/bin/python3', script, action], env=environment, check=True, capture_output=True, text=True).stdout.strip()
+codex_stable = Path(env['HOME']) / 'Library/Application Support/Limitwick/useAnimations/activity-hook.py'
+config.write_text(json.dumps(original))
+codex_stable.unlink()
+assert run_setup(setup, 'refresh') == '' and json.loads(config.read_text()) == original and not codex_stable.exists()
+missing = dict(env, CODEX_HOME=str(root / 'no-codex'))
+assert run_setup(setup, 'refresh', missing) == '' and not (root / 'no-codex').exists()
+app = root / 'Deleted.app/Contents/Resources/useAnimations'
+app.mkdir(parents=True)
+for name in ('activity-setup.py', 'activity-hook.py'):
+    (app / name).write_bytes(Path('Resources/useAnimations', name).read_bytes())
+run_setup(str(app / 'activity-setup.py'), 'install')
+shutil.rmtree(root / 'Deleted.app')
+assert codex_stable.exists() and os.access(codex_stable, os.X_OK)
+commands = codex_commands()
+assert len(commands) == 5 and all(shlex.split(c)[1] == str(codex_stable) for c in commands)
+hook = subprocess.run(shlex.split(commands[0]), env=env, input=json.dumps({'hook_event_name': 'Stop', 'session_id': 's', 'turn_id': 't'}), capture_output=True, text=True)
+assert hook.returncode == 0 and json.loads(hook.stdout) == {}
+before = config.read_bytes()
+assert run_setup(setup, 'refresh') == '' and config.read_bytes() == before
+old = '/usr/bin/python3 /Old/Limitwick.app/Contents/Resources/useAnimations/activity-hook.py'
+config.write_text(json.dumps({'hooks': {'Stop': [{'hooks': [{'type': 'command', 'command': '/usr/bin/true'}, {'type': 'command', 'command': old}]}]}}))
+assert run_setup(setup, 'refresh') == 'moved'
+commands = codex_commands()
+assert len(commands) == 5 and all(shlex.split(c)[1] == str(codex_stable) for c in commands)
+assert '/usr/bin/true' in config.read_text()
+run_setup(setup, 'remove')
+assert json.loads(config.read_text()) == {'hooks': {'Stop': [{'hooks': [{'type': 'command', 'command': '/usr/bin/true'}]}]}}
+assert codex_stable.exists()
 
 listener = Path(env['HOME']) / 'Library/Caches/Limitwick/Activity' / f'listener-{os.getpid()}'
 listener.mkdir(parents=True)

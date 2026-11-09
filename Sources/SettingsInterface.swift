@@ -1,6 +1,9 @@
 import AppKit
 import UserNotifications
 
+// Hook scripts rewrite the same config files; running them one at a time avoids lost updates.
+let hookSetupQueue = DispatchQueue(label: "Limitwick.hook-setup", qos: .utility)
+
 extension AppDelegate {
     func heading(_ title: String) -> NSTextField {
         let label = NSTextField(labelWithString: title); label.tag = 901
@@ -47,6 +50,8 @@ extension AppDelegate {
     }
     @objc func showSettings() {
         popover.performClose(nil); menuPopover?.performClose(nil)
+        // A closed window would keep the state it was built with (Claude CLI, hooks, other copies).
+        if settingsWindow?.isVisible == false { discardSettingsWindow() }
         if settingsWindow == nil {
             // With one service shown, its settings are the only ones that matter.
             if settings.providers != .both { settingsProvider = activeProvider }
@@ -127,9 +132,10 @@ extension AppDelegate {
         settingsProvider = sender.selectedSegment == 0 ? "codex" : "claude"
         reloadSettingsWindow()
     }
-    func reloadSettingsWindow() {
+    func reloadSettingsWindow() { discardSettingsWindow(); showSettings() }
+    func discardSettingsWindow() {
         if let surface = settingsWindow?.contentView { themeSurfaces.removeAll { $0 === surface } }
-        settingsWindow?.close(); settingsWindow = nil; hookStatus = nil; showSettings()
+        settingsWindow?.close(); settingsWindow = nil; hookStatus = nil
     }
     var otherCopies: [URL] {
         // Copies under the pre-2.0 bundle ID still add their widgets to the gallery.
@@ -140,7 +146,7 @@ extension AppDelegate {
     func removeLegacyCopies() {
         let copies = otherAppCopies(NSWorkspace.shared.urlsForApplications(withBundleIdentifier: AppSettings.legacyBundleID), running: Bundle.main.bundleURL).filter { !isInTrash($0) }
         guard !copies.isEmpty else { return }
-        DispatchQueue.global(qos: .utility).async { [weak self] in
+        hookSetupQueue.async { [weak self] in
             guard let self else { return }
             let running = NSRunningApplication.runningApplications(withBundleIdentifier: AppSettings.legacyBundleID)
             running.forEach { $0.terminate() }
@@ -204,20 +210,37 @@ extension AppDelegate {
     @objc func removeHooks() { runHookSetup("remove", for: settingsProvider) }
     // Returns an error description, or nil on success.
     func claudeHookSetup(_ action: String) -> String? { runHookScript("claude-activity-setup.py", action) }
-    func runHookScript(_ script: String, _ action: String) -> String? {
-        guard let path = Bundle.main.path(forResource: script, ofType: nil, inDirectory: "useAnimations") else { return "The hook installer is missing from the app." }
-        let process = Process(); let errors = Pipe()
+    func runHookScript(_ script: String, _ action: String) -> String? { runHookCommand(script, action).failure }
+    func runHookCommand(_ script: String, _ action: String) -> (failure: String?, output: String) {
+        guard let path = Bundle.main.path(forResource: script, ofType: nil, inDirectory: "useAnimations") else { return ("The hook installer is missing from the app.", "") }
+        let process = Process(); let errors = Pipe(), output = Pipe()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/python3"); process.arguments = [path, action]
-        process.standardError = errors; process.standardOutput = Pipe()
-        do { try process.run() } catch { return error.localizedDescription }
+        process.standardError = errors; process.standardOutput = output
+        do { try process.run() } catch { return (error.localizedDescription, "") }
         process.waitUntilExit()
         let detail = String(data: errors.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        return process.terminationStatus == 0 ? nil : (detail.isEmpty ? "The hook installer failed." : detail)
+        let printed = String(data: output.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        return (process.terminationStatus == 0 ? nil : (detail.isEmpty ? "The hook installer failed." : detail), printed)
     }
     // Keeps installed hooks pointing at the current helper script; never installs them on its own.
     func refreshClaudeHooks() {
         guard ClaudeActivityMonitor.hooksInstalled() else { return }
-        DispatchQueue.global(qos: .utility).async { [weak self] in _ = self?.claudeHookSetup("refresh") }
+        hookSetupQueue.async { [weak self] in _ = self?.claudeHookSetup("refresh") }
+    }
+    // Moves Codex hooks from an app bundle to the copy in Application Support. Codex runs a changed
+    // hook only after it is trusted again, so the user is told once, when the path actually changes.
+    func refreshCodexHooks() {
+        guard ActivityMonitor.hooksInstalled() else { return }
+        hookSetupQueue.async { [weak self] in
+            guard let self, self.runHookCommand("activity-setup.py", "refresh").output.contains("moved") else { return }
+            DispatchQueue.main.async {
+                self.hookStatus?.stringValue = self.hookStatusText
+                let alert = NSAlert()
+                alert.messageText = "Codex hooks moved"
+                alert.informativeText = "Limitwick hooks now run from a copy in Application Support, so they keep working if the app is moved or deleted. Codex runs changed hooks only after you trust them: open Codex Settings → Hooks, or type /hooks in the Codex CLI. Then restart open Codex sessions."
+                NSApp.activate(ignoringOtherApps: true); alert.runModal()
+            }
+        }
     }
     @discardableResult func runHookSetup(_ action: String, for provider: String) -> Bool {
         let codex = provider == "codex", name = codex ? "Codex" : "Claude"

@@ -202,7 +202,7 @@ To uninstall, click **Remove Claude hooks**. Only Limitwick's own entries are ad
 
 The text below the checkbox shows the same statuses as for Claude Code. *Waiting for activity* means the hooks are installed but no events have arrived yet: trust them in Codex and start a new session.
 
-To uninstall, click **Remove Codex hooks**. Only Limitwick's own entries are added to or removed from `~/.codex/hooks.json` (or `$CODEX_HOME/hooks.json`). The hooks call a script inside the app, so if you move the app, remove and install them again from the new copy. You can also install them from Terminal:
+To uninstall, click **Remove Codex hooks**. Only Limitwick's own entries are added to or removed from `~/.codex/hooks.json` (or `$CODEX_HOME/hooks.json`). The hook script is stored in `~/Library/Application Support/Limitwick/`, so the hooks keep working after the app is moved or updated. Hooks installed by an earlier version call a script inside the app; on launch Limitwick moves them to that copy and asks you to trust them in Codex again. You can also install them from Terminal:
 
 ```sh
 /usr/bin/python3 '/Applications/Limitwick.app/Contents/Resources/useAnimations/activity-setup.py' install

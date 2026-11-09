@@ -4,7 +4,8 @@ cd "$(dirname "$0")"
 CONFIGURATION="${LIMITWICK_BUILD_CONFIGURATION:-development}"
 case "$CONFIGURATION" in
     development) DEFAULT_APP="$PWD/build/Limitwick-Development.app"; SWIFT_FLAGS=(-D LIMITWICK_DEVELOPMENT) ;;
-    release) DEFAULT_APP="$PWD/build/Limitwick.app"; SWIFT_FLAGS=() ;;
+    # Without -O swiftc emits unoptimized code; the flag also applies to the widget below.
+    release) DEFAULT_APP="$PWD/build/Limitwick.app"; SWIFT_FLAGS=(-O) ;;
     *) echo "Unknown LIMITWICK_BUILD_CONFIGURATION: $CONFIGURATION" >&2; exit 1 ;;
 esac
 APP="${LIMITWICK_BUILD_APP:-$DEFAULT_APP}"
