@@ -2,6 +2,20 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.2.3</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Claude usage: if Claude Code exits right after launch, the update now stops at once instead of keeping a CPU core busy until the 30-second timeout.
+- Notifications: a quota reset notification that macOS refused to show (for example, before permission was granted) is offered again on the next refresh instead of being lost; it is still delivered only once.&lt;/div&gt;</description>
+      <sparkle:version>2.2.3</sparkle:version>
+      <sparkle:shortVersionString>2.2.3</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Mon, 09 Nov 2026 17:45:36 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.2.3/Limitwick-2.2.3-macOS-Apple-Silicon.zip" sparkle:edSignature="UhADM3C1XQF6kDyD3687SsZB0cgIQEY4plu/OQhdM8QtZthornjgYCOtLsbTLElg4Fj2CybcMpsnhiktBPXlBw==" length="3974142" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.2.3</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.2.2</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Menu bar: when both providers are shown, the Codex bars are marked with a cloud holding a `&amp;gt;_` prompt and the Claude bars with Claude Code&amp;#x27;s pixel mascot, instead of the &amp;quot;CX&amp;quot; and &amp;quot;CL&amp;quot; text labels.
 - Both marks are as tall as the two bars and carry about the same visual weight; like the bars, they follow the light or dark menu bar.
