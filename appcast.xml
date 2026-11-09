@@ -2,6 +2,21 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.2.2</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Menu bar: when both providers are shown, the Codex bars are marked with a cloud holding a `&amp;gt;_` prompt and the Claude bars with Claude Code&amp;#x27;s pixel mascot, instead of the &amp;quot;CX&amp;quot; and &amp;quot;CL&amp;quot; text labels.
+- Both marks are as tall as the two bars and carry about the same visual weight; like the bars, they follow the light or dark menu bar.
+- The menu bar item is 14 pt narrower (110 pt instead of 124 pt with both providers).&lt;/div&gt;</description>
+      <sparkle:version>2.2.2</sparkle:version>
+      <sparkle:shortVersionString>2.2.2</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Mon, 09 Nov 2026 17:34:47 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.2.2/Limitwick-2.2.2-macOS-Apple-Silicon.zip" sparkle:edSignature="nRxT8QfPShI/tfCRUTSef1142zgAB6oEl6WwTXqb7Cfr/HZrelIEAdkxk4SSoyshVO/DcEdg5G5CzK8rHVUSDQ==" length="4053453" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.2.2</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.2.1</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Previous data: when a refresh has failed, the filled part of the bar (Industrial, Paper) and the filled dots (Dot Matrix) are dimmed one step further, so old values read as clearly stale.
 - The Industrial footer (&amp;quot;Codex · Updated 2 min ago&amp;quot;) is set in the system font, like Dot Matrix, instead of the monospaced one.
