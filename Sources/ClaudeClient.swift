@@ -147,9 +147,11 @@ final class ClaudeClient {
     private var active: Process?
     private var cancelled = false
     init(timeout: TimeInterval = 30) { self.timeout = timeout }
-    static func findCLI(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
-        let paths = (environment["PATH"] ?? "").split(separator: ":").map(String.init) + ["/opt/homebrew/bin", "/usr/local/bin", "\(NSHomeDirectory())/.local/bin", "\(NSHomeDirectory())/.npm-global/bin", "\(NSHomeDirectory())/.volta/bin"]
-        return paths.map { ($0 as NSString).appendingPathComponent("claude") }.first { FileManager.default.isExecutableFile(atPath: $0) }
+    static func findCLI(environment: [String: String] = ProcessInfo.processInfo.environment, home: String = NSHomeDirectory(),
+                        system: [String] = CLILocator.systemFolders) -> String? {
+        // ~/.claude/local is the per-user npm install made by the old `claude migrate-installer`.
+        CLILocator.find("claude", environment: environment, home: home, system: system,
+                        preferred: ["\(home)/.claude/local/claude", "\(home)/.claude/local/node_modules/.bin/claude"])
     }
     func cancel() { lock.lock(); cancelled = true; if let p = active, p.isRunning { kill(p.processIdentifier, SIGKILL) }; lock.unlock() }
     func fetch(path: String, directory: URL? = nil) -> Result<Quota, Error> {
@@ -163,7 +165,7 @@ final class ClaudeClient {
         let process = Process(); process.executableURL = URL(fileURLWithPath: path)
         process.arguments = ["--strict-mcp-config", "--allowedTools", "", "--settings", #"{"remoteControlAtStartup":false,"disableAllHooks":true}"#]
         process.currentDirectoryURL = folder
-        var env = ProcessInfo.processInfo.environment; env["TERM"] = "xterm-256color"; env["NO_COLOR"] = "1"; env["LANG"] = "en_US.UTF-8"; env["LC_ALL"] = "en_US.UTF-8"
+        var env = CLILocator.environment(for: path); env["TERM"] = "xterm-256color"; env["NO_COLOR"] = "1"; env["LANG"] = "en_US.UTF-8"; env["LC_ALL"] = "en_US.UTF-8"
         process.environment = env; process.standardInput = tty; process.standardOutput = tty; process.standardError = tty
         lock.lock()
         guard !cancelled && active == nil else { lock.unlock(); close(master); return .failure(ClaudeError.cancelled) }

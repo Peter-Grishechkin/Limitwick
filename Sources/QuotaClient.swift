@@ -66,6 +66,60 @@ enum QuotaParser {
     }
 }
 
+// A GUI app inherits a minimal PATH, so CLIs are also looked up where installers and Node version managers put them.
+// Only file checks: Settings calls this on the main thread and the Codex listener every 30 s.
+enum CLILocator {
+    static let systemFolders = ["/opt/homebrew/bin", "/usr/local/bin"]
+    /// `preferred` paths are tried before version managers, `fallback` paths after them.
+    static func find(_ name: String, environment: [String: String], home: String, system: [String] = systemFolders,
+                     preferred: [String] = [], fallback: [String] = []) -> String? {
+        let fixed = system + ["\(home)/.local/bin", "\(home)/.npm-global/bin", "\(home)/.volta/bin", "\(home)/.cargo/bin", "\(home)/.bun/bin"]
+        let folders = (environment["PATH"] ?? "").split(separator: ":").map(String.init) + fixed
+        let candidates = folders.map { ($0 as NSString).appendingPathComponent(name) } + preferred
+            + versionManagerFolders(environment: environment, home: home).map { ($0 as NSString).appendingPathComponent(name) } + fallback
+        // APFS is case-insensitive: "claude" next to an app's executable would match the desktop app "Claude".
+        return candidates.first { !$0.contains(".app/Contents/MacOS/") && FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
+    // nvm, fnm, asdf and mise keep node next to globally installed CLIs, the default version first.
+    static func versionManagerFolders(environment: [String: String], home: String) -> [String] {
+        var folders: [String] = []
+        let nvm = environment["NVM_DIR"] ?? "\(home)/.nvm"
+        let alias = (try? String(contentsOfFile: "\(nvm)/alias/default", encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let wanted = alias.hasPrefix("v") ? String(alias.dropFirst()) : alias
+        let nvmVersions = versions(in: "\(nvm)/versions/node")
+        let isDefault = { (version: String) -> Bool in
+            !wanted.isEmpty && wanted.allSatisfy({ $0.isNumber || $0 == "." }) && (version.dropFirst() == wanted || version.dropFirst().hasPrefix(wanted + "."))
+        }
+        folders += (nvmVersions.filter(isDefault) + nvmVersions.filter { !isDefault($0) }).map { "\(nvm)/versions/node/\($0)/bin" }
+        for fnm in [environment["FNM_DIR"], "\(home)/Library/Application Support/fnm", "\(home)/.local/share/fnm", "\(home)/.fnm"].compactMap({ $0 }) {
+            folders.append("\(fnm)/aliases/default/bin")
+            folders += versions(in: "\(fnm)/node-versions").map { "\(fnm)/node-versions/\($0)/installation/bin" }
+        }
+        let asdf = environment["ASDF_DATA_DIR"] ?? "\(home)/.asdf"
+        folders += versions(in: "\(asdf)/installs/nodejs").map { "\(asdf)/installs/nodejs/\($0)/bin" }
+        let mise = environment["MISE_DATA_DIR"] ?? "\(home)/.local/share/mise"
+        folders += versions(in: "\(mise)/installs/node").map { "\(mise)/installs/node/\($0)/bin" }
+        return folders
+    }
+
+    /// Version folder names, newest first.
+    private static func versions(in folder: String) -> [String] {
+        func parts(_ name: String) -> [Int] { name.drop { !$0.isNumber }.split(separator: ".").map { Int($0.prefix { $0.isNumber }) ?? 0 } }
+        let names = ((try? FileManager.default.contentsOfDirectory(atPath: folder)) ?? []).filter { !$0.hasPrefix(".") }
+        return names.sorted { parts($0).lexicographicallyPrecedes(parts($1)) }.reversed()
+    }
+
+    /// Scripts with `#!/usr/bin/env node` need their own folder on PATH; a GUI app's PATH has no node.
+    static func environment(for path: String, base: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
+        var environment = base
+        let folder = (path as NSString).deletingLastPathComponent
+        let inherited = (base["PATH"] ?? "").isEmpty ? "/usr/bin:/bin:/usr/sbin:/sbin" : base["PATH"]!
+        environment["PATH"] = inherited.split(separator: ":").first.map(String.init) == folder ? inherited : "\(folder):\(inherited)"
+        return environment
+    }
+}
+
 // Each client owns its connection; only process setup and message framing are shared.
 private final class AppServerConnection {
     let process = Process()
@@ -73,6 +127,7 @@ private final class AppServerConnection {
     let output = Pipe()
     init(path: String) {
         process.executableURL = URL(fileURLWithPath: path)
+        process.environment = CLILocator.environment(for: path)
         process.arguments = ["app-server"]
         process.standardInput = input; process.standardOutput = output
         process.standardError = FileHandle.nullDevice
@@ -98,12 +153,13 @@ final class QuotaClient {
     private var cancelled = false
     init(timeout: TimeInterval = 20) { self.timeout = timeout }
 
-    static func findCLI(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
-        let home = NSHomeDirectory()
-        let paths = (environment["PATH"] ?? "").split(separator: ":").map(String.init)
-            + ["/opt/homebrew/bin", "/usr/local/bin", "\(home)/.local/bin", "\(home)/.npm-global/bin", "\(home)/.volta/bin", "\(home)/.cargo/bin"]
-        return paths.map { ($0 as NSString).appendingPathComponent("codex") }
-            .first { FileManager.default.isExecutableFile(atPath: $0) }
+    static func findCLI(environment: [String: String] = ProcessInfo.processInfo.environment, home: String = NSHomeDirectory(),
+                        system: [String] = CLILocator.systemFolders, applications: [String]? = nil) -> String? {
+        // The Codex desktop app (bundle com.openai.codex, named ChatGPT.app or Codex.app) ships the CLI in its resources.
+        let bundled = (applications ?? ["/Applications", "\(home)/Applications"]).flatMap { root in
+            ["Codex.app", "ChatGPT.app"].map { "\(root)/\($0)" }
+        }.filter { Bundle(path: $0)?.bundleIdentifier == "com.openai.codex" }.map { "\($0)/Contents/Resources/codex-cli/bin/codex" }
+        return CLILocator.find("codex", environment: environment, home: home, system: system, fallback: bundled)
     }
 
     func cancel() {

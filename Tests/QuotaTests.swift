@@ -113,6 +113,22 @@ import Darwin
             return QuotaClient(timeout: timeout).fetch(path: fake)
         }
         if case .success(let q) = run("success") { check(q.fiveHour?.remaining == 75 && q.weekly?.remaining == 20, "protocol success") } else { fatalError("protocol failed") }
+        do {
+            // A node-style Codex CLI (npm in nvm) must start with the minimal PATH of a GUI app.
+            let bin = NSTemporaryDirectory() + "limitwick-node-codex-\(UUID().uuidString)/bin"
+            defer { try? FileManager.default.removeItem(atPath: (bin as NSString).deletingLastPathComponent) }
+            try FileManager.default.createDirectory(atPath: bin, withIntermediateDirectories: true)
+            let script = try String(contentsOfFile: fake, encoding: .utf8)
+            for (name, body) in [("fakenode", "#!/bin/bash\nexec /bin/bash \"$@\"\n"), ("codex", "#!/usr/bin/env fakenode\n" + script.drop { $0 != "\n" }.dropFirst())] {
+                try body.write(toFile: "\(bin)/\(name)", atomically: true, encoding: .utf8)
+                try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: "\(bin)/\(name)")
+            }
+            let savedPath = ProcessInfo.processInfo.environment["PATH"] ?? ""
+            setenv("PATH", "/usr/bin:/bin:/usr/sbin:/sbin", 1); setenv("FAKE_SCENARIO", "success", 1)
+            let result = QuotaClient(timeout: 2).fetch(path: "\(bin)/codex")
+            setenv("PATH", savedPath, 1)
+            if case .success(let q) = result { check(q.fiveHour?.remaining == 75, "node-style CLI") } else { fatalError("Node-style Codex CLI did not start with a minimal PATH: \(result)") }
+        }
         if case .failure(QuotaError.serverError(let message)) = run("auth") { check(message == "Not authenticated", "auth message") } else { fatalError("auth error not reported") }
         if case .failure(QuotaError.timeout) = run("timeout", timeout: 0.2) {} else { fatalError("timeout not reported") }
         if case .failure(QuotaError.launchFailed) = QuotaClient().fetch(path: "/does/not/exist") {} else { fatalError("missing CLI") }
