@@ -2,6 +2,22 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.2.5</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Codex activity hooks now run a copy of the hook script stored in `~/Library/Application Support/Limitwick/`, as Claude Code hooks already do. They keep working if you move or delete the app without removing them first.
+- If you installed Codex hooks, trust them again once after updating. On first launch Limitwick moves hooks that still point inside the app and shows a notice. Codex runs a changed hook only after you trust it: open Codex Settings → Hooks or type `/hooks` in the Codex CLI, then restart open Codex sessions.
+- The app and widget are now built with compiler optimization. They are about a third smaller.
+- Settings shows the current state every time you open it: whether Claude Code is installed, whether hooks are installed, and other copies of the app. Before, a reopened window could show what was true when it was first opened.&lt;/div&gt;</description>
+      <sparkle:version>2.2.5</sparkle:version>
+      <sparkle:shortVersionString>2.2.5</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Mon, 09 Nov 2026 19:00:41 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.2.5/Limitwick-2.2.5-macOS-Apple-Silicon.zip" sparkle:edSignature="m+eLKeWZGuB8PAfZ3KwHZJA/63nh+f9GZCUGUNMFdpO9zuYS1Yk9veKLYSeJK8m/MFTyVQu7h5/OUw67R/IaDQ==" length="3780750" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.2.5</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.2.4</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Finding the CLIs: Limitwick now also looks for Claude Code and Codex where Node version managers and other installers put them: nvm (the default version first), fnm, asdf, mise, Bun and the older `~/.claude/local` install of Claude Code. Your shell&amp;#x27;s PATH and Homebrew still come first.
 - If you have no standalone Codex CLI, Limitwick uses the one that ships inside the Codex desktop app.
