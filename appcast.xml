@@ -2,6 +2,21 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.2.4</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Finding the CLIs: Limitwick now also looks for Claude Code and Codex where Node version managers and other installers put them: nvm (the default version first), fnm, asdf, mise, Bun and the older `~/.claude/local` install of Claude Code. Your shell&amp;#x27;s PATH and Homebrew still come first.
+- If you have no standalone Codex CLI, Limitwick uses the one that ships inside the Codex desktop app.
+- CLIs installed with npm under nvm or fnm now start from Limitwick too. They need `node`, which a menu bar app&amp;#x27;s minimal PATH does not include, so the CLI&amp;#x27;s own folder is now added to its PATH.&lt;/div&gt;</description>
+      <sparkle:version>2.2.4</sparkle:version>
+      <sparkle:shortVersionString>2.2.4</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Mon, 09 Nov 2026 18:04:24 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.2.4/Limitwick-2.2.4-macOS-Apple-Silicon.zip" sparkle:edSignature="0XYU6+A/1Rwsdbm+QBsvx+S4h3gumVDV01XlqwLyuZx9yW77wBq3R3mhyLjB3DWMmp4fxxJmm3zcxBid2mUNDw==" length="3996193" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.2.4</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.2.3</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Claude usage: if Claude Code exits right after launch, the update now stops at once instead of keeping a CPU core busy until the 30-second timeout.
 - Notifications: a quota reset notification that macOS refused to show (for example, before permission was granted) is offered again on the next refresh instead of being lost; it is still delivered only once.&lt;/div&gt;</description>
