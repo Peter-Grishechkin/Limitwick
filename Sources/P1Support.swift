@@ -76,15 +76,19 @@ struct NoticeTracker {
             let previous = resets[period]
             let remaining = Int(window.remaining.rounded())
             func key(_ kind: String) -> String { "\(kind):\(period):\(Int64(stamp))" }
+            // The old reset date is kept until the notice is delivered: NoticeService drops the delivery mark after a refusal,
+            // and the next poll must still see the reset as new.
+            var resetPending = false
             if reset, let previous = previous, previous <= time, stamp > previous, delivered[key("reset")] == nil {
                 result.append(Notice(kind: "reset", duration: window.durationMinutes, reset: stamp, remaining: remaining))
                 delivered[key("reset")] = time
+                resetPending = true
             }
             if low, window.remaining <= Double(threshold), delivered[key("low")] == nil {
                 result.append(Notice(kind: "low", duration: window.durationMinutes, reset: stamp, remaining: remaining))
                 delivered[key("low")] = time
             }
-            resets[period] = stamp
+            if !resetPending { resets[period] = stamp }
         }
         return result
     }

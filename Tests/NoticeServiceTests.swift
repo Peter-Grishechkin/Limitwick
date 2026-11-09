@@ -66,6 +66,30 @@ import Foundation
         AppSettings.importLegacy(["panelTheme.codex": "dots", "providers": "both"], into: renamed)
         AppSettings.importLegacy(["providers": "claude"], into: renamed)
         precondition(AppSettings(renamed).theme(for: "codex") == "paper" && AppSettings(renamed).providers == .both)
+        // A reset notice refused by authorization or by the system must be offered again on the next poll, and delivered once.
+        let resetSuite = "reset-\(UUID().uuidString)"; let resetDefaults = UserDefaults(suiteName: resetSuite)!
+        defer { resetDefaults.removePersistentDomain(forName: resetSuite) }
+        let resetSettings = AppSettings(resetDefaults); resetSettings.setEnabled(true, kind: "reset", for: "codex")
+        var clock = date, resetQuota = Quota(windows: [QuotaWindow(durationMinutes: 300, remaining: 100, reset: date.addingTimeInterval(60))], conflictingDurations: [])
+        var resetAuthorization: [(Bool) -> Void] = [], resetDeliveries: [(Bool) -> Void] = [], resetDelivered = 0
+        func resetService() -> NoticeService {
+            NoticeService(settings: resetSettings, authorize: { resetAuthorization.append($0) },
+                          deliver: { _, notice, _, done in precondition(notice.kind == "reset"); resetDeliveries.append { ok in if ok { resetDelivered += 1 }; done(ok) } },
+                          current: { (resetQuota, false) }, now: { clock })
+        }
+        let resets = resetService()
+        resets.process(resetQuota); precondition(resetAuthorization.isEmpty)
+        clock = date.addingTimeInterval(120)
+        resetQuota = Quota(windows: [QuotaWindow(durationMinutes: 300, remaining: 100, reset: clock.addingTimeInterval(18_000))], conflictingDurations: [])
+        resets.process(resetQuota); precondition(resetAuthorization.count == 1)
+        resetAuthorization.removeFirst()(false); precondition(resetDeliveries.isEmpty)
+        resets.process(resetQuota); precondition(resetAuthorization.count == 1, "Reset notice lost after refused authorization")
+        resetAuthorization.removeFirst()(true); precondition(resetDeliveries.count == 1)
+        resetDeliveries.removeFirst()(false)
+        resets.process(resetQuota); precondition(resetAuthorization.count == 1, "Reset notice lost after failed delivery")
+        resetAuthorization.removeFirst()(true); resetDeliveries.removeFirst()(true)
+        resets.process(resetQuota); precondition(resetAuthorization.isEmpty && resetDelivered == 1)
+        resetService().process(resetQuota); precondition(resetAuthorization.isEmpty && resetDelivered == 1)
         print("Notice service tests passed")
     }
 }

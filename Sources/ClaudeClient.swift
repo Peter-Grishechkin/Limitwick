@@ -179,9 +179,12 @@ final class ClaudeClient {
             lock.lock(); let stopped = cancelled; lock.unlock(); if stopped { return .failure(ClaudeError.cancelled) }
             var fd = pollfd(fd: master, events: Int16(POLLIN | POLLHUP), revents: 0)
             let ready = poll(&fd, 1, 100)
+            // After the CLI exits, poll reports POLLHUP at once and read returns 0 or EIO; without this the loop spins until the deadline.
+            var hungUp = ready > 0 && fd.revents & Int16(POLLIN) == 0 && fd.revents & Int16(POLLHUP | POLLERR | POLLNVAL) != 0
             if ready > 0 && fd.revents & Int16(POLLIN) != 0 {
                 var buffer = [UInt8](repeating: 0, count: 8192)
                 let count = read(master, &buffer, buffer.count)
+                if count == 0 || (count < 0 && errno != EINTR && errno != EAGAIN) { hungUp = true }
                 if count > 0 {
                     bytes += count; if bytes > 2_000_000 { return .failure(ClaudeError.invalidResponse) }
                     screen.append(String(decoding: buffer[0..<count], as: UTF8.self)); lastData = ProcessInfo.processInfo.systemUptime
@@ -214,7 +217,9 @@ final class ClaudeClient {
             }
             if !sent && !trustVisible && elapsed > 3 && (ProcessInfo.processInfo.systemUptime - lastData > 0.5 || elapsed > 10) { _ = write(master, "/usage\r", 7); sent = true }
             if let quota = best, ProcessInfo.processInfo.systemUptime - lastData > 1.2 { return .success(quota) }
-            if !process.isRunning && ready <= 0 { break }
+            if !process.isRunning && (ready <= 0 || hungUp) { break }
+            // The exit status can lag behind the hang-up for a moment; wait instead of spinning.
+            if hungUp { usleep(50_000) }
         }
         if let quota = best { return .success(quota) }
         return .failure(process.isRunning ? ClaudeError.timeout : ClaudeError.invalidResponse)

@@ -45,6 +45,17 @@ import Foundation
         if case .failure(ClaudeError.notSignedIn) = ClaudeClient(timeout: 5).fetch(path: path, directory: directory) {} else { fatalError("Login error not detected") }
         setenv("FAKE_CLAUDE_SCENARIO", "error", 1)
         if case .failure(ClaudeError.usageFailed) = ClaudeClient(timeout: 8).fetch(path: path, directory: directory) {} else { fatalError("Usage failure not detected") }
+        setenv("FAKE_CLAUDE_SCENARIO", "exit", 1)
+        func cpuSeconds() -> Double {
+            var usage = rusage(); getrusage(RUSAGE_SELF, &usage)
+            return Double(usage.ru_utime.tv_sec + usage.ru_stime.tv_sec) + Double(usage.ru_utime.tv_usec + usage.ru_stime.tv_usec) / 1_000_000
+        }
+        let started = Date(), startedCPU = cpuSeconds()
+        let exited = ClaudeClient(timeout: 30).fetch(path: path, directory: directory)
+        let wall = Date().timeIntervalSince(started), cpu = cpuSeconds() - startedCPU
+        if case .failure(ClaudeError.invalidResponse) = exited {} else { fatalError("Exited CLI: unexpected result \(exited)") }
+        precondition(wall < 2, "Exited CLI kept the client busy for \(wall) s")
+        precondition(cpu < 0.5, "Exited CLI cost \(cpu) s of CPU")
         unsetenv("FAKE_CLAUDE_SCENARIO")
         if case .failure(ClaudeError.timeout) = ClaudeClient(timeout: 0.2).fetch(path: path, directory: directory) {} else { fatalError("Timeout not detected") }
         print("Claude parser and PTY tests passed")

@@ -1,4 +1,6 @@
 #!/bin/bash
+# A CLI that dies on launch must not keep the client polling a hung-up PTY until the timeout.
+[[ "${FAKE_CLAUDE_SCENARIO:-}" == 'exit' ]] && exit 0
 printf 'Claude Code ready\r\n'
 if [[ "${FAKE_CLAUDE_SCENARIO:-}" == 'login' ]]; then
   printf 'Not authenticated. Run /login\r\n'
