@@ -41,6 +41,8 @@ final class NoticeService {
                     self.pending.remove(key)
                     guard success else { return }
                     self.tracker.delivered[key] = self.now().timeIntervalSince1970
+                    self.tracker.confirm(notice)
+                    self.settings.setNoticeResets(self.tracker.resets, for: self.provider)
                     self.settings.setNoticeDelivered(self.tracker.delivered, for: self.provider)
                 }
             }

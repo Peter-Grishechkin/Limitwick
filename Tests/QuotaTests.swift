@@ -107,6 +107,27 @@ import Darwin
         check(restored.evaluate([next], now: now.addingTimeInterval(62), low: true, reset: true, threshold: 20).isEmpty, "reset once")
         let missing = QuotaWindow(durationMinutes: 60, remaining: 0, reset: nil)
         check(restored.evaluate([missing, old], now: now.addingTimeInterval(120), low: true, reset: true, threshold: 20).isEmpty, "missing and passed reset do not notify")
+        // An unused Codex window moves its reset date to "now + 5 h" on every poll.
+        let start = now.addingTimeInterval(1000)
+        func slide(_ remaining: Double, _ offset: TimeInterval) -> QuotaWindow { QuotaWindow(durationMinutes: 300, remaining: remaining, reset: start.addingTimeInterval(offset)) }
+        func at(_ offset: TimeInterval) -> Date { start.addingTimeInterval(offset) }
+        var idle = NoticeTracker(resets: [:], delivered: [:])
+        check(idle.evaluate([slide(100, 0)], now: at(-60), low: true, reset: true, threshold: 20).isEmpty, "full window seen")
+        check(idle.evaluate([slide(99.6, 18_000)], now: at(60), low: true, reset: true, threshold: 20).isEmpty, "full to full reset is silent")
+        check(idle.evaluate([slide(100, 18_180)], now: at(240), low: true, reset: true, threshold: 20).isEmpty, "sliding full window stays silent")
+        var idleRestored = NoticeTracker(resets: idle.resets, delivered: idle.delivered)
+        check(idleRestored.evaluate([slide(100, 36_400)], now: at(18_400), low: true, reset: true, threshold: 20).isEmpty, "full marker survives restart")
+        var used = NoticeTracker(resets: [:], delivered: [:])
+        check(used.evaluate([slide(40, 0)], now: at(-60), low: true, reset: true, threshold: 20).isEmpty, "used window seen")
+        let first = used.evaluate([slide(100, 18_000)], now: at(60), low: true, reset: true, threshold: 20)
+        check(first.map(\.kind) == ["reset"], "used window reset notifies")
+        used.delivered.removeValue(forKey: "reset:300:\(Int64(start.timeIntervalSince1970 + 18_000))")
+        let retry = used.evaluate([slide(100, 18_180)], now: at(240), low: true, reset: true, threshold: 20)
+        check(retry.map(\.kind) == ["reset"], "refused reset is offered again on a sliding window")
+        used.confirm(retry[0])
+        check(used.evaluate([slide(100, 18_360)], now: at(420), low: true, reset: true, threshold: 20).isEmpty, "delivered reset is not repeated on a sliding window")
+        check(used.evaluate([slide(70, 18_360)], now: at(10_000), low: true, reset: true, threshold: 20).isEmpty, "window used again")
+        check(used.evaluate([slide(100, 36_500)], now: at(18_500), low: true, reset: true, threshold: 20).map(\.kind) == ["reset"], "reset after use notifies again")
         let fake = CommandLine.arguments[1]
         func run(_ scenario: String, timeout: TimeInterval = 2) -> Result<Quota, Error> {
             setenv("FAKE_SCENARIO", scenario, 1)

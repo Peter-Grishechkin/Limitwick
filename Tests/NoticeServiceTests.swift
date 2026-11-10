@@ -70,7 +70,7 @@ import Foundation
         let resetSuite = "reset-\(UUID().uuidString)"; let resetDefaults = UserDefaults(suiteName: resetSuite)!
         defer { resetDefaults.removePersistentDomain(forName: resetSuite) }
         let resetSettings = AppSettings(resetDefaults); resetSettings.setEnabled(true, kind: "reset", for: "codex")
-        var clock = date, resetQuota = Quota(windows: [QuotaWindow(durationMinutes: 300, remaining: 100, reset: date.addingTimeInterval(60))], conflictingDurations: [])
+        var clock = date, resetQuota = Quota(windows: [QuotaWindow(durationMinutes: 300, remaining: 40, reset: date.addingTimeInterval(60))], conflictingDurations: [])
         var resetAuthorization: [(Bool) -> Void] = [], resetDeliveries: [(Bool) -> Void] = [], resetDelivered = 0
         func resetService() -> NoticeService {
             NoticeService(settings: resetSettings, authorize: { resetAuthorization.append($0) },
@@ -90,6 +90,26 @@ import Foundation
         resetAuthorization.removeFirst()(true); resetDeliveries.removeFirst()(true)
         resets.process(resetQuota); precondition(resetAuthorization.isEmpty && resetDelivered == 1)
         resetService().process(resetQuota); precondition(resetAuthorization.isEmpty && resetDelivered == 1)
+        // An unused window reports a new reset date on every poll; the delivered reset must not repeat.
+        let slideSuite = "slide-\(UUID().uuidString)"; let slideDefaults = UserDefaults(suiteName: slideSuite)!
+        defer { slideDefaults.removePersistentDomain(forName: slideSuite) }
+        let slideSettings = AppSettings(slideDefaults); slideSettings.setEnabled(true, kind: "reset", for: "codex")
+        var slideClock = date, slideDelivered = 0
+        func sliding(_ remaining: Double) -> Quota { Quota(windows: [QuotaWindow(durationMinutes: 300, remaining: remaining, reset: slideClock.addingTimeInterval(slideClock == date ? 60 : 18_000))], conflictingDurations: []) }
+        func slideService() -> NoticeService {
+            NoticeService(settings: slideSettings, authorize: { $0(true) }, deliver: { _, _, _, done in slideDelivered += 1; done(true) },
+                          current: { (sliding(100), false) }, now: { slideClock })
+        }
+        let slide = slideService()
+        slide.process(sliding(40))
+        for step in 1...4 {
+            slideClock = date.addingTimeInterval(120 + 180 * Double(step - 1))
+            slide.process(sliding(100))
+        }
+        precondition(slideDelivered == 1, "Reset notice repeated on a sliding window: \(slideDelivered)")
+        // After a sleep longer than the window, a reset from a full window to a full one stays silent.
+        slideClock = slideClock.addingTimeInterval(20_000)
+        slideService().process(sliding(100)); precondition(slideDelivered == 1, "Reset notice sent for a full-to-full reset")
         print("Notice service tests passed")
     }
 }

@@ -62,6 +62,7 @@ struct Notice: Equatable {
 }
 
 // Only reset dates and delivery keys are retained; percentages and account data are not stored.
+// "<period>:full" holds the reset date of the window last seen at 100%, so a reset from a full window to a full one stays silent.
 struct NoticeTracker {
     var resets: [String: Double]
     var delivered: [String: Double]
@@ -76,10 +77,11 @@ struct NoticeTracker {
             let previous = resets[period]
             let remaining = Int(window.remaining.rounded())
             func key(_ kind: String) -> String { "\(kind):\(period):\(Int64(stamp))" }
-            // The old reset date is kept until the notice is delivered: NoticeService drops the delivery mark after a refusal,
-            // and the next poll must still see the reset as new.
+            // The old reset date is kept until the notice is delivered (see confirm): NoticeService drops the delivery mark
+            // after a refusal, and the next poll must still see the reset as new.
             var resetPending = false
-            if reset, let previous = previous, previous <= time, stamp > previous, delivered[key("reset")] == nil {
+            if reset, let previous = previous, previous <= time, stamp > previous, delivered[key("reset")] == nil,
+               !(remaining >= 100 && resets[period + ":full"] == previous) {
                 result.append(Notice(kind: "reset", duration: window.durationMinutes, reset: stamp, remaining: remaining))
                 delivered[key("reset")] = time
                 resetPending = true
@@ -88,9 +90,22 @@ struct NoticeTracker {
                 result.append(Notice(kind: "low", duration: window.durationMinutes, reset: stamp, remaining: remaining))
                 delivered[key("low")] = time
             }
-            if !resetPending { resets[period] = stamp }
+            if !resetPending { remember(period, stamp, full: remaining >= 100) }
         }
         return result
+    }
+
+    // An unused Codex window reports a new reset date on every poll, so the delivered reset must become the known one;
+    // otherwise each poll would see the old, passed date again and repeat the notice.
+    mutating func confirm(_ notice: Notice) {
+        let period = String(notice.duration)
+        guard notice.kind == "reset", notice.reset > resets[period] ?? 0 else { return }
+        remember(period, notice.reset, full: notice.remaining >= 100)
+    }
+
+    private mutating func remember(_ period: String, _ stamp: Double, full: Bool) {
+        resets[period] = stamp
+        resets[period + ":full"] = full ? stamp : nil
     }
 }
 
