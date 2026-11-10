@@ -62,13 +62,14 @@ private struct QuotaWidget: Widget {
 private struct QuotaWidgetView: View {
     let variant: WidgetVariant
     let entry: Entry
+    @Environment(\.widgetRenderingMode) private var renderingMode
 
     private var theme: PanelTheme { PanelTheme(stored: variant.theme) }
     private var scheme: ColorScheme { variant.appearance == .light ? .light : .dark }
 
     var body: some View {
         let model = self.model
-        QuotaCardFit(model: model, theme: theme, scheme: scheme)
+        QuotaCardFit(model: model, theme: theme, scheme: scheme, vibrant: renderingMode != .fullColor)
             .environment(\.colorScheme, scheme)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(model.accessibility)

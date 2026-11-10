@@ -5,6 +5,21 @@ func check(_ condition: @autoclosure () -> Bool, _ message: String, line: UInt =
     if !condition() { fatalError("FAILED (line \(line)): \(message)") }
 }
 
+/// Mean of alpha × luminance: roughly how much of the image survives as opaque white in vibrant rendering (0…1).
+func vibrantCoverage(_ image: CGImage) -> Double {
+    let w = image.width, h = image.height
+    var pixels = [UInt8](repeating: 0, count: w * h * 4)
+    let context = CGContext(data: &pixels, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+    context.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+    var sum = 0.0
+    for i in stride(from: 0, to: pixels.count, by: 4) {
+        // Premultiplied channels already carry alpha.
+        sum += (0.2126 * Double(pixels[i]) + 0.7152 * Double(pixels[i + 1]) + 0.0722 * Double(pixels[i + 2])) / 255
+    }
+    return sum / Double(w * h)
+}
+
 @main struct CardTests {
     @MainActor static func main() {
         _ = NSApplication.shared
@@ -65,6 +80,16 @@ func check(_ condition: @autoclosure () -> Bool, _ message: String, line: UInt =
             guard let image = fit.cgImage else { fatalError("No widget image") }
             check(image.width == 728 && image.height == 340, "widget size")
             try! NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: "build/widget-\(theme.rawValue).png"))
+        }
+        // Inactive desktop widget (vibrant rendering): macOS drops the container background and maps luminance to opacity,
+        // so a card that paints its own light background turns into a plain white block. Only the ink may stay bright.
+        for theme in PanelTheme.allCases {
+            let fit = ImageRenderer(content: QuotaCardFit(model: normal, theme: theme, scheme: .light, vibrant: true).frame(width: 364, height: 170))
+            fit.scale = 1
+            guard let image = fit.cgImage else { fatalError("No vibrant widget image") }
+            let coverage = vibrantCoverage(image)
+            check(coverage < 0.3, "\(theme.rawValue) vibrant widget is a bright block (coverage \(coverage))")
+            try! NSBitmapImageRep(cgImage: image).representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: "build/widget-\(theme.rawValue)-vibrant.png"))
         }
         print("Card tests passed (model, footer, migration, layout; \(PanelTheme.allCases.count) themes rendered, VT323 \(CardFonts.terminalAvailable ? "loaded" : "missing"))")
     }

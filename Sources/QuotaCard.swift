@@ -106,9 +106,12 @@ struct QuotaCardView: View {
     let model: QuotaCardModel
     let theme: PanelTheme
     var scheme: ColorScheme? = nil
+    /// Inactive desktop widget: macOS removes the container background and maps luminance to opacity,
+    /// so the card draws no background of its own and uses light ink (dark tokens) whatever the appearance.
+    var vibrant = false
     @Environment(\.colorScheme) private var systemScheme
 
-    private var dark: Bool { (scheme ?? systemScheme) == .dark }
+    private var dark: Bool { vibrant || (scheme ?? systemScheme) == .dark }
     private var base: CardTokens { theme.tokens(dark: dark) }
     private var ink: CardTokens { model.stale ? base.receded() : base }
     private var footerInk: RGB { model.stale ? base.secondary.mixed(with: base.bg, 0.2) : base.secondary }
@@ -131,7 +134,7 @@ struct QuotaCardView: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            Rectangle().fill(base.bg.color)
+            if !vibrant { Rectangle().fill(base.bg.color) }
             switch theme {
             case .industrial: industrial
             case .dots: dots
@@ -272,11 +275,12 @@ struct QuotaCardFit: View {
     let model: QuotaCardModel
     let theme: PanelTheme
     var scheme: ColorScheme? = nil
+    var vibrant = false
     var body: some View {
         GeometryReader { geo in
             let h = theme.cardHeight
             let scale = min(geo.size.width / 340, geo.size.height / h)
-            QuotaCardView(model: model, theme: theme, scheme: scheme)
+            QuotaCardView(model: model, theme: theme, scheme: scheme, vibrant: vibrant)
                 .frame(width: 340, height: h)
                 .scaleEffect(scale)
                 .frame(width: geo.size.width, height: geo.size.height)
