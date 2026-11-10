@@ -1,0 +1,36 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    # Pinned so a macos-latest migration does not change the toolchain silently.
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # Only the downloaded Sparkle and Lottie archives: build.sh checks their SHA-256.
+      # A cached Limitwick-Development.app would make run.sh skip build.sh and test stale code.
+      - uses: actions/cache@v6
+        with:
+          path: |
+            build/sparkle-*
+            build/lottie-*
+          key: deps-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('build.sh') }}
+          restore-keys: deps-${{ runner.os }}-${{ runner.arch }}-
+
+      - run: swiftc --version
+
+      - run: ./Tests/run.sh
