@@ -109,6 +109,20 @@ import Darwin
         check(restored.evaluate([old], now: now, low: true, reset: true, threshold: 20).isEmpty, "duplicate after restart")
         check(restored.evaluate([next], now: now.addingTimeInterval(61), low: true, reset: true, threshold: 20).map(\.kind) == ["reset"], "confirmed reset")
         check(restored.evaluate([next], now: now.addingTimeInterval(62), low: true, reset: true, threshold: 20).isEmpty, "reset once")
+        // The reported reset of one window jitters between polls: by a minute in the Claude CLI text, by a second from Codex.
+        let base = now.addingTimeInterval(7200)
+        func jitter(_ offset: TimeInterval, _ remaining: Double = 10) -> QuotaWindow { QuotaWindow(durationMinutes: 300, remaining: remaining, reset: base.addingTimeInterval(offset)) }
+        var shaky = NoticeTracker(resets: [:], delivered: [:])
+        check(shaky.evaluate([jitter(0)], now: now, low: true, reset: true, threshold: 20).map(\.kind) == ["low"], "jitter first low")
+        check(shaky.evaluate([jitter(60)], now: now.addingTimeInterval(180), low: true, reset: true, threshold: 20).isEmpty, "low once when reset moves a minute later")
+        check(shaky.evaluate([jitter(1)], now: now.addingTimeInterval(360), low: true, reset: true, threshold: 20).isEmpty, "low once when reset moves a second")
+        check(shaky.evaluate([jitter(-60)], now: now.addingTimeInterval(540), low: true, reset: true, threshold: 20).isEmpty, "low once when reset moves a minute earlier")
+        var shakyRestored = NoticeTracker(resets: shaky.resets, delivered: shaky.delivered)
+        check(shakyRestored.evaluate([jitter(60)], now: now.addingTimeInterval(720), low: true, reset: true, threshold: 20).isEmpty, "low once with jitter after restart")
+        check(shakyRestored.evaluate([jitter(0)], now: now.addingTimeInterval(900), low: true, reset: true, threshold: 20).isEmpty, "jitter back to the first date")
+        check(shakyRestored.evaluate([jitter(60)], now: base.addingTimeInterval(30), low: true, reset: true, threshold: 20).isEmpty, "jitter past the old reset is not a reset")
+        let nextWindow = shakyRestored.evaluate([jitter(18_000)], now: base.addingTimeInterval(120), low: true, reset: true, threshold: 20)
+        check(nextWindow.map(\.kind) == ["reset", "low"], "next window notifies reset and low again")
         let missing = QuotaWindow(durationMinutes: 60, remaining: 0, reset: nil)
         check(restored.evaluate([missing, old], now: now.addingTimeInterval(120), low: true, reset: true, threshold: 20).isEmpty, "missing and passed reset do not notify")
         // An unused Codex window moves its reset date to "now + 5 h" on every poll.

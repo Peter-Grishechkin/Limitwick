@@ -76,17 +76,27 @@ struct NoticeTracker {
             let period = String(window.durationMinutes), stamp = date.timeIntervalSince1970
             let previous = resets[period]
             let remaining = Int(window.remaining.rounded())
+            // Providers report one window's reset with jitter (the Claude CLI by a minute, Codex by a second), so reset dates
+            // closer than 10 minutes belong to the same window; the shortest window is far longer than that.
+            let tolerance: TimeInterval = 600
             func key(_ kind: String) -> String { "\(kind):\(period):\(Int64(stamp))" }
+            func wasDelivered(_ kind: String) -> Bool {
+                delivered.keys.contains { stored in
+                    let parts = stored.split(separator: ":")
+                    guard parts.count == 3, parts[0] == kind, parts[1] == period, let other = Double(parts[2]) else { return false }
+                    return abs(other - stamp) < tolerance
+                }
+            }
             // The old reset date is kept until the notice is delivered (see confirm): NoticeService drops the delivery mark
             // after a refusal, and the next poll must still see the reset as new.
             var resetPending = false
-            if reset, let previous = previous, previous <= time, stamp > previous, delivered[key("reset")] == nil,
+            if reset, let previous = previous, previous <= time, stamp - previous >= tolerance, !wasDelivered("reset"),
                !(remaining >= 100 && resets[period + ":full"] == previous) {
                 result.append(Notice(kind: "reset", duration: window.durationMinutes, reset: stamp, remaining: remaining))
                 delivered[key("reset")] = time
                 resetPending = true
             }
-            if low, window.remaining <= Double(threshold), delivered[key("low")] == nil {
+            if low, window.remaining <= Double(threshold), !wasDelivered("low") {
                 result.append(Notice(kind: "low", duration: window.durationMinutes, reset: stamp, remaining: remaining))
                 delivered[key("low")] = time
             }
