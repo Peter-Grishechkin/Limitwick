@@ -2,6 +2,19 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.3.0</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Limitwick now has its own app icon: a cloud with a lit wick. It shows in Finder, Spotlight, System Settings and notifications instead of the generic app icon.&lt;/div&gt;</description>
+      <sparkle:version>2.3.0</sparkle:version>
+      <sparkle:shortVersionString>2.3.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Tue, 10 Nov 2026 17:40:33 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.3.0/Limitwick-2.3.0-macOS-Apple-Silicon.zip" sparkle:edSignature="zdety/xhbQqDWtFBEcrSGSxRsIc+dxlNAW2/w43/Z19tZauuOGQWGNEqibL3h7Cqq8McVR+t4mqzHDg2zU19Bw==" length="3860805" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.3.0</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.2.7</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Limitwick now tells Codex its real version when it connects. Before, every version reported itself as 1.7.0.
 - Removed unused settings code left over from before separate Codex and Claude settings. Your saved settings and notification history stay as they are.&lt;/div&gt;</description>
