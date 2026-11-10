@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Limitwick app icon: a cloud with a lit wick; the flame is a spark. Rebuild AppIcon.icns with scripts/make-icon.sh. -->
+  <defs>
+    <g id="spark" stroke-linecap="round" stroke-width="30">
+      <line x1="0" y1="0" x2="97.8" y2="20.8"/>
+      <line x1="0" y1="0" x2="38.1" y2="58.7"/>
+      <line x1="0" y1="0" x2="-20.8" y2="97.8"/>
+      <line x1="0" y1="0" x2="-58.7" y2="38.1"/>
+      <line x1="0" y1="0" x2="-97.8" y2="-20.8"/>
+      <line x1="0" y1="0" x2="-38.1" y2="-58.7"/>
+      <line x1="0" y1="0" x2="20.8" y2="-97.8"/>
+      <line x1="0" y1="0" x2="58.7" y2="-38.1"/>
+    </g>
+  </defs>
+  <!-- macOS icon grid: 824 pt body centred on a 1024 canvas -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#1F1F1D"/>
+  <path d="M600,465 Q690,370 712,300" fill="none" stroke="#9A9A92" stroke-width="32" stroke-linecap="round"/>
+  <g stroke="#FF5A2A" transform="translate(728,250) scale(0.95)"><use xlink:href="#spark"/></g>
+  <g fill="#EDEDE6">
+    <circle cx="300" cy="690" r="110"/>
+    <circle cx="490" cy="570" r="170"/>
+    <circle cx="670" cy="690" r="110"/>
+    <rect x="300" y="690" width="370" height="110"/>
+  </g>
+</svg>
