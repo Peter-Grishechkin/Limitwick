@@ -21,6 +21,19 @@ for KEY in CFBundleShortVersionString CFBundleVersion; do
     VALUE="$(/usr/libexec/PlistBuddy -c "Print :$KEY" "$PLIST")"
     [ "$VALUE" = "$VERSION" ] || { echo "$KEY in archive is $VALUE, expected $VERSION" >&2; exit 1; }
 done
+# The release must hold this exact archive: same name, size and, when GitHub reports it, SHA-256.
+LOCAL_SIZE="$(stat -f %z "$ARCHIVE")"
+LOCAL_SHA="$(shasum -a 256 "$ARCHIVE" | cut -d' ' -f1)"
+ASSET="$(gh release view "v$VERSION" --repo frankydzoro/Limitwick --json assets --jq ".assets[] | select(.name == \"$NAME\") | \"\(.size) \(.digest // \"\")\"")"
+[ -n "$ASSET" ] || { echo "Release v$VERSION has no asset $NAME; upload the archive first." >&2; exit 1; }
+REMOTE_SIZE=""; REMOTE_SHA=""
+read -r REMOTE_SIZE REMOTE_SHA <<< "$ASSET"
+REMOTE_SHA="${REMOTE_SHA#sha256:}"
+[ "$REMOTE_SIZE" = "$LOCAL_SIZE" ] || { echo "Asset size on GitHub is $REMOTE_SIZE, local archive is $LOCAL_SIZE." >&2; exit 1; }
+if [ -n "$REMOTE_SHA" ] && [ "$REMOTE_SHA" != "$LOCAL_SHA" ]; then
+    echo "Asset SHA-256 on GitHub differs from the local archive." >&2
+    exit 1
+fi
 # The public release is the source of truth for what users see before updating.
 gh release view "v$VERSION" --repo frankydzoro/Limitwick --json body --jq .body | python3 scripts/release-changes.py > "$NOTES"
 SIGNER="$PWD/build/sparkle-2.10.1/bin/sign_update"
