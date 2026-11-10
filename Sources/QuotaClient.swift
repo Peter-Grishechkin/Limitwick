@@ -120,6 +120,11 @@ enum CLILocator {
     }
 }
 
+/// Version sent as `clientInfo.version`; test binaries have no Info.plist, hence the fallback.
+func clientVersion(_ info: [String: Any]?) -> String {
+    (info?["CFBundleShortVersionString"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? "0.0.0"
+}
+
 // Each client owns its connection; only process setup and message framing are shared.
 private final class AppServerConnection {
     let process = Process()
@@ -137,7 +142,7 @@ private final class AppServerConnection {
         try input.fileHandleForWriting.write(contentsOf: data)
     }
     func initialize() throws {
-        try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "limitwick", "version": "1.7.0"]]])
+        try send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "limitwick", "version": clientVersion(Bundle.main.infoDictionary)]]])
     }
     func close() {
         try? input.fileHandleForWriting.close()

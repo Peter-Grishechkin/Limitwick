@@ -9,6 +9,10 @@ import Darwin
         func json(_ string: String) throws -> [String: Any] {
             try JSONSerialization.jsonObject(with: Data(string.utf8)) as! [String: Any]
         }
+        check(clientVersion(["CFBundleShortVersionString": "2.2.6"]) == "2.2.6", "client version comes from the bundle")
+        check(clientVersion(nil) == "0.0.0" && clientVersion(["CFBundleShortVersionString": ""]) == "0.0.0", "client version falls back without a bundle version")
+        let plist = NSDictionary(contentsOfFile: "Info.plist") as? [String: Any]
+        check(plist != nil && clientVersion(plist) == plist?["CFBundleShortVersionString"] as? String, "client version matches Info.plist")
         check(isMajorUpdate("2.0.0", installedVersion: "1.8.1"), "major update detected")
         check(isMajorUpdate("3.1.0", installedVersion: "1.8.1"), "multiple major versions detected")
         check(!isMajorUpdate("1.9.0", installedVersion: "1.8.1"), "minor update is not major")

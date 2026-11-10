@@ -32,25 +32,16 @@ final class AppSettings {
     func setThreshold(_ value: Int, for provider: String) { defaults.set(value, forKey: "noticeThreshold.\(provider)") }
     func enabled(_ kind: String, for provider: String) -> Bool { defaults.bool(forKey: "\(kind == "low" ? "noticeLow" : "noticeReset").\(provider)") }
     func setEnabled(_ value: Bool, kind: String, for provider: String) { defaults.set(value, forKey: "\(kind == "low" ? "noticeLow" : "noticeReset").\(provider)") }
-    var theme: String { get { defaults.string(forKey: "panelTheme") ?? "" } set { defaults.set(newValue, forKey: "panelTheme") } }
-    var appearance: String { get { defaults.string(forKey: "appearanceMode") ?? "" } set { defaults.set(newValue, forKey: "appearanceMode") } }
     var providers: ProviderSelection {
         get { ProviderSelection(rawValue: defaults.string(forKey: "providers") ?? "codex") ?? .codex }
         set { defaults.set(newValue.rawValue, forKey: "providers") }
     }
-    var activityEnabled: Bool { get { defaults.object(forKey: "activityEnabled") as? Bool ?? true } set { defaults.set(newValue, forKey: "activityEnabled") } }
     var desktopVisible: Bool { get { defaults.bool(forKey: "desktopVisible") } set { defaults.set(newValue, forKey: "desktopVisible") } }
-    var threshold: Int {
-        get { let value = defaults.integer(forKey: "noticeThreshold.codex"); return value == 0 ? 20 : min(99, max(1, value)) }
-        set { defaults.set(newValue, forKey: "noticeThreshold.codex") }
-    }
-    func enabled(_ kind: String) -> Bool { enabled(kind, for: "codex") }
-    func setEnabled(_ value: Bool, key: String) { defaults.set(value, forKey: "\(key).codex") }
-    var resets: [String: Double] { get { defaults.dictionary(forKey: "noticeResets") as? [String: Double] ?? [:] } set { defaults.set(newValue, forKey: "noticeResets") } }
-    var delivered: [String: Double] { get { defaults.dictionary(forKey: "noticeDelivered") as? [String: Double] ?? [:] } set { defaults.set(newValue, forKey: "noticeDelivered") } }
-    func noticeResets(for provider: String) -> [String: Double] { provider == "codex" ? resets : defaults.dictionary(forKey: "noticeResets.\(provider)") as? [String: Double] ?? [:] }
-    func noticeDelivered(for provider: String) -> [String: Double] { provider == "codex" ? delivered : defaults.dictionary(forKey: "noticeDelivered.\(provider)") as? [String: Double] ?? [:] }
-    func setNoticeResets(_ value: [String: Double], for provider: String) { if provider == "codex" { resets = value } else { defaults.set(value, forKey: "noticeResets.\(provider)") } }
-    func setNoticeDelivered(_ value: [String: Double], for provider: String) { if provider == "codex" { delivered = value } else { defaults.set(value, forKey: "noticeDelivered.\(provider)") } }
+    // Codex notice dates predate the Claude provider and keep their unsuffixed keys; renaming them would repeat delivered notices.
+    private func noticeKey(_ base: String, for provider: String) -> String { provider == "codex" ? base : "\(base).\(provider)" }
+    func noticeResets(for provider: String) -> [String: Double] { defaults.dictionary(forKey: noticeKey("noticeResets", for: provider)) as? [String: Double] ?? [:] }
+    func noticeDelivered(for provider: String) -> [String: Double] { defaults.dictionary(forKey: noticeKey("noticeDelivered", for: provider)) as? [String: Double] ?? [:] }
+    func setNoticeResets(_ value: [String: Double], for provider: String) { defaults.set(value, forKey: noticeKey("noticeResets", for: provider)) }
+    func setNoticeDelivered(_ value: [String: Double], for provider: String) { defaults.set(value, forKey: noticeKey("noticeDelivered", for: provider)) }
     var availableUpdate: [String: String]? { get { defaults.dictionary(forKey: "availableUpdate") as? [String: String] } set { defaults.set(newValue, forKey: "availableUpdate") } }
 }
