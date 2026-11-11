@@ -14,6 +14,7 @@
   <img alt="Apple Silicon" src="https://img.shields.io/badge/Apple%20Silicon-arm64-1f2328">
   <a href="https://github.com/Peter-Grishechkin/Limitwick/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/Peter-Grishechkin/Limitwick/total?color=5bd16b"></a>
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-5ab0e8"></a>
+  <a href="https://t.me/seo_and_sem"><img alt="Author's Telegram channel" src="https://img.shields.io/badge/Telegram-author's%20channel-26a5e4?logo=telegram"></a>
 </p>
 
 <picture>
@@ -238,6 +239,10 @@ open build/Limitwick-Development.app
 ```
 
 The development build has its own identifiers and widget storage, so it does not interfere with the installed app. To redraw the README images after a design change, run `./scripts/render-screenshots.sh`: it renders them from the app's views with fixed demo values into `docs/images`, builds the animated Sessions window with `ffmpeg` and compresses PNGs with `oxipng` if it is installed. Releases: [publishing updates](docs/RELEASING.md). Internals: [how Limitwick works](docs/DETAILS.md) and the wiki's [Architecture](https://github.com/Peter-Grishechkin/Limitwick/wiki/Architecture) and [Building and contributing](https://github.com/Peter-Grishechkin/Limitwick/wiki/Building-and-Contributing).
+
+## Author
+
+Made by Peter Grishechkin, an SEO specialist. I write about Limitwick and the other tools I build, SEO and AI in my Telegram channel [Разум Петра (SEO, AI и около)](https://t.me/seo_and_sem), in Russian. The **Telegram** button in **About Limitwick** opens it too.
 
 ## License
 

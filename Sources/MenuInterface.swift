@@ -10,13 +10,15 @@ extension AppDelegate {
             let versionLabel = NSTextField(labelWithString: "Version \(version)"); versionLabel.tag = 902
             let description = NSTextField(wrappingLabelWithString: "Codex and Claude Code limits in your menu bar."); description.widthAnchor.constraint(equalToConstant: 312).isActive = true
             let github = NSButton(title: "GitHub", target: self, action: #selector(openGitHub))
+            let telegram = NSButton(title: "Telegram", target: self, action: #selector(openTelegram)); telegram.toolTip = "Author's channel about SEO and AI tools (in Russian)"
             let close = NSButton(title: "Close", target: self, action: #selector(closeAbout))
-            let buttons = NSStackView(views: [github, close]); buttons.orientation = .horizontal; buttons.spacing = 8
+            let buttons = NSStackView(views: [github, telegram, close]); buttons.orientation = .horizontal; buttons.spacing = 8
             aboutWindow = makeWindow(title: "About Limitwick", content: stack([title, versionLabel, description, buttons], spacing: 14), width: 360)
         }
         NSApp.activate(ignoringOtherApps: true); aboutWindow?.makeKeyAndOrderFront(nil)
     }
     @objc func openGitHub() { NSWorkspace.shared.open(URL(string: "https://github.com/frankydzoro/Limitwick")!) }
+    @objc func openTelegram() { NSWorkspace.shared.open(URL(string: "https://t.me/seo_and_sem")!) }
     @objc func closeAbout() { aboutWindow?.performClose(nil) }
 
     func showContextMenu(relativeTo button: NSView) {
