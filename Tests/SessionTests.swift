@@ -433,6 +433,13 @@ import Foundation
         precondition(SessionStore.hat(for: id, count: 6) == SessionStore.hat(for: id, count: 6))
         precondition((0..<6).contains(SessionStore.hat(for: other, count: 6)))
         precondition(Set((0..<40).map { SessionStore.hat(for: "session-\($0)", count: 6) }).count > 3)
+
+        // The outfit depends only on the session ID, every headwear and eyewear turns up, and it does not follow the hat colour.
+        precondition(SessionOutfit.of(id) == SessionOutfit.of(id))
+        let picks = (0..<300).map { "session-\($0)" }.map { (SessionOutfit.of($0), SessionStore.hat(for: $0, count: 6)) }
+        let combos = Set(picks.map { "\($0.0.headwear)-\($0.0.eyewear)" })
+        precondition(combos.count == SessionOutfit.Headwear.allCases.count * SessionOutfit.Eyewear.allCases.count, "every outfit turns up")
+        precondition(Set(picks.map { "\($0.0.headwear)-\($0.1)" }).count > 25, "headwear and colour vary independently")
         print("Session tests passed")
     }
 }

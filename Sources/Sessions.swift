@@ -346,6 +346,21 @@ final class SessionStore {
     }
 }
 
+/// What a mascot wears, picked from the session ID like the hat colour, so it stays the same after a relaunch and is not saved.
+/// Every mascot wears headwear, since it carries the session colour; eyewear is on about two sessions in three.
+struct SessionOutfit: Equatable {
+    enum Headwear: CaseIterable { case cap, topHat, beanie, crown, headphones }
+    enum Eyewear: CaseIterable { case none, sunglasses, monocle }
+    var headwear = Headwear.cap
+    var eyewear = Eyewear.none
+
+    static func of(_ id: String) -> SessionOutfit {
+        // Salted: the hat colour uses the same hash of the bare ID, and the outfit should not follow the colour.
+        SessionOutfit(headwear: Headwear.allCases[SessionStore.hat(for: id + "#headwear", count: Headwear.allCases.count)],
+                      eyewear: Eyewear.allCases[SessionStore.hat(for: id + "#eyewear", count: Eyewear.allCases.count)])
+    }
+}
+
 /// One frame of a tile, worked out from the session, its live moment, its running tool and the time, so frames are testable without drawing.
 /// Frames move in whole pixels and change in fixed steps, like the screen of a device.
 /// Idle tiles stand still; with Reduce Motion every state keeps one static pose.

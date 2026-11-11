@@ -15,6 +15,8 @@ build/session-tests
 
 swiftc -target "$(uname -m)-apple-macosx13.0" -module-cache-path "$PWD/build/module-cache" -parse-as-library Sources/QuotaClient.swift Sources/P1Support.swift Sources/Themes.swift Sources/QuotaCard.swift Tests/CardTests.swift -o build/card-tests
 build/card-tests
+swiftc -target "$(uname -m)-apple-macosx13.0" -module-cache-path "$PWD/build/module-cache" -parse-as-library Sources/Sessions.swift Sources/SessionGrid.swift Tests/SessionMascotTests.swift -o build/session-mascot-tests
+build/session-mascot-tests
 
 swiftc -module-cache-path "$PWD/build/module-cache" Sources/QuotaClient.swift Sources/P1Support.swift Sources/Themes.swift Widget/SharedSnapshot.swift Tests/WidgetSnapshotTests.swift -o build/widget-snapshot-tests
 build/widget-snapshot-tests
