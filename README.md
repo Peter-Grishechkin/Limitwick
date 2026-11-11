@@ -222,7 +222,7 @@ See [how Limitwick works](docs/DETAILS.md) for the limits of activity detection.
 
 ## Sessions
 
-**Show Sessions** in the menu opens a window with your Codex and Claude Code sessions of the last 24 hours, one tile each: a pixel mascot (a cloud for Codex, a little orange figure for Claude), a name, and the state. Sessions in the Claude app show their title from the app on up to two lines, once the app has named the session after its first turn; other sessions show the project folder. The tooltip names the folder. The cap colour tells apart sessions in the same folder.
+**Show Sessions** in the menu opens a window with your Codex and Claude Code sessions of the last 24 hours, one tile each: a pixel mascot (a cloud for Codex, a little orange figure for Claude), a name, and the state. Sessions in the Claude app show their title from the app on up to two lines, once the app has named the session after its first turn; other sessions show the project folder. The tooltip names the folder. Each mascot wears a hat — a cap, a top hat, a beanie, a crown or headphones — and about two in three also wear sunglasses or a monocle; the outfit and the hat colour come from the session and stay the same after a restart, so they tell apart sessions in the same folder.
 
 | Tile | Meaning |
 |---|---|
@@ -233,7 +233,7 @@ See [how Limitwick works](docs/DETAILS.md) for the limits of activity detection.
 | A jump and a green check | A turn has just finished; then the mascot falls asleep. An interrupted Codex turn falls asleep without the check and the green light. |
 | Green light, name in white | The turn finished and you have not opened the session since. |
 | Grey mascot with closed eyes, *z*, *done · 6m ago* | The session is idle or finished: one *z* under an hour, two under six hours, three after that. |
-| Crossed-out eyes (Codex: `>x`), red light, *failed 3m ago* | The turn ended with an error in Claude Code. The red light stays until you open the session. |
+| Crossed-out eyes (Codex: `>x`), no glasses, red light, *failed 3m ago* | The turn ended with an error in Claude Code; the error knocks the sunglasses or monocle off. The red light stays until you open the session. |
 | *?* instead of *z* | The session went silent for 30 minutes or its process exited during a turn. |
 
 Click a tile to open the session: a session of the Claude app opens there, and a session in a terminal brings that terminal to the front. Opening a session, a new prompt in it, or **Mark All as Seen** in the window's right-click menu turns its green or red light off; the light also comes on for a session whose answer you already read in the app, because the window cannot tell. Drag the window by the space between tiles; right-click it or use the menu to hide it. **Position** and the number of tiles are in [Settings](#sessions-window).
