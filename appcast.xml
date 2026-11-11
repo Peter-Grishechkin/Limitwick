@@ -2,6 +2,22 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.7.0</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Mascots in the Sessions window now wear accessories. Every mascot has a hat in its session colour (a cap, a top hat, a beanie, a crown or headphones), and about two in three also wear sunglasses or a monocle. Claude and Codex each have their own version: the Codex sunglasses show the `&amp;gt;` lit in the left lens, and the monocle rings the `&amp;gt;`.
+- The outfit and the hat colour come from the session ID and stay the same after a restart, so sessions in the same folder are easier to tell apart. Nothing new is saved.
+- A turn that ends with an error knocks the glasses off, so the crossed-out eyes (Codex: `&amp;gt;x`) stay visible. Under the pointer, Claude&amp;#x27;s eyes peek over the sunglasses.
+- Mascots no longer touch the edge of their tile: there are 2 pixels of air above the tallest hat, and the Claude figure and the Codex cloud now start on one line. Tiles are 8 pt taller, so the window with 16 tiles is 32 pt taller.&lt;/div&gt;</description>
+      <sparkle:version>2.7.0</sparkle:version>
+      <sparkle:shortVersionString>2.7.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Wed, 11 Nov 2026 16:33:51 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.7.0/Limitwick-2.7.0-macOS-Apple-Silicon.zip" sparkle:edSignature="X/GGdlLq7nRCqjj3Yw7dnOV4I86PUpkEBEYXfi/KaIPTyCGGGtHabu10L49nmadSkcnV07oY6ft6zNg95429Cw==" length="4015632" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.7.0</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.6.0</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- While a session runs a tool, its Sessions tile shows what kind of tool it is: a pencil for edits, `&amp;gt;_` for shell commands, an eye for reading, a magnifier for search, a globe for the web, a small figure for a subagent, a list for a plan, a plug for MCP tools, a gear for anything else. The Claude figure types and the Codex cursor runs. The hooks send only the kind of tool, never its name, its input or the name of an MCP server.
 - A failed tool call shakes the mascot and shows a red *!* for a second.
