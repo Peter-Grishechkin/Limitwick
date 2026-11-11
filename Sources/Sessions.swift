@@ -34,7 +34,18 @@ struct Session: Codable, Equatable {
     var started: TimeInterval
     var turnStarted: TimeInterval
     var changed: TimeInterval
+    /// A turn finished while you were away: true until you open the session, start a new turn or mark all as seen.
+    /// Saved with the tile; files without it read as seen.
+    var unseen: Bool? = nil
     var key: String { provider.rawValue + ":" + id }
+}
+
+/// A live change a tile plays once: a new session appears, a turn has just finished.
+/// Only `apply` records it, from a fresh hook event, so tiles from history or a saved file never animate. Kept in memory only.
+struct SessionMoment: Equatable {
+    enum Kind { case appeared, finished }
+    var kind: Kind
+    var at: TimeInterval
 }
 
 enum SessionTarget: Equatable { case url(URL), app(String), none }
@@ -48,7 +59,11 @@ final class SessionStore {
     private static let working: Set<String> = creating
     private static let finishing: Set<String> = ["Stop", "StopFailure", "Idle", "SessionEnd", "Interrupt", "Ended"]
 
+    /// An event older than this when it arrives changes the tile without playing its moment.
+    static let fresh: TimeInterval = 10
+
     private(set) var sessions: [String: Session] = [:]
+    private(set) var moments: [String: SessionMoment] = [:]
     let file: URL?
     init(file: URL? = nil) { self.file = file }
 
@@ -77,6 +92,8 @@ final class SessionStore {
     func apply(_ event: SessionEvent, now: TimeInterval = Date().timeIntervalSince1970) -> Bool {
         guard !event.session.isEmpty, event.session.count <= 100, now - event.time < Self.retention else { return false }
         let key = event.provider.rawValue + ":" + event.session
+        let live = now - event.time < Self.fresh
+        let isNew = sessions[key] == nil
         var session: Session
         if let existing = sessions[key] {
             guard event.time >= existing.changed else { return false }
@@ -96,6 +113,8 @@ final class SessionStore {
         if session.pid == nil, let pid = event.pid, pid > 0 { session.pid = pid }
         if Self.working.contains(event.event) {
             if event.event == "UserPromptSubmit" || session.state == .idle { session.turnStarted = event.time }
+            // A new prompt means you are back in this session.
+            if event.event == "UserPromptSubmit" { session.unseen = nil }
             session.state = .working
         } else if event.event == "Permission" {
             session.state = .waiting
@@ -103,14 +122,35 @@ final class SessionStore {
             // A later Idle or SessionEnd must not move a finished tile forward in time.
             if session.state == .idle && sessions[key] != nil { return false }
             session.state = .idle
+            // Only a turn that ended by itself has a result to look at; an interrupt, a closed session or a failure does not.
+            if event.event == "Stop" {
+                session.unseen = true
+                if live { moments[key] = SessionMoment(kind: .finished, at: now) }
+            }
         } else {
             return false
         }
+        if isNew && live { moments[key] = SessionMoment(kind: .appeared, at: now) }
         session.changed = event.time
         sessions[key] = session
         prune(now: now)
         return true
     }
+
+    /// Clears the unseen mark of one tile; returns true when it changed.
+    @discardableResult
+    func markSeen(_ key: String) -> Bool {
+        guard sessions[key]?.unseen != nil else { return false }
+        sessions[key]?.unseen = nil
+        return true
+    }
+    @discardableResult
+    func markAllSeen() -> Bool {
+        let keys = sessions.filter { $0.value.unseen != nil }.map(\.key)
+        for key in keys { sessions[key]?.unseen = nil }
+        return !keys.isEmpty
+    }
+    var hasUnseen: Bool { sessions.values.contains { $0.unseen != nil } }
 
     /// Finishes turns whose process has exited or that went silent, and drops old tiles. Returns true when the tiles changed.
     @discardableResult
@@ -137,6 +177,7 @@ final class SessionStore {
             }.prefix(Self.capacity)
             sessions = Dictionary(uniqueKeysWithValues: keep.map { ($0.key, $0) })
         }
+        moments = moments.filter { sessions[$0.key] != nil && now - $0.value.at < Self.fresh }
         return sessions.count != before
     }
 
@@ -237,16 +278,131 @@ final class SessionStore {
         return Int(hash % UInt32(max(1, count)))
     }
 
+    private static func span(_ seconds: TimeInterval) -> String {
+        let minutes = Int(max(0, seconds) / 60)
+        return minutes < 1 ? "<1m" : minutes < 60 ? "\(minutes)m" : "\(minutes / 60)h"
+    }
+    /// At most 14 characters ("done · 11m ago"): that fits a tile in 10 pt monospaced type.
+    /// A waiting session gets hungrier the longer it waits, like the device in the reference photo.
     static func status(_ session: Session, now: TimeInterval) -> String {
-        func span(_ seconds: TimeInterval) -> String {
-            let minutes = Int(max(0, seconds) / 60)
-            return minutes < 1 ? "<1m" : minutes < 60 ? "\(minutes)m" : "\(minutes / 60)h"
-        }
         switch session.state {
         case .working: return "working · \(span(now - session.turnStarted))"
-        case .waiting: return "needs you"
+        case .waiting:
+            let waited = now - session.changed
+            return waited < 60 ? "feed me!" : "\(waited < 300 ? "hungry" : "starving") · \(span(waited))"
         case .idle: return now - session.changed < 60 ? "done · just now" : "done · \(span(now - session.changed)) ago"
         }
+    }
+    /// What VoiceOver says: the playful waiting caption in plain words, and "new" for an unseen result.
+    static func spokenStatus(_ session: Session, now: TimeInterval) -> String {
+        let waited = now - session.changed
+        var words = session.state != .waiting ? status(session, now: now)
+            : "needs your permission" + (waited < 60 ? "" : " · \(span(waited))")
+        if session.unseen != nil { words += ", new" }
+        return words
+    }
+}
+
+/// One frame of a tile, worked out from the session, its live moment and the time, so frames are testable without drawing.
+/// Frames move in whole pixels and change in fixed steps, like the screen of a device.
+/// Idle tiles stand still; with Reduce Motion every state keeps one static pose.
+struct SessionLook: Equatable {
+    enum Legs { case both, leftUp, rightUp }
+    /// Shown beside the mascot's head: a check right after a turn, or z's that grow with the age of an idle tile.
+    enum Hint: Equatable { case none, check, sleep(Int) }
+    /// The square in the tile corner, like a device LED: orange waits for you, green is an unseen result.
+    enum Light { case off, waiting, waitingDim, unseen }
+
+    /// Pixels above the resting position: 0 rests (idle), 1 stands (working), 2–3 in a jump.
+    var lift = 0
+    var legs = Legs.both
+    var armUp = false
+    var eyesClosed = false
+    /// Codex: the "_" of the ">_" face.
+    var cursor = true
+    /// 1 is full colour, 0 grey; a finished mascot falls asleep in four steps.
+    var awake = 1.0
+    /// Share of pixels drawn while a new tile appears.
+    var reveal = 1.0
+    var hint = Hint.none
+    var light = Light.off
+    /// Offset of the waiting stripes in points, 0..<12 (one stripe period).
+    var stripes = 0
+    /// Name in white semibold: active sessions and unseen results.
+    var bold = false
+
+    static let tick: TimeInterval = 0.32
+    static let waitTick: TimeInterval = 0.16
+    static let fastTick: TimeInterval = 0.08
+    static let appearing: TimeInterval = 0.4
+    static let checkShown: TimeInterval = 2.4
+    static let finishing: TimeInterval = 3.04
+    static let idleTick: TimeInterval = 20
+
+    static func of(_ session: Session, moment: SessionMoment?, now: TimeInterval, motion: Bool) -> SessionLook {
+        var look = SessionLook()
+        // Each session runs its cycles from its own phase, so working mascots do not move in step.
+        let phase = SessionStore.hat(for: session.id, count: 4)
+        let beat = Int((now / tick).rounded(.down)) + phase
+        switch session.state {
+        case .working:
+            look.lift = 1; look.bold = true
+            guard motion else { break }
+            if session.provider == .claude {
+                // Bobs and steps in place: up with the left legs lifted, down, up with the right legs lifted, down.
+                switch beat % 4 { case 0: look.legs = .leftUp; case 2: look.legs = .rightUp; default: look.lift = 0 }
+            } else {
+                look.cursor = beat % 4 < 2
+            }
+        case .waiting:
+            look.lift = 1; look.bold = true; look.light = .waiting
+            // Without motion a raised hand alone says "over here".
+            look.armUp = session.provider == .claude
+            guard motion else { break }
+            look.stripes = Int((now / waitTick).rounded(.down)) % 12
+            look.light = Int((now * 2).rounded(.down)) % 2 == 0 ? .waiting : .waitingDim
+            if session.provider == .claude {
+                // Three waves, then a two-second pause.
+                let t = (now + Double(phase) * 0.98).truncatingRemainder(dividingBy: 3.92)
+                look.armUp = t < 1.92 && Int(t / tick) % 2 == 0
+            }
+        case .idle:
+            let age = now - session.changed
+            look.eyesClosed = true; look.awake = 0
+            look.hint = .sleep(age < 3600 ? 1 : age < 6 * 3600 ? 2 : 3)
+            if session.unseen != nil { look.light = .unseen; look.bold = true }
+            guard motion, let moment = moment, moment.kind == .finished else { break }
+            let t = now - moment.at
+            guard t >= 0, t < finishing else { break }
+            // Just finished: a jump (Claude) or three quick cursor blinks (Codex) and a check, then asleep in four colour steps.
+            look.lift = 1; look.awake = 1; look.eyesClosed = false; look.bold = true
+            look.hint = t < checkShown ? .check : .sleep(1)
+            if session.provider == .claude {
+                let jump = [2, 3, 3, 2], frame = Int(t / fastTick)
+                if frame < jump.count { look.lift = jump[frame] }
+            } else if t < 0.96 {
+                look.cursor = Int(t / waitTick) % 2 == 1
+            }
+            if t >= checkShown {
+                look.awake = max(0, 0.75 - Double(Int((t - checkShown) / waitTick)) * 0.25)
+                if look.awake == 0 { look.lift = 0; look.eyesClosed = true }
+            }
+        }
+        if motion, let moment = moment, moment.kind == .appeared {
+            let t = now - moment.at
+            if t >= 0 && t < appearing { look.reveal = Double(Int(t / fastTick) + 1) / 5 }
+        }
+        return look
+    }
+
+    /// Steps of the one clock that drives all tiles: fast while a moment plays, then as slow as the shown tiles allow.
+    static func clock(_ sessions: [Session], moments: [String: SessionMoment], now: TimeInterval, motion: Bool) -> (fastUntil: TimeInterval, step: TimeInterval) {
+        guard motion else { return (0, idleTick) }
+        let shown = Set(sessions.map(\.key))
+        let ends = moments.filter { shown.contains($0.key) }.map { $0.value.at + ($0.value.kind == .appeared ? appearing : finishing) }
+        let fastUntil = ends.max().map { $0 > now ? $0 : 0 } ?? 0
+        let step = sessions.contains { $0.state == .waiting } ? waitTick : sessions.contains { $0.state == .working } ? tick : idleTick
+        return (fastUntil, step)
     }
 }
 

@@ -130,6 +130,8 @@ extension AppDelegate {
             sessionsHost.autoresizingMask = [.width, .height]
             window.contentView = sessionsHost
             sessionsWindow = window
+            // A window on the desktop is often covered: tiles stop moving until part of it shows again.
+            NotificationCenter.default.addObserver(self, selector: #selector(sessionsOcclusionChanged), name: NSWindow.didChangeOcclusionStateNotification, object: window)
             if !window.setFrameUsingName("SessionsWindow") { window.center() }
             window.setFrameAutosaveName("SessionsWindow")
         }
@@ -167,11 +169,17 @@ extension AppDelegate {
             window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         }
     }
+    @objc func sessionsOcclusionChanged(_ note: Notification) { syncSessions() }
     func syncSessions() {
         guard let window = sessionsWindow, window.isVisible else { return }
         let limit = settings.sessionsLimit
-        sessionsHost.rootView = SessionGridView(sessions: sessionStore.ordered, limit: limit,
+        sessionsHost.rootView = SessionGridView(sessions: sessionStore.ordered, moments: sessionStore.moments, limit: limit,
+                                                visible: window.occlusionState.contains(.visible),
                                                 open: { [weak self] session in self?.openSession(session) },
+                                                markAllSeen: { [weak self] in
+                                                    guard let self = self, self.sessionStore.markAllSeen() else { return }
+                                                    self.sessionStore.save(); self.syncSessions()
+                                                },
                                                 hide: { [weak self] in self?.hideSessionsWindow() })
         let size = SessionGridLayout.size(limit: limit)
         if window.frame.size != size {
@@ -215,6 +223,8 @@ extension AppDelegate {
         }
     }
     func openSession(_ session: Session) {
+        // Opening a session is looking at its result.
+        if sessionStore.markSeen(session.key) { sessionStore.save(); syncSessions() }
         switch SessionStore.target(for: session) {
         case .url(let url):
             NSWorkspace.shared.open(url)

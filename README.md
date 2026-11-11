@@ -226,13 +226,17 @@ See [how Limitwick works](docs/DETAILS.md) for the limits of activity detection.
 
 | Tile | Meaning |
 |---|---|
-| Coloured mascot that bobs, orange corner | The session is working. |
-| Orange stripes, *needs you* | Claude Code is waiting for your permission. |
-| Grey mascot, *z z*, *done · 6m ago* | The session is idle or finished. |
+| Coloured mascot that moves, orange corner | The session is working: the Claude figure steps in place, the Codex cloud blinks the `_` of its `>_` face. |
+| Crawling orange stripes, blinking orange light, waving figure, *feed me!* | Claude Code is waiting for your permission. The caption gets hungrier as it waits: *hungry · 3m* after a minute, *starving · 12m* after five. |
+| A jump and a green check | A turn has just finished; then the mascot falls asleep. |
+| Green light, name in white | The turn finished and you have not opened the session since. |
+| Grey mascot with closed eyes, *z*, *done · 6m ago* | The session is idle or finished: one *z* under an hour, two under six hours, three after that. |
 
-Click a tile to open the session: a session of the Claude app opens there, and a session in a terminal brings that terminal to the front. Drag the window by the space between tiles; right-click it or use the menu to hide it. **Position** and the number of tiles are in [Settings](#sessions-window).
+Click a tile to open the session: a session of the Claude app opens there, and a session in a terminal brings that terminal to the front. Opening a session, a new prompt in it, or **Mark All as Seen** in the window's right-click menu turns its green light off; the light also comes on for a session whose answer you already read in the app, because the window cannot tell. Drag the window by the space between tiles; right-click it or use the menu to hide it. **Position** and the number of tiles are in [Settings](#sessions-window).
 
-Live states come from the [activity hooks](#activity-indicator), which the window uses even when the menu bar animation is off. Earlier sessions are read from disk when the window opens and every five minutes: the Claude app's list of Code sessions, the first lines of Claude Code transcripts, and Codex session files. Only session IDs, folder names, times, whether a session is archived, and the titles of Claude app sessions are read. A session shows *needs you* only when its hooks report a permission prompt.
+Idle tiles stand still. With **Reduce motion** in the macOS Accessibility settings, every tile keeps one still pose, and a waiting figure just holds up its hand. Tiles also stop moving while other windows cover the whole Sessions window.
+
+Live states come from the [activity hooks](#activity-indicator), which the window uses even when the menu bar animation is off. Earlier sessions are read from disk when the window opens and every five minutes: the Claude app's list of Code sessions, the first lines of Claude Code transcripts, and Codex session files. Only session IDs, folder names, times, whether a session is archived, and the titles of Claude app sessions are read. A session shows orange stripes only when its hooks report a permission prompt; Codex hooks do not report one.
 
 ## Notifications
 
