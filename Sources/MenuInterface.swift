@@ -25,7 +25,8 @@ extension AppDelegate {
         let menu = NSPopover(); menu.behavior = .transient; menu.appearance = nil
         let view = MenuView(); surface(view)
         let desktopTitle = desktopWindow?.isVisible == true ? "Hide Picture-in-Picture" : "Show Picture-in-Picture"
-        var commands: [(String, Selector, String)] = [("Refresh", #selector(menuRefresh), "r"), (desktopTitle, #selector(toggleDesktopWindow), ""), ("Settings…", #selector(showSettings), ","), ("About Limitwick", #selector(showAbout), "")]
+        let sessionsTitle = sessionsWindow?.isVisible == true ? "Hide Sessions" : "Show Sessions"
+        var commands: [(String, Selector, String)] = [("Refresh", #selector(menuRefresh), "r"), (desktopTitle, #selector(toggleDesktopWindow), ""), (sessionsTitle, #selector(toggleSessionsWindow), ""), ("Settings…", #selector(showSettings), ","), ("About Limitwick", #selector(showAbout), "")]
         #if !LIMITWICK_DEVELOPMENT
         commands.append((updateMenuTitle, #selector(menuUpdates), ""))
         #endif
@@ -107,6 +108,113 @@ extension AppDelegate {
         desktopWindow?.orderFrontRegardless()
         settings.desktopVisible = true
     }
+    // MARK: Sessions window
+
+    @objc func toggleSessionsWindow() {
+        menuPopover?.performClose(nil)
+        if sessionsWindow?.isVisible == true { hideSessionsWindow() } else { showSessionsWindow() }
+    }
+    func showSessionsWindow() {
+        if sessionsWindow == nil {
+            // Borderless like the Picture-in-Picture window: no title bar or close button; hide it from the menu or by right-click.
+            let window = NSWindow(contentRect: NSRect(origin: .zero, size: SessionGridLayout.size(limit: settings.sessionsLimit)),
+                                  styleMask: [.borderless], backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            window.isMovableByWindowBackground = true
+            window.hidesOnDeactivate = false
+            window.isOpaque = false
+            window.backgroundColor = .clear
+            window.hasShadow = true
+            window.appearance = NSAppearance(named: .darkAqua)
+            sessionsHost.sizingOptions = []
+            sessionsHost.autoresizingMask = [.width, .height]
+            window.contentView = sessionsHost
+            sessionsWindow = window
+            if !window.setFrameUsingName("SessionsWindow") { window.center() }
+            window.setFrameAutosaveName("SessionsWindow")
+        }
+        applySessionsPlacement()
+        settings.sessionsVisible = true
+        updateMonitors()
+        if sessionStore.tick() { sessionStore.save() }
+        sessionsWindow?.orderFrontRegardless()
+        syncSessions()
+        refreshSessionHistory()
+        if sessionsTimer == nil {
+            // Finishes turns whose process exited, keeps the 24-hour limit current and rereads history every 5 minutes.
+            sessionsTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
+                guard let self = self else { return }
+                if Date().timeIntervalSince1970 - self.sessionsHistoryScanned > 300 { self.refreshSessionHistory() }
+                guard self.sessionStore.tick() else { return }
+                self.sessionStore.save(); self.syncSessions()
+            }
+        }
+    }
+    func hideSessionsWindow() {
+        sessionsWindow?.orderOut(nil)
+        settings.sessionsVisible = false
+        sessionsTimer?.invalidate(); sessionsTimer = nil
+        updateMonitors()
+    }
+    /// Above all windows, or on the desktop: under every window, over the wallpaper and icons, and fixed in Mission Control.
+    func applySessionsPlacement() {
+        guard let window = sessionsWindow else { return }
+        if settings.sessionsOnDesktop {
+            window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) + 1)
+            window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        } else {
+            window.level = .floating
+            window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+        }
+    }
+    func syncSessions() {
+        guard let window = sessionsWindow, window.isVisible else { return }
+        let limit = settings.sessionsLimit
+        sessionsHost.rootView = SessionGridView(sessions: sessionStore.ordered, limit: limit,
+                                                open: { [weak self] session in self?.openSession(session) },
+                                                hide: { [weak self] in self?.hideSessionsWindow() })
+        let size = SessionGridLayout.size(limit: limit)
+        if window.frame.size != size {
+            // Grows and shrinks downward from the top edge, like the Picture-in-Picture window.
+            let old = window.frame
+            window.setFrame(NSRect(x: old.minX, y: old.maxY - size.height, width: size.width, height: size.height), display: true)
+            window.invalidateShadow()
+        }
+    }
+    /// Reads the last day's sessions from disk off the main thread, so tiles appear before each session sends a hook event.
+    func refreshSessionHistory() {
+        sessionsHistoryScanned = Date().timeIntervalSince1970
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let found = SessionHistory.scan()
+            DispatchQueue.main.async {
+                guard let self = self, self.sessionStore.merge(found) else { return }
+                self.sessionStore.save(); self.syncSessions()
+            }
+        }
+    }
+    func sessionEvent(_ event: SessionEvent) {
+        guard sessionStore.apply(event) else { return }
+        sessionStore.save(); syncSessions()
+    }
+    func openSession(_ session: Session) {
+        switch SessionStore.target(for: session) {
+        case .url(let url):
+            NSWorkspace.shared.open(url)
+        case .app(let bundleID):
+            // Only an app that is still running: a closed terminal means the session is gone too.
+            guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).first else { NSSound.beep(); return }
+            if #available(macOS 14, *) { app.activate() } else { app.activate(options: [.activateIgnoringOtherApps]) }
+        case .none:
+            NSSound.beep()
+        }
+    }
+    /// The monitors run while their menu bar indicator is on or while the Sessions window is open.
+    func updateMonitors() {
+        let sessions = settings.sessionsVisible
+        if activityEnabled || sessions { activity.start() } else { activity.stop() }
+        if settings.activityEnabled(for: "claude") || sessions { claudeActivity.start() } else { claudeActivity.stop() }
+    }
+
     func syncDesktop() {
         guard let window = desktopWindow else { return }
         desktopContent.appearance = settings.providers == .both ? nil : appearanceMode.appearance

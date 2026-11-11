@@ -10,6 +10,8 @@ struct ActivityEvent: Decodable {
     let tool: String?
     let time: TimeInterval
     let home: String
+    let name: String?
+    let app: String?
 }
 
 enum ActivityDisplay: Equatable {
@@ -34,6 +36,8 @@ final class ActivityMonitor {
     private var timer: Timer?
     private let directory: URL
     var onChange: ((ActivityDisplay?) -> Void)?
+    /// Every accepted event, for the Sessions window. Turns whose writer exited arrive as "Ended".
+    var onEvent: ((SessionEvent) -> Void)?
     private var shown: ActivityDisplay?
     private(set) var lastEvent: TimeInterval?
     static var codexHome: URL { ProcessInfo.processInfo.environment["CODEX_HOME"].map { URL(fileURLWithPath: $0) } ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex") }
@@ -78,6 +82,7 @@ final class ActivityMonitor {
             let key = event.session + ":" + event.turn
             if let old = turns[key], old.timestamp > event.time { continue }
             let lock = (event.home as NSString).appendingPathComponent("thread-writer-locks/\(event.session).lock")
+            let forward = SessionEvent(provider: .codex, session: event.session, event: event.event, time: event.time, name: event.name, app: event.app)
             switch event.event {
             case "UserPromptSubmit", "PreToolUse", "PostToolUse":
                 guard writerIsAlive(lock) else { continue }
@@ -87,13 +92,18 @@ final class ActivityMonitor {
                 if event.event == "PostToolUse" { tools.remove(tool) }
                 turns[key] = Turn(state: tools.isEmpty ? .working : .tool, tools: tools, timestamp: event.time, lockPath: lock)
                 completedUntil = 0
+                onEvent?(forward)
             case "Stop":
                 if turns.removeValue(forKey: key) != nil && turns.isEmpty { completedUntil = now + 3 }
-            case "Interrupt": turns.removeValue(forKey: key); completedUntil = 0
+                onEvent?(forward)
+            case "Interrupt": turns.removeValue(forKey: key); completedUntil = 0; onEvent?(forward)
             default: break
             }
         }
-        turns = turns.filter { writerIsAlive($0.value.lockPath) }
+        for (key, turn) in turns where !writerIsAlive(turn.lockPath) {
+            turns.removeValue(forKey: key)
+            if let session = key.split(separator: ":").first { onEvent?(SessionEvent(provider: .codex, session: String(session), event: "Ended", time: now)) }
+        }
         let next: ActivityDisplay? = turns.values.contains(where: { $0.state == .tool }) ? .tool : (!turns.isEmpty ? .working : (now < completedUntil ? .completed : nil))
         if next != shown { shown = next; onChange?(next) }
     }
@@ -156,6 +166,8 @@ final class ClaudeActivityMonitor {
     private var timer: Timer?
     private let directory: URL
     var onChange: ((ActivityDisplay?) -> Void)?
+    /// Every accepted event, including permission prompts, for the Sessions window.
+    var onEvent: ((SessionEvent) -> Void)?
     private(set) var lastEvent: TimeInterval?
     init(base: URL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Caches/Limitwick/ClaudeActivity", isDirectory: true)) {
         directory = base.appendingPathComponent("listener-\(getpid())", isDirectory: true)
@@ -178,7 +190,10 @@ final class ClaudeActivityMonitor {
     }
     func poll(now: TimeInterval = Date().timeIntervalSince1970) {
         let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
-        struct Event: Decodable { let event: String; let session: String; let tool: String; let time: TimeInterval }
+        struct Event: Decodable {
+            let event: String; let session: String; let tool: String; let time: TimeInterval
+            let name: String?; let app: String?; let entry: String?; let pid: Int32?; let host: String?
+        }
         var events: [Event] = []
         for url in files where url.lastPathComponent.hasPrefix("event-") {
             if let data = try? Data(contentsOf: url), data.count < 4096, let event = try? JSONDecoder().decode(Event.self, from: data), abs(event.time - now) < 30, !event.session.isEmpty, event.session.count <= 100 { events.append(event) }
@@ -186,6 +201,8 @@ final class ClaudeActivityMonitor {
         }
         if let latest = events.map(\.time).max() { lastEvent = max(lastEvent ?? 0, latest) }
         for event in events.sorted(by: { $0.time < $1.time }) {
+            onEvent?(SessionEvent(provider: .claude, session: event.session, event: event.event, time: event.time,
+                                  name: event.name, app: event.app, entry: event.entry, pid: event.pid, host: event.host))
             if let prior = sessions[event.session], prior.timestamp > event.time { continue }
             switch event.event {
             case "UserPromptSubmit": sessions[event.session] = Session(tools: [], timestamp: event.time); completedUntil = 0

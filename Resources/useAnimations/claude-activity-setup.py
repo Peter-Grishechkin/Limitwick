@@ -53,8 +53,8 @@ def main():
             if handlers:
                 kept.append({**group, 'hooks': handlers})
         if sys.argv[1] == 'install':
+            # No Notification matcher: the hook itself keeps only idle and permission prompts.
             group = {'hooks': [{'type': 'command', 'command': '/usr/bin/python3 ' + shlex.quote(helper), 'timeout': 3}]}
-            if event == 'Notification': group['matcher'] = 'idle_prompt'
             kept.append(group)
         if kept: hooks[event] = kept
         else: hooks.pop(event, None)

@@ -66,6 +66,19 @@ assert len(files) == 1
 message = json.loads(files[0].read_text())
 assert message['event'] == 'PreToolUse' and message['tool'] == 'call'
 assert 'PRIVATE' not in files[0].read_text() and 'tool_input' not in message
+assert 'name' not in message
+files[0].unlink()
+# The Sessions window gets the folder name and launching app, never the full path.
+input_data = {'hook_event_name': 'UserPromptSubmit', 'session_id': 'session', 'turn_id': 'turn', 'cwd': '/Users/someone/Secret/Project', 'prompt': 'PRIVATE'}
+subprocess.run(['/usr/bin/python3', 'Resources/useAnimations/activity-hook.py'], env=dict(env, __CFBundleIdentifier='com.apple.Terminal'), input=json.dumps(input_data), text=True, capture_output=True, check=True)
+files = list(listener.glob('event-*'))
+text = files[0].read_text(); message = json.loads(text)
+assert message['name'] == 'Project' and message['app'] == 'com.apple.Terminal'
+assert 'Secret' not in text and 'someone' not in text and 'PRIVATE' not in text
+files[0].unlink()
+subprocess.run(['/usr/bin/python3', 'Resources/useAnimations/activity-hook.py'], env=dict(env, __CFBundleIdentifier='bad id; rm'), input=json.dumps(dict(input_data, cwd='relative/x')), text=True, capture_output=True, check=True)
+message = json.loads(list(listener.glob('event-*'))[0].read_text())
+assert 'app' not in message and 'name' not in message
 print('Activity hook tests passed')
 
 claude_root = root / 'claude'
@@ -102,4 +115,32 @@ assert len(files) == 1 and p.stdout == ''
 message = json.loads(files[0].read_text())
 assert message['event'] == 'PreToolUse' and message['session'] == 'claude-session' and message['tool'] == 'call'
 assert 'PRIVATE' not in files[0].read_text() and 'tool_input' not in message
+files[0].unlink()
+
+def claude_event(data, **variables):
+    """Runs the Claude hook with an extra environment and returns the forwarded message, or None."""
+    clean = {k: v for k, v in env.items() if k not in ('CLAUDE_PROJECT_DIR', 'CLAUDE_CODE_ENTRYPOINT', 'CLAUDE_PID', 'CLAUDE_CODE_HOST_SESSION_ID', '__CFBundleIdentifier')}
+    subprocess.run(['/usr/bin/python3', 'Resources/useAnimations/claude-activity-hook.py'], env=dict(clean, **variables), input=json.dumps(data), text=True, capture_output=True, check=True)
+    found = list(claude_listener.glob('event-*'))
+    if not found:
+        return None
+    text = found[0].read_text(); found[0].unlink()
+    return text
+
+# The project root wins over the current folder, which changes when Claude runs cd.
+text = claude_event({'hook_event_name': 'UserPromptSubmit', 'session_id': 'claude-session', 'cwd': '/Users/someone/Work/Sub', 'prompt': 'PRIVATE'},
+                    CLAUDE_PROJECT_DIR='/Users/someone/Work/Limitwick/', CLAUDE_CODE_ENTRYPOINT='claude-desktop', CLAUDE_PID='1456',
+                    CLAUDE_CODE_HOST_SESSION_ID='local_70c6c65e-606c-4a2e-805b-0eebfe0ddc85', __CFBundleIdentifier='com.anthropic.claudefordesktop')
+message = json.loads(text)
+assert message['name'] == 'Limitwick' and message['entry'] == 'claude-desktop' and message['pid'] == 1456
+assert message['host'] == 'local_70c6c65e-606c-4a2e-805b-0eebfe0ddc85' and message['app'] == 'com.anthropic.claudefordesktop'
+assert 'someone' not in text and 'Work' not in text and 'PRIVATE' not in text
+message = json.loads(claude_event({'hook_event_name': 'Stop', 'session_id': 'claude-session', 'cwd': '/tmp/Sub'}, CLAUDE_PID='x1', CLAUDE_CODE_ENTRYPOINT='Bad Entry'))
+assert message['name'] == 'Sub' and 'pid' not in message and 'entry' not in message
+assert json.loads(claude_event({'hook_event_name': 'Notification', 'notification_type': 'permission_prompt', 'session_id': 'claude-session', 'message': 'PRIVATE'}))['event'] == 'Permission'
+assert json.loads(claude_event({'hook_event_name': 'Notification', 'notification_type': 'idle_prompt', 'session_id': 'claude-session'}))['event'] == 'Idle'
+assert claude_event({'hook_event_name': 'Notification', 'notification_type': 'auth_success', 'session_id': 'claude-session'}) is None
+claude_config.write_text(json.dumps(claude_original))
+subprocess.run(['/usr/bin/python3', setup, 'install'], env=env, check=True, stdout=subprocess.DEVNULL)
+assert [g.get('matcher') for g in json.loads(claude_config.read_text())['hooks']['Notification']] == [None]
 print('Claude activity hook tests passed')
