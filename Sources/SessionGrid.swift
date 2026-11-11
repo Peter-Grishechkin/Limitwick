@@ -55,19 +55,46 @@ enum SessionMascot {
     // Hints beside the head, in 2 pt pixels.
     static let check = ["....#", "...#.", "#.#..", ".#..."]
     static let zed = ["####", "..#.", ".#..", "####"]
+    static let alert = ["..#..", "..#..", "..#..", ".....", "..#.."]
+    static let question = ["###..", "..#..", ".#...", ".....", ".#..."]
+    /// Tool icons, 5 × 5: pencil, prompt, eye, magnifier, globe, little mascot, list, plug, gear.
+    static let tools: [ToolKind: [String]] = [
+        .edit: ["...##", "..##.", ".##..", "##...", "#...."],
+        .shell: ["#....", ".#...", "#....", "..###", "....."],
+        .read: [".....", ".###.", "#.#.#", ".###.", "....."],
+        .search: ["###..", "#.#..", "###..", "...#.", "....#"],
+        .web: [".###.", "#.#.#", "#####", "#.#.#", ".###."],
+        .agent: [".###.", "#.#.#", "#####", ".#.#.", "....."],
+        .plan: ["#.###", ".....", "#.###", ".....", "#.###"],
+        .mcp: [".#.#.", ".#.#.", "#####", ".###.", "..#.."],
+        .other: [".#.#.", "#####", "##.##", "#####", ".#.#."],
+    ]
 
-    /// The mascot grid for one frame: legs, a waving arm, closed eyes, the Codex cursor, and eyes that look up at the pointer.
+    /// The mascot grid for one frame: legs, a waving or typing hand, closed or crossed eyes, the Codex cursor,
+    /// and eyes that look up at the pointer.
     static func pose(_ provider: SessionProvider, look: SessionLook, lookUp: Bool) -> [[Character]] {
         var rows = (provider == .claude ? claude : codex).map(Array.init)
+        // A 3 × 3 cross of face pixels centred on (x, y), for the crossed eyes of a failed turn.
+        func cross(_ x: Int, _ y: Int) {
+            for dy in -1...1 { for dx in -1...1 { rows[y + dy][x + dx] = dx != 0 && dy != 0 || dx == 0 && dy == 0 ? "E" : "#" } }
+        }
         if provider == .claude {
             if look.legs == .leftUp { rows[11][3] = "."; rows[11][5] = "." }
             if look.legs == .rightUp { rows[11][10] = "."; rows[11][12] = "." }
             if look.armUp { rows[5][15] = "#"; rows[6][14] = "#"; rows[7][14] = "."; rows[7][15] = "." }
-            if look.eyesClosed && !lookUp { rows[5][4] = "#"; rows[5][11] = "#" }
-        } else if !look.cursor {
+            // Typing: the outer pixels of row 7 are the hands; one rises a pixel.
+            if look.typing == .left { rows[6][0] = "#"; rows[6][1] = "#"; rows[7][0] = "."; rows[7][1] = "." }
+            if look.typing == .right { rows[6][14] = "#"; rows[6][15] = "#"; rows[7][14] = "."; rows[7][15] = "." }
+            if look.crossed { cross(4, 5); cross(11, 5) } else if look.eyesClosed && !lookUp { rows[5][4] = "#"; rows[5][11] = "#" }
+        } else if look.crossed {
+            // ">x": the cursor becomes a cross.
             for x in 9...11 { rows[8][x] = "#" }
+            cross(10, 7)
+        } else if !look.cursor || look.cursorShift > 0 {
+            for x in 9...11 { rows[8][x] = "#" }
+            if look.cursor { for x in 9...11 { rows[8][x + look.cursorShift] = "E" } }
         }
-        if lookUp {
+        if lookUp && !look.crossed {
             let face = rows.indices.flatMap { y in rows[y].indices.filter { rows[y][$0] == "E" }.map { (x: $0, y: y) } }
             for spot in face { rows[spot.y][spot.x] = "#" }
             for spot in face where spot.y > 0 { rows[spot.y - 1][spot.x] = "E" }
@@ -86,6 +113,7 @@ private extension Color {
     init(rgb: UInt32) { self.init(red: Double(rgb >> 16 & 0xFF) / 255, green: Double(rgb >> 8 & 0xFF) / 255, blue: Double(rgb & 0xFF) / 255) }
     static let sessionOrange = Color(rgb: 0xF0702E)
     static let sessionGreen = Color(rgb: 0x5BD16B)
+    static let sessionRed = Color(rgb: 0xEF4F4A)
 }
 
 struct SessionMascotView: View {
@@ -123,8 +151,8 @@ struct SessionMascotView: View {
     }
 }
 
-/// Beside the mascot's head: a check right after a turn, z's while asleep.
-/// Drawn in the mascot's coordinates, right of the head and below the corner light.
+/// Beside the mascot's head: the running tool, "!" after a tool error, a check right after a turn, z's while asleep, "?" when it went silent.
+/// Drawn in the mascot's coordinates, right of the head and below the corner light: a 5 × 5 icon covers x 65–75, y 15–25.
 private struct SessionHintView: View {
     let hint: SessionLook.Hint
     var body: some View {
@@ -139,6 +167,9 @@ private struct SessionHintView: View {
             switch hint {
             case .none: break
             case .check: sprite(SessionMascot.check, at: 65, 15, .sessionGreen)
+            case .tool(let kind): sprite(SessionMascot.tools[kind] ?? [], at: 65, 15, Color(rgb: 0xB4B9C0))
+            case .alert: sprite(SessionMascot.alert, at: 65, 15, .sessionRed)
+            case .question: sprite(SessionMascot.question, at: 65, 15, Color(rgb: 0x5D6269))
             case .sleep(let depth):
                 // One z under an hour, two under six hours, three after that; they rise up and away from the corner light.
                 for (x, y) in [(66.0, 22.0), (60.0, 12.0), (54.0, 2.0)].prefix(depth) { sprite(SessionMascot.zed, at: x, y, Color(rgb: 0x5D6269)) }
@@ -196,6 +227,8 @@ struct SessionTileView: View {
         VStack(spacing: 3) {
             SessionMascotView(provider: session.provider, hat: SessionStore.hat(for: session.id, count: SessionMascot.hats.count),
                               look: look, lookUp: lookUp, seed: SessionStore.hat(for: session.id, count: 997))
+                // The shake moves the mascot as a whole, so pixels at its edge are not cut off; the hint stays put.
+                .offset(x: CGFloat(look.shake) * 4)
                 .overlay(alignment: .topLeading) { SessionHintView(hint: look.hint) }
                 .padding(.bottom, 3)
             // A Claude app title takes two lines: sessions in one folder differ only by it.
@@ -230,6 +263,7 @@ struct SessionTileView: View {
         case .waiting: return .sessionOrange
         case .waitingDim: return Color(rgb: 0x6A3417)
         case .unseen: return .sessionGreen
+        case .failed: return .sessionRed
         case .off: return Color(rgb: 0x3A3D42)
         }
     }
@@ -301,6 +335,8 @@ struct SessionClock: TimelineSchedule {
 struct SessionGridView: View {
     var sessions: [Session]
     var moments: [String: SessionMoment] = [:]
+    /// The tool call each tile shows, from SessionStore.running.
+    var running: [String: SessionTool] = [:]
     var limit = 16
     /// False while other windows cover the whole window: nothing moves and the clock keeps its idle step.
     var visible = true
@@ -311,7 +347,7 @@ struct SessionGridView: View {
     var body: some View {
         let shown = Array(sessions.prefix(limit))
         let motion = !reduceMotion && visible
-        let clock = SessionLook.clock(shown, moments: moments, now: Date().timeIntervalSince1970, motion: motion)
+        let clock = SessionLook.clock(shown, moments: moments, running: running, now: Date().timeIntervalSince1970, motion: motion)
         TimelineView(SessionClock(fastUntil: clock.fastUntil, step: clock.step)) { context in
             let now = context.date.timeIntervalSince1970
             LazyVGrid(columns: Array(repeating: GridItem(.fixed(SessionGridLayout.tile.width), spacing: SessionGridLayout.gap), count: SessionGridLayout.columns),
@@ -320,7 +356,7 @@ struct SessionGridView: View {
                     // The folder stays in the tooltip and for VoiceOver when the tile shows a title.
                     let words = [session.provider == .claude ? "Claude" : "Codex", session.name] + (session.title.map { [$0] } ?? [])
                     SessionTileButton(session: session, now: now,
-                                      look: SessionLook.of(session, moment: moments[session.key], now: now, motion: motion),
+                                      look: SessionLook.of(session, moment: moments[session.key], tool: running[session.key], now: now, motion: motion),
                                       motion: motion, open: open)
                         .help(words.joined(separator: " · "))
                         .accessibilityLabel((words + [SessionStore.spokenStatus(session, now: now)]).joined(separator: ", "))

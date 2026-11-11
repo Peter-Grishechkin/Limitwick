@@ -9,6 +9,16 @@ import sys
 import tempfile
 import time
 
+# The Sessions window shows an icon per kind of tool; the tool name itself, and any MCP server name, stays here.
+# Names as Codex CLI 0.156 sends them to hooks: shell commands arrive as Bash, edits as apply_patch.
+CATEGORIES = {'Bash': 'shell', 'apply_patch': 'edit', 'view_image': 'read', 'web_search': 'web',
+              'spawn_agent': 'agent', 'update_plan': 'plan'}
+
+def category(name):
+    if not isinstance(name, str):
+        return 'other'
+    return 'mcp' if name.startswith('mcp__') else CATEGORIES.get(name, 'other')
+
 try:
     data = json.load(sys.stdin)
     event = data.get('hook_event_name')
@@ -22,6 +32,8 @@ try:
         tool = ''
     message = {'event': event, 'session': session, 'turn': turn, 'tool': tool, 'time': time.time(),
                'home': os.environ.get('CODEX_HOME', os.path.expanduser('~/.codex'))}
+    if event == 'PreToolUse':
+        message['category'] = category(data.get('tool_name'))
     # Folder name and launching app for the Sessions window; never a full path.
     cwd = data.get('cwd')
     if isinstance(cwd, str) and cwd.startswith('/'):

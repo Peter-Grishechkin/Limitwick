@@ -188,7 +188,7 @@ Limitwick can show a small animation to the left of a service's bars:
 
 The indicator takes up space in the menu bar only while it is active. With **Reduce motion** turned on in macOS accessibility settings, a still image is shown instead of an animation.
 
-The indicator uses *hooks*: small scripts that Codex or Claude Code runs on each event and that pass the event to Limitwick. They forward the event type, session and tool-call IDs, and the time. For the [Sessions window](#sessions) they also forward the name of the project folder (not its path), the bundle ID of the app that started the session and, for Claude Code, its entry point, process ID, and the Claude app's own session ID. Prompts, responses, commands, and tool output are never forwarded.
+The indicator uses *hooks*: small scripts that Codex or Claude Code runs on each event and that pass the event to Limitwick. They forward the event type, session and tool-call IDs, and the time. For the [Sessions window](#sessions) they also forward the kind of tool a call uses (edit, shell, read, search, web, agent, plan, MCP, or other), the name of the project folder (not its path), the bundle ID of the app that started the session and, for Claude Code, its entry point, process ID, and the Claude app's own session ID. Tool names, MCP server names, prompts, responses, commands, tool input, and tool output are never forwarded.
 
 ### Claude Code
 
@@ -227,14 +227,18 @@ See [how Limitwick works](docs/DETAILS.md) for the limits of activity detection.
 | Tile | Meaning |
 |---|---|
 | Coloured mascot that moves, orange corner | The session is working: the Claude figure steps in place, the Codex cloud blinks the `_` of its `>_` face. |
+| Typing hands (Claude) or a running `_` (Codex), an icon by the head | The session is running a tool. The icon shows its kind: a pencil for edits, `>_` for shell commands, an eye for reading, a magnifier for search, a globe for the web, a small figure for a subagent, a list for a plan, a plug for MCP tools, a gear for anything else. |
+| A shake and a red *!* | A tool call has just failed. |
 | Crawling orange stripes, blinking orange light, waving figure, *feed me!* | Claude Code is waiting for your permission. The caption gets hungrier as it waits: *hungry · 3m* after a minute, *starving · 12m* after five. |
-| A jump and a green check | A turn has just finished; then the mascot falls asleep. |
+| A jump and a green check | A turn has just finished; then the mascot falls asleep. An interrupted Codex turn falls asleep without the check and the green light. |
 | Green light, name in white | The turn finished and you have not opened the session since. |
 | Grey mascot with closed eyes, *z*, *done · 6m ago* | The session is idle or finished: one *z* under an hour, two under six hours, three after that. |
+| Crossed-out eyes (Codex: `>x`), red light, *failed 3m ago* | The turn ended with an error in Claude Code. The red light stays until you open the session. |
+| *?* instead of *z* | The session went silent for 30 minutes or its process exited during a turn. |
 
-Click a tile to open the session: a session of the Claude app opens there, and a session in a terminal brings that terminal to the front. Opening a session, a new prompt in it, or **Mark All as Seen** in the window's right-click menu turns its green light off; the light also comes on for a session whose answer you already read in the app, because the window cannot tell. Drag the window by the space between tiles; right-click it or use the menu to hide it. **Position** and the number of tiles are in [Settings](#sessions-window).
+Click a tile to open the session: a session of the Claude app opens there, and a session in a terminal brings that terminal to the front. Opening a session, a new prompt in it, or **Mark All as Seen** in the window's right-click menu turns its green or red light off; the light also comes on for a session whose answer you already read in the app, because the window cannot tell. Drag the window by the space between tiles; right-click it or use the menu to hide it. **Position** and the number of tiles are in [Settings](#sessions-window).
 
-Idle tiles stand still. With **Reduce motion** in the macOS Accessibility settings, every tile keeps one still pose, and a waiting figure just holds up its hand. Tiles also stop moving while other windows cover the whole Sessions window.
+Idle tiles stand still. With **Reduce motion** in the macOS Accessibility settings, every tile keeps one still pose, a waiting figure just holds up its hand, and tool icons stay. Tiles also stop moving while other windows cover the whole Sessions window.
 
 Live states come from the [activity hooks](#activity-indicator), which the window uses even when the menu bar animation is off. Earlier sessions are read from disk when the window opens and every five minutes: the Claude app's list of Code sessions, the first lines of Claude Code transcripts, and Codex session files. Only session IDs, folder names, times, whether a session is archived, and the titles of Claude app sessions are read. A session shows orange stripes only when its hooks report a permission prompt; Codex hooks do not report one.
 
@@ -311,7 +315,7 @@ Limitwick checks for new versions quietly at launch and once a day. When an upda
 - Codex usage comes from a local `codex app-server`. Claude usage comes from running `/usage` in Claude Code in a hidden terminal. While doing so, Claude Code runs with hooks and MCP servers turned off and with no tools allowed.
 - The app has no server of its own. Codex and Claude Code contact their own services, and update checks contact GitHub.
 - Widgets read local quota snapshots containing values, reset times, and update status. The snapshots contain no credentials or account IDs.
-- The Sessions window keeps its tiles in `~/Library/Application Support/Limitwick/sessions.json`: session IDs, folder names, Claude app session titles, states, and times. To fill in earlier sessions it reads only IDs, folders, times, the archived flag, and the session titles that the Claude app generates from your conversations, from local Claude and Codex session files; never prompts or replies.
+- The Sessions window keeps its tiles in `~/Library/Application Support/Limitwick/sessions.json`: session IDs, folder names, Claude app session titles, states, how the last turn ended (failed, interrupted, or lost), and times. The kind of tool a session is running stays in memory. To fill in earlier sessions it reads only IDs, folders, times, the archived flag, and the session titles that the Claude app generates from your conversations, from local Claude and Codex session files; never prompts or replies.
 
 ## Troubleshooting
 

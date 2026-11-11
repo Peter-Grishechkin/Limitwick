@@ -5,8 +5,10 @@ import Foundation
         let t0: TimeInterval = 1_800_000_000
         let id = "aa787cb0-d859-4a06-aeb1-ce873dbd2ea9"
         func event(_ name: String, _ session: String = id, at offset: TimeInterval, provider: SessionProvider = .claude,
-                   folder: String? = nil, app: String? = nil, entry: String? = nil, pid: Int32? = nil) -> SessionEvent {
-            SessionEvent(provider: provider, session: session, event: name, time: t0 + offset, name: folder, app: app, entry: entry, pid: pid)
+                   folder: String? = nil, app: String? = nil, entry: String? = nil, pid: Int32? = nil,
+                   tool: String? = nil, category: String? = nil) -> SessionEvent {
+            SessionEvent(provider: provider, session: session, event: name, time: t0 + offset, name: folder, app: app, entry: entry, pid: pid,
+                         tool: tool, category: category)
         }
 
         // Only real work creates a tile: a lone Stop, SessionEnd or notification for an unknown session does not.
@@ -198,7 +200,7 @@ import Foundation
         hungry.state = .idle; hungry.unseen = true
         precondition(SessionStore.spokenStatus(hungry, now: t0 + 30) == "done · just now, new")
 
-        // Unseen: a turn that stops by itself marks the tile; an interrupt, an end, a failure, silence or history does not.
+        // Unseen: a turn that stops by itself or fails marks the tile; an interrupt, an end, silence or history does not.
         let seen = SessionStore()
         seen.apply(event("UserPromptSubmit", "u1", at: 0), now: t0)
         precondition(seen.sessions["claude:u1"]?.unseen == nil)
@@ -215,9 +217,10 @@ import Foundation
         seen.apply(event("SessionEnd", "u3", at: 102), now: t0 + 102)
         seen.apply(event("UserPromptSubmit", "u4", at: 100), now: t0 + 100)
         seen.apply(event("StopFailure", "u4", at: 103), now: t0 + 103)
+        precondition(seen.sessions["claude:u4"]?.unseen == true && seen.markSeen("claude:u4"), "a failed turn has a result to look at")
         seen.apply(event("UserPromptSubmit", "u5", at: 100), now: t0 + 100)
         seen.tick(now: t0 + 100 + 1801, alive: { _ in true })
-        precondition(seen.sessions["claude:u5"]?.state == .idle && !seen.hasUnseen, "interrupt, end, failure and silence leave no mark")
+        precondition(seen.sessions["claude:u5"]?.state == .idle && !seen.hasUnseen, "interrupt, end and silence leave no mark")
         seen.apply(event("UserPromptSubmit", "u6", at: 2000, provider: .codex), now: t0 + 2000)
         seen.apply(event("Stop", "u6", at: 2001, provider: .codex), now: t0 + 2001)
         seen.apply(event("UserPromptSubmit", "u7", at: 2000), now: t0 + 2000)
@@ -241,8 +244,8 @@ import Foundation
         precondition(fresh.moments.isEmpty, "moments expire")
 
         // Frames: working mascots move from their own phase; waiting waves, blinks and crawls; idle stands still.
-        func look(_ s: Session, _ moment: SessionMoment? = nil, at time: TimeInterval, motion: Bool = true) -> SessionLook {
-            SessionLook.of(s, moment: moment, now: time, motion: motion)
+        func look(_ s: Session, _ moment: SessionMoment? = nil, tool: SessionTool? = nil, at time: TimeInterval, motion: Bool = true) -> SessionLook {
+            SessionLook.of(s, moment: moment, tool: tool, now: time, motion: motion)
         }
         let claudeWork = Session(provider: .claude, id: "p1", name: "P", state: .working, started: t0, turnStarted: t0, changed: t0)
         let steps = (0..<4).map { look(claudeWork, at: t0 + Double($0) * SessionLook.tick + 0.01) }
@@ -298,6 +301,133 @@ import Foundation
         precondition(SessionLook.clock([idleTile], moments: [idleTile.key: done], now: t0 + 4, motion: true).fastUntil == 0)
         precondition(SessionLook.clock([idleTile], moments: ["claude:other": done], now: t0 + 1, motion: true).fastUntil == 0, "only shown tiles count")
         precondition(SessionLook.clock([waitingTile], moments: [waitingTile.key: done], now: t0 + 1, motion: false) == (0, SessionLook.idleTick))
+
+        // Tool calls: the last call started shows; calls close by ID; a new prompt, the end of a turn and silence clear them.
+        let calls = SessionStore()
+        let ck = "claude:t1"
+        calls.apply(event("UserPromptSubmit", "t1", at: 0), now: t0)
+        precondition(calls.running[ck] == nil)
+        calls.apply(event("PreToolUse", "t1", at: 1, tool: "a", category: "shell"), now: t0 + 1)
+        calls.apply(event("PreToolUse", "t1", at: 2, tool: "b", category: "edit"), now: t0 + 2)
+        precondition(calls.running[ck] == SessionTool(id: "b", kind: .edit) && calls.tools[ck]?.count == 2)
+        calls.apply(event("PostToolUse", "t1", at: 3, tool: "b"), now: t0 + 3)
+        precondition(calls.running[ck] == SessionTool(id: "a", kind: .shell), "the earlier call shows again")
+        calls.apply(event("PostToolUseFailure", "t1", at: 4, tool: "a"), now: t0 + 4)
+        precondition(calls.running[ck] == nil && calls.moments[ck] == SessionMoment(kind: .toolFailed, at: t0 + 4))
+        calls.apply(event("PreToolUse", "t1", at: 5, tool: "c", category: "mcp__server"), now: t0 + 5)
+        precondition(calls.running[ck]?.kind == .other, "an unknown kind is just a tool")
+        calls.apply(event("PreToolUse", "t1", at: 6, tool: "c", category: "read"), now: t0 + 6)
+        precondition(calls.tools[ck]?.count == 1 && calls.running[ck]?.kind == .read, "a repeated call ID replaces the call")
+        calls.apply(event("UserPromptSubmit", "t1", at: 7), now: t0 + 7)
+        precondition(calls.running[ck] == nil, "a new prompt forgets calls that never returned")
+        for i in 0..<40 { calls.apply(event("PreToolUse", "t1", at: 8 + Double(i) / 100, tool: "x\(i)", category: "web"), now: t0 + 8) }
+        precondition(calls.tools[ck]?.count == SessionStore.openTools && calls.running[ck]?.id == "x39")
+        calls.apply(event("Stop", "t1", at: 9), now: t0 + 9)
+        precondition(calls.running[ck] == nil && calls.tools[ck] == nil)
+        calls.apply(event("PreToolUse", "x1", at: 10, provider: .codex, tool: "call"), now: t0 + 10)
+        precondition(calls.running["codex:x1"] == SessionTool(id: "call", kind: nil), "an older hook copy runs a tool without a kind")
+        precondition(calls.tick(now: t0 + 10 + 1801, alive: { _ in true }) && calls.running["codex:x1"] == nil)
+        calls.apply(event("UserPromptSubmit", "t2", at: 0), now: t0 + 60)
+        calls.apply(event("PostToolUseFailure", "t2", at: 1, tool: "a"), now: t0 + 60)
+        precondition(calls.moments["claude:t2"] == nil, "a late tool error does not shake")
+        // Tool kinds stay in memory: sessions.json has no trace of them.
+        let toolFile = FileManager.default.temporaryDirectory.appendingPathComponent("sessions-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: toolFile) }
+        let kept = SessionStore(file: toolFile)
+        kept.apply(event("PreToolUse", "t3", at: 0, tool: "toolu_secret", category: "search"), now: t0)
+        kept.save()
+        let keptText = try String(contentsOf: toolFile, encoding: .utf8)
+        precondition(!keptText.contains("search") && !keptText.contains("toolu_secret") && !keptText.contains("category"), keptText)
+
+        // How a turn ended: failed (marked, red), interrupted (no mark), lost (silence or a dead process); a new turn clears it.
+        let ends = SessionStore()
+        ends.apply(event("UserPromptSubmit", "e1", at: 0), now: t0)
+        ends.apply(event("StopFailure", "e1", at: 5), now: t0 + 5)
+        var ended = ends.sessions["claude:e1"]!
+        precondition(ended.outcome == .failed && ended.unseen == true && ends.moments["claude:e1"] == SessionMoment(kind: .failed, at: t0 + 5))
+        precondition(SessionStore.status(ended, now: t0 + 30) == "just failed" && SessionStore.status(ended, now: t0 + 185) == "failed 3m ago")
+        for seconds in [0.0, 59, 60, 3599, 3600, 86_399] { precondition(SessionStore.status(ended, now: t0 + 5 + seconds).count <= 14, "\(seconds)") }
+        precondition(SessionStore.spokenStatus(ended, now: t0 + 185) == "failed 3m ago, new")
+        ends.apply(event("UserPromptSubmit", "e1", at: 10), now: t0 + 10)
+        precondition(ends.sessions["claude:e1"]?.outcome == nil && ends.sessions["claude:e1"]?.unseen == nil, "a new turn clears the failure")
+        ends.apply(event("Stop", "e1", at: 15), now: t0 + 15)
+        precondition(ends.sessions["claude:e1"]?.outcome == nil)
+        ends.apply(event("UserPromptSubmit", "e2", at: 0, provider: .codex), now: t0)
+        ends.apply(event("Interrupt", "e2", at: 3, provider: .codex), now: t0 + 3)
+        ended = ends.sessions["codex:e2"]!
+        precondition(ended.outcome == .interrupted && ended.unseen == nil && ends.moments["codex:e2"] == SessionMoment(kind: .interrupted, at: t0 + 3))
+        precondition(SessionStore.status(ended, now: t0 + 200) == "done · 3m ago")
+        ends.apply(event("UserPromptSubmit", "e3", at: 0, provider: .codex), now: t0)
+        ends.apply(event("Ended", "e3", at: 4, provider: .codex), now: t0 + 4)
+        precondition(ends.sessions["codex:e3"]?.outcome == .lost && ends.moments["codex:e3"]?.kind == .appeared, "a lost process plays no moment")
+        ends.apply(event("UserPromptSubmit", "e4", at: 0, pid: 77), now: t0)
+        ends.apply(event("UserPromptSubmit", "e5", at: 0), now: t0)
+        precondition(ends.tick(now: t0 + 20, alive: { $0 != 77 }) && ends.sessions["claude:e4"]?.outcome == .lost && ends.sessions["claude:e5"]?.outcome == nil)
+        precondition(ends.tick(now: t0 + 1801, alive: { _ in true }) && ends.sessions["claude:e5"]?.outcome == .lost)
+        // The outcome is saved; files without it read as a plain stop; turns cut short by a reboot are lost.
+        let endFile = FileManager.default.temporaryDirectory.appendingPathComponent("sessions-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: endFile) }
+        let endSaved = SessionStore(file: endFile)
+        endSaved.apply(event("UserPromptSubmit", "e6", at: 0), now: t0); endSaved.apply(event("StopFailure", "e6", at: 1), now: t0 + 1)
+        endSaved.apply(event("UserPromptSubmit", "e7", at: 0), now: t0)
+        endSaved.save()
+        let endRestored = SessionStore(file: endFile); endRestored.load(now: t0 + 60, booted: t0 + 30, alive: { _ in true })
+        precondition(endRestored.sessions["claude:e6"]?.outcome == .failed && endRestored.sessions["claude:e6"]?.unseen == true)
+        precondition(endRestored.sessions["claude:e7"]?.state == .idle && endRestored.sessions["claude:e7"]?.outcome == .lost)
+        precondition(endRestored.moments.isEmpty && endRestored.running.isEmpty, "a loaded file plays nothing")
+        try Data(#"[{"provider":"codex","id":"y","name":"Old","state":"idle","started":\#(t0),"turnStarted":\#(t0),"changed":\#(t0),"unseen":true}]"#.utf8).write(to: endFile)
+        let endOlder = SessionStore(file: endFile); endOlder.load(now: t0 + 60, booted: t0 - 100, alive: { _ in true })
+        precondition(endOlder.sessions["codex:y"]?.outcome == nil && endOlder.sessions["codex:y"]?.unseen == true)
+
+        // A running tool: Claude types with alternating hands every 0.16 s and does not bob; Codex runs its cursor; the icon stays.
+        let edit = SessionTool(id: "a", kind: .edit)
+        let typing = (0..<4).map { look(claudeWork, tool: edit, at: t0 + Double($0) * SessionLook.waitTick + 0.01) }
+        precondition(Set(typing.map(\.typing)) == [.left, .right] && zip(typing, typing.dropFirst()).allSatisfy { $0.typing != $1.typing })
+        precondition(typing.allSatisfy { $0.lift == 1 && $0.legs == .both && $0.hint == .tool(.edit) && $0.bold })
+        precondition(look(claudeWork, tool: edit, at: t0, motion: false) == SessionLook(lift: 1, hint: .tool(.edit), bold: true), "Reduce Motion keeps the icon")
+        precondition(look(claudeWork, tool: SessionTool(id: "a", kind: nil), at: t0 + 0.01).hint == .none, "no kind, no icon")
+        let running = (0..<6).map { look(codexWork, tool: SessionTool(id: "a", kind: nil), at: t0 + Double($0) * SessionLook.waitTick + 0.01) }
+        let shifts = running.map(\.cursorShift)
+        precondition(Set(shifts) == [0, 1, 2] && running.allSatisfy { $0.cursor && $0.hint == .none }, "\(shifts)")
+        precondition(zip(shifts, shifts.dropFirst()).allSatisfy { $1 == ($0 + 1) % 3 }, "the cursor runs right and starts over")
+        // A tool error: a shake of four 0.08 s frames and "!" for a second, then back to the tool; only on a working tile.
+        let oops = SessionMoment(kind: .toolFailed, at: t0)
+        precondition((0..<5).map { look(claudeWork, oops, tool: edit, at: t0 + Double($0) * SessionLook.fastTick + 0.001).shake } == [-1, 1, -1, 1, 0])
+        precondition(look(claudeWork, oops, tool: edit, at: t0 + 0.5).hint == .alert && look(claudeWork, oops, tool: edit, at: t0 + 1.01).hint == .tool(.edit))
+        precondition(look(claudeWork, oops, at: t0 + 1.01).hint == .none && look(claudeWork, oops, at: t0 + 0.1, motion: false) == look(claudeWork, at: t0 + 0.1, motion: false))
+        precondition(look(idleTile, oops, at: t0 + 0.1) == look(idleTile, at: t0 + 0.1), "a tool error shows only while working")
+
+        // A failed turn: shake, then crossed eyes as the colour drains; red light until seen; no z.
+        var failedTile = Session(provider: .claude, id: "p1", name: "P", state: .idle, started: t0, turnStarted: t0, changed: t0)
+        failedTile.outcome = .failed; failedTile.unseen = true
+        let crash = SessionMoment(kind: .failed, at: t0)
+        precondition((0..<4).map { look(failedTile, crash, at: t0 + Double($0) * SessionLook.fastTick + 0.001).shake } == SessionLook.shakes)
+        precondition(!look(failedTile, crash, at: t0 + 0.1).crossed && look(failedTile, crash, at: t0 + 0.1).awake == 1)
+        precondition([0.33, 0.49, 0.65, 0.81].map { look(failedTile, crash, at: t0 + $0).awake } == [0.75, 0.5, 0.25, 0])
+        precondition(look(failedTile, crash, at: t0 + 0.33).crossed && look(failedTile, crash, at: t0 + 0.81).lift == 0)
+        let failedRest = look(failedTile, at: t0 + 600)
+        precondition(failedRest == look(failedTile, crash, at: t0 + 600) && failedRest.crossed && failedRest.light == .failed && failedRest.hint == .none && failedRest.bold)
+        precondition(look(failedTile, crash, at: t0 + 0.1, motion: false) == look(failedTile, at: t0 + 0.1), "Reduce Motion skips the shake")
+        failedTile.unseen = nil
+        precondition(look(failedTile, at: t0 + 600).light == .off && look(failedTile, at: t0 + 600).crossed && !look(failedTile, at: t0 + 600).bold)
+        // Interrupted: like finished without the jump, the blinks and the check; then plain sleep.
+        var stopped = idleTile; stopped.provider = .codex; stopped.unseen = nil; stopped.outcome = .interrupted
+        let halt = SessionMoment(kind: .interrupted, at: t0)
+        precondition(stride(from: 0.0, to: 2.4, by: 0.08).allSatisfy { let l = look(stopped, halt, at: t0 + $0 + 0.001); return l.lift == 1 && l.cursor && l.hint == .none && l.awake == 1 })
+        precondition([2.41, 2.57, 2.73, 2.89].map { look(stopped, halt, at: t0 + $0).awake } == [0.75, 0.5, 0.25, 0])
+        precondition(look(stopped, halt, at: t0 + 2.5).hint == .sleep(1) && look(stopped, halt, at: t0 + 3.1) == look(stopped, at: t0 + 3.1))
+        precondition(look(stopped, at: t0 + 600) == SessionLook(eyesClosed: true, awake: 0, hint: .sleep(1)))
+        // Lost: "?" instead of z, no movement.
+        var lostTile = idleTile; lostTile.unseen = nil; lostTile.outcome = .lost
+        precondition(look(lostTile, at: t0 + 7 * 3600) == SessionLook(eyesClosed: true, awake: 0, hint: .question))
+
+        // The clock steps every 0.16 s while a shown tile runs a tool and stays fast while new moments play.
+        precondition(SessionLook.clock([claudeWork], moments: [:], running: [claudeWork.key: edit], now: t0, motion: true).step == SessionLook.waitTick)
+        precondition(SessionLook.clock([claudeWork], moments: [:], running: ["claude:other": edit], now: t0, motion: true).step == SessionLook.tick)
+        precondition(SessionLook.clock([claudeWork], moments: [claudeWork.key: oops], now: t0 + 0.5, motion: true).fastUntil == t0 + SessionLook.alertShown)
+        precondition(SessionLook.clock([failedTile], moments: [failedTile.key: crash], now: t0 + 0.5, motion: true).fastUntil == t0 + SessionLook.failing)
+        precondition(SessionLook.clock([stopped], moments: [stopped.key: halt], now: t0 + 0.5, motion: true).fastUntil == t0 + SessionLook.finishing)
+        precondition(SessionLook.clock([claudeWork], moments: [:], running: [claudeWork.key: edit], now: t0, motion: false) == (0, SessionLook.idleTick))
 
         // Hat colour depends only on the session ID.
         precondition(SessionStore.hat(for: id, count: 6) == SessionStore.hat(for: id, count: 6))
