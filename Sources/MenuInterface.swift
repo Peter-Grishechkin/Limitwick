@@ -193,8 +193,26 @@ extension AppDelegate {
         }
     }
     func sessionEvent(_ event: SessionEvent) {
-        guard sessionStore.apply(event) else { return }
-        sessionStore.save(); syncSessions()
+        if sessionStore.apply(event) { sessionStore.save(); syncSessions() }
+        // The Claude app names a session after its first turn and may rename it later: reread the title when a turn starts or ends.
+        let key = "claude:" + event.session
+        guard event.provider == .claude, event.event == "UserPromptSubmit" || event.event == "Stop",
+              let host = sessionStore.sessions[key]?.host else { return }
+        readSessionTitle(key: key, host: host, retries: event.event == "Stop" ? 2 : 0)
+    }
+    private func readSessionTitle(key: String, host: String, retries: Int) {
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let title = SessionHistory.appTitle(host: host)
+            DispatchQueue.main.async {
+                guard let self = self else { return }
+                if self.sessionStore.retitle(key, title) { self.sessionStore.save(); self.syncSessions() }
+                // Right after the first turn the app may not have written the title yet.
+                guard title == nil, retries > 0 else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
+                    self?.readSessionTitle(key: key, host: host, retries: retries - 1)
+                }
+            }
+        }
     }
     func openSession(_ session: Session) {
         switch SessionStore.target(for: session) {

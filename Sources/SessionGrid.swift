@@ -130,11 +130,22 @@ struct SessionTileView: View {
             SessionMascotView(provider: session.provider, active: active,
                               hat: SessionStore.hat(for: session.id, count: SessionMascot.hats.count),
                               raised: session.state == .working && raised)
+                .overlay(alignment: .topTrailing) {
+                    // Beside the mascot's head, so it moves with the mascot.
+                    if session.state == .idle {
+                        Text("z z").font(.system(size: 9, design: .monospaced)).foregroundColor(Color(rgb: 0x5D6269))
+                            .fixedSize().offset(x: 13, y: 13)
+                    }
+                }
                 .padding(.bottom, 3)
-            Text(session.name)
+            // A Claude app title takes two lines: sessions in one folder differ only by it.
+            // Every name keeps room for two lines, so mascots in a row stay level.
+            Text(session.title ?? session.name)
                 .font(.system(size: 11, weight: active ? .semibold : .regular, design: .monospaced))
                 .foregroundColor(active ? .white : Color(rgb: 0xC9CCD1))
-                .lineLimit(1).truncationMode(.tail)
+                .lineLimit(session.title == nil ? 1 : 2).truncationMode(.tail)
+                .multilineTextAlignment(.center)
+                .frame(height: 28)
             Text(SessionStore.status(session, now: now))
                 .font(.system(size: 10, design: .monospaced))
                 .foregroundColor(session.state == .waiting ? .sessionOrange : Color(rgb: 0x7D828A))
@@ -148,12 +159,6 @@ struct SessionTileView: View {
         .overlay(alignment: .topTrailing) {
             RoundedRectangle(cornerRadius: 1.5).fill(session.state == .waiting ? Color.sessionOrange : Color(rgb: 0x3A3D42))
                 .frame(width: 7, height: 7).padding(6)
-        }
-        .overlay(alignment: .topTrailing) {
-            if session.state == .idle {
-                Text("z z").font(.system(size: 9, design: .monospaced)).foregroundColor(Color(rgb: 0x5D6269))
-                    .padding(.top, 22).padding(.trailing, 5)
-            }
         }
     }
 }
@@ -190,10 +195,12 @@ struct SessionGridView: View {
             LazyVGrid(columns: Array(repeating: GridItem(.fixed(SessionGridLayout.tile.width), spacing: SessionGridLayout.gap), count: SessionGridLayout.columns),
                       alignment: .leading, spacing: SessionGridLayout.gap) {
                 ForEach(shown, id: \.key) { session in
+                    // The folder stays in the tooltip and for VoiceOver when the tile shows a title.
+                    let words = [session.provider == .claude ? "Claude" : "Codex", session.name] + (session.title.map { [$0] } ?? [])
                     Button { open(session) } label: { SessionTileView(session: session, now: now, raised: raised) }
                         .buttonStyle(.plain)
-                        .help("\(session.provider == .claude ? "Claude" : "Codex") · \(session.name)")
-                        .accessibilityLabel("\(session.provider == .claude ? "Claude" : "Codex"), \(session.name), \(SessionStore.status(session, now: now))")
+                        .help(words.joined(separator: " · "))
+                        .accessibilityLabel((words + [SessionStore.status(session, now: now)]).joined(separator: ", "))
                 }
                 // Empty slots keep the grid the same size, like the screen of a device.
                 ForEach(shown.count..<max(shown.count, limit), id: \.self) { _ in
