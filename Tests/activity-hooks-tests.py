@@ -66,8 +66,25 @@ assert len(files) == 1
 message = json.loads(files[0].read_text())
 assert message['event'] == 'PreToolUse' and message['tool'] == 'call'
 assert 'PRIVATE' not in files[0].read_text() and 'tool_input' not in message
-assert 'name' not in message
+assert 'name' not in message and message['category'] == 'other'
 files[0].unlink()
+# PreToolUse sends the kind of tool, never its name, input or MCP server (names as Codex 0.156 sends them).
+codex_kinds = {'Bash': 'shell', 'apply_patch': 'edit', 'view_image': 'read', 'web_search': 'web', 'spawn_agent': 'agent',
+               'update_plan': 'plan', 'mcp__secretserver__query': 'mcp', 'write_stdin': 'other', 'exec_command': 'other',
+               'bash': 'other', 12: 'other', None: 'other'}
+for tool_name, kind in codex_kinds.items():
+    data = dict(input_data, tool_name=tool_name, tool_input={'command': 'PRIVATE', 'query': 'secretserver'})
+    subprocess.run(['/usr/bin/python3', 'Resources/useAnimations/activity-hook.py'], env=env, input=json.dumps(data), text=True, capture_output=True, check=True)
+    files = list(listener.glob('event-*'))
+    text = files[0].read_text(); message = json.loads(text); files[0].unlink()
+    assert message['category'] == kind and message['tool'] == 'call', (tool_name, message)
+    assert 'PRIVATE' not in text and 'secretserver' not in text and 'tool_name' not in message and 'tool_input' not in message
+for event in ('PostToolUse', 'UserPromptSubmit', 'Stop', 'Interrupt'):
+    data = dict(input_data, hook_event_name=event, tool_name='mcp__secretserver__query')
+    subprocess.run(['/usr/bin/python3', 'Resources/useAnimations/activity-hook.py'], env=env, input=json.dumps(data), text=True, capture_output=True, check=True)
+    files = list(listener.glob('event-*'))
+    message = json.loads(files[0].read_text()); files[0].unlink()
+    assert 'category' not in message and message['event'] == event, 'only PreToolUse carries the kind'
 # The Sessions window gets the folder name and launching app, never the full path.
 input_data = {'hook_event_name': 'UserPromptSubmit', 'session_id': 'session', 'turn_id': 'turn', 'cwd': '/Users/someone/Secret/Project', 'prompt': 'PRIVATE'}
 subprocess.run(['/usr/bin/python3', 'Resources/useAnimations/activity-hook.py'], env=dict(env, __CFBundleIdentifier='com.apple.Terminal'), input=json.dumps(input_data), text=True, capture_output=True, check=True)
@@ -115,6 +132,7 @@ assert len(files) == 1 and p.stdout == ''
 message = json.loads(files[0].read_text())
 assert message['event'] == 'PreToolUse' and message['session'] == 'claude-session' and message['tool'] == 'call'
 assert 'PRIVATE' not in files[0].read_text() and 'tool_input' not in message
+assert message['category'] == 'other', 'no tool name is an unknown tool'
 files[0].unlink()
 
 def claude_event(data, **variables):
@@ -140,6 +158,20 @@ assert message['name'] == 'Sub' and 'pid' not in message and 'entry' not in mess
 assert json.loads(claude_event({'hook_event_name': 'Notification', 'notification_type': 'permission_prompt', 'session_id': 'claude-session', 'message': 'PRIVATE'}))['event'] == 'Permission'
 assert json.loads(claude_event({'hook_event_name': 'Notification', 'notification_type': 'idle_prompt', 'session_id': 'claude-session'}))['event'] == 'Idle'
 assert claude_event({'hook_event_name': 'Notification', 'notification_type': 'auth_success', 'session_id': 'claude-session'}) is None
+# PreToolUse sends the kind of tool, never its name, input or MCP server.
+kinds = {'Edit': 'edit', 'MultiEdit': 'edit', 'Write': 'edit', 'NotebookEdit': 'edit', 'Bash': 'shell', 'BashOutput': 'shell', 'KillShell': 'shell',
+         'Read': 'read', 'Glob': 'search', 'Grep': 'search', 'WebFetch': 'web', 'WebSearch': 'web', 'Task': 'agent', 'Agent': 'agent',
+         'TodoWrite': 'plan', 'mcp__secretserver__query': 'mcp', 'SomethingNew': 'other', 'bash': 'other', 12: 'other', None: 'other'}
+for name, kind in kinds.items():
+    text = claude_event({'hook_event_name': 'PreToolUse', 'session_id': 'claude-session', 'tool_use_id': 'toolu_1', 'tool_name': name,
+                         'tool_input': {'command': 'PRIVATE', 'query': 'secretserver'}})
+    message = json.loads(text)
+    assert message['category'] == kind and message['tool'] == 'toolu_1', (name, message)
+    assert 'PRIVATE' not in text and 'secretserver' not in text and 'tool_input' not in message and 'tool_name' not in message
+    assert set(message) <= {'event', 'session', 'tool', 'time', 'category'}, message
+for event in ('PostToolUse', 'PostToolUseFailure', 'UserPromptSubmit', 'Stop', 'StopFailure'):
+    message = json.loads(claude_event({'hook_event_name': event, 'session_id': 'claude-session', 'tool_use_id': 'toolu_1', 'tool_name': 'mcp__secretserver__query'}))
+    assert 'category' not in message and message['event'] == event, 'only PreToolUse carries the kind'
 claude_config.write_text(json.dumps(claude_original))
 subprocess.run(['/usr/bin/python3', setup, 'install'], env=env, check=True, stdout=subprocess.DEVNULL)
 assert [g.get('matcher') for g in json.loads(claude_config.read_text())['hooks']['Notification']] == [None]

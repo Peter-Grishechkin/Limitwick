@@ -63,6 +63,13 @@ import Lottie
         precondition(displayed == nil)
         try send("UserPromptSubmit", session1, turn1); precondition(displayed == .working)
         precondition(forwarded.first?.provider == .codex && forwarded.first?.event == "UserPromptSubmit" && forwarded.first?.session == session1)
+        precondition(forwarded.contains { $0.event == "PreToolUse" && $0.tool == "a" && $0.category == nil }, "Codex forwards the call ID; an older hook copy sends no kind")
+        seq += 1
+        let codexKind: [String: Any] = ["event": "PreToolUse", "session": session1, "turn": turn1, "tool": "c", "time": now + Double(seq) / 100, "home": home.path, "category": "shell"]
+        try JSONSerialization.data(withJSONObject: codexKind).write(to: directory.appendingPathComponent("event-\(seq)"))
+        monitor.poll(now: now + Double(seq) / 100)
+        precondition(forwarded.last?.event == "PreToolUse" && forwarded.last?.tool == "c" && forwarded.last?.category == "shell", "Codex forwards the kind of tool")
+        try send("PostToolUse", session1, turn1, tool: "c")
         flock(fd1, LOCK_UN); monitor.poll(now: now + 4.1); precondition(displayed == nil)
         // The Sessions window learns that the writer exited instead of waiting for silence.
         precondition(forwarded.last?.event == "Ended" && forwarded.last?.session == session1)
@@ -104,6 +111,14 @@ import Lottie
         let permission = claudeForwarded.last
         precondition(permission?.provider == .claude && permission?.event == "Permission" && permission?.name == "Limitwick")
         precondition(permission?.pid == 1456 && permission?.entry == "claude-desktop" && claudeShown == nil, "the menu bar indicator ignores permission prompts")
+        // The kind of tool reaches the Sessions window with the call ID; an older hook copy without it still decodes.
+        try claudeSend("PreToolUse", "one", "toolu_1")
+        precondition(claudeForwarded.last?.tool == "toolu_1" && claudeForwarded.last?.category == nil)
+        seq += 1
+        let kind: [String: Any] = ["event": "PreToolUse", "session": "one", "tool": "toolu_2", "time": now + Double(seq) / 100, "category": "shell"]
+        try JSONSerialization.data(withJSONObject: kind).write(to: claudeDir.appendingPathComponent("event-\(seq)"))
+        claude.poll(now: now + Double(seq) / 100)
+        precondition(claudeForwarded.last?.tool == "toolu_2" && claudeForwarded.last?.category == "shell")
         let config = root.appendingPathComponent("claude-config"); try FileManager.default.createDirectory(at: config, withIntermediateDirectories: true)
         precondition(!ClaudeActivityMonitor.hooksInstalled(config: config))
         try #"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/usr/bin/python3 /Applications/CodexBar.app/Contents/Resources/useAnimations/claude-activity-hook.py"}]}]}}"#.write(to: config.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)

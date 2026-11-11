@@ -173,7 +173,7 @@ extension AppDelegate {
     func syncSessions() {
         guard let window = sessionsWindow, window.isVisible else { return }
         let limit = settings.sessionsLimit
-        sessionsHost.rootView = SessionGridView(sessions: sessionStore.ordered, moments: sessionStore.moments, limit: limit,
+        sessionsHost.rootView = SessionGridView(sessions: sessionStore.ordered, moments: sessionStore.moments, running: sessionStore.running, limit: limit,
                                                 visible: window.occlusionState.contains(.visible),
                                                 open: { [weak self] session in self?.openSession(session) },
                                                 markAllSeen: { [weak self] in

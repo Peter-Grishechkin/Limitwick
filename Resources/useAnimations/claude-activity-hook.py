@@ -9,6 +9,16 @@ import tempfile
 import time
 
 NOTIFICATIONS = {'idle_prompt': 'Idle', 'permission_prompt': 'Permission'}
+# The Sessions window shows an icon per kind of tool; the tool name itself, and any MCP server name, stays here.
+CATEGORIES = {'Edit': 'edit', 'MultiEdit': 'edit', 'Write': 'edit', 'NotebookEdit': 'edit',
+              'Bash': 'shell', 'BashOutput': 'shell', 'KillShell': 'shell', 'Read': 'read',
+              'Glob': 'search', 'Grep': 'search', 'WebFetch': 'web', 'WebSearch': 'web',
+              'Task': 'agent', 'Agent': 'agent', 'TodoWrite': 'plan'}
+
+def category(name):
+    if not isinstance(name, str):
+        return 'other'
+    return 'mcp' if name.startswith('mcp__') else CATEGORIES.get(name, 'other')
 
 def session_details(data):
     """Project folder name and launch details for the Sessions window; never a full path."""
@@ -39,7 +49,10 @@ try:
         tool = data.get('tool_use_id', '')
         if not isinstance(tool, str) or len(tool) > 200:
             tool = ''
-        payload = json.dumps({'event': event, 'session': session, 'tool': tool, 'time': time.time(), **session_details(data)})
+        message = {'event': event, 'session': session, 'tool': tool, 'time': time.time(), **session_details(data)}
+        if event == 'PreToolUse':
+            message['category'] = category(data.get('tool_name'))
+        payload = json.dumps(message)
         base = os.path.expanduser('~/Library/Caches/Limitwick/ClaudeActivity')
         for directory in glob.glob(os.path.join(base, 'listener-*')):
             try:

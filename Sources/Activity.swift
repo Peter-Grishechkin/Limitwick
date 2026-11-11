@@ -12,6 +12,8 @@ struct ActivityEvent: Decodable {
     let home: String
     let name: String?
     let app: String?
+    /// Kind of tool on PreToolUse; hook copies from before 2026-11-11 do not send it.
+    let category: String?
 }
 
 enum ActivityDisplay: Equatable {
@@ -82,7 +84,7 @@ final class ActivityMonitor {
             let key = event.session + ":" + event.turn
             if let old = turns[key], old.timestamp > event.time { continue }
             let lock = (event.home as NSString).appendingPathComponent("thread-writer-locks/\(event.session).lock")
-            let forward = SessionEvent(provider: .codex, session: event.session, event: event.event, time: event.time, name: event.name, app: event.app)
+            let forward = SessionEvent(provider: .codex, session: event.session, event: event.event, time: event.time, name: event.name, app: event.app, tool: event.tool, category: event.category)
             switch event.event {
             case "UserPromptSubmit", "PreToolUse", "PostToolUse":
                 guard writerIsAlive(lock) else { continue }
@@ -193,6 +195,8 @@ final class ClaudeActivityMonitor {
         struct Event: Decodable {
             let event: String; let session: String; let tool: String; let time: TimeInterval
             let name: String?; let app: String?; let entry: String?; let pid: Int32?; let host: String?
+            /// Kind of tool on PreToolUse; hook copies from before 2026-11-11 do not send it.
+            let category: String?
         }
         var events: [Event] = []
         for url in files where url.lastPathComponent.hasPrefix("event-") {
@@ -202,7 +206,8 @@ final class ClaudeActivityMonitor {
         if let latest = events.map(\.time).max() { lastEvent = max(lastEvent ?? 0, latest) }
         for event in events.sorted(by: { $0.time < $1.time }) {
             onEvent?(SessionEvent(provider: .claude, session: event.session, event: event.event, time: event.time,
-                                  name: event.name, app: event.app, entry: event.entry, pid: event.pid, host: event.host))
+                                  name: event.name, app: event.app, entry: event.entry, pid: event.pid, host: event.host,
+                                  tool: event.tool, category: event.category))
             if let prior = sessions[event.session], prior.timestamp > event.time { continue }
             switch event.event {
             case "UserPromptSubmit": sessions[event.session] = Session(tools: [], timestamp: event.time); completedUntil = 0
