@@ -8,6 +8,8 @@
   <b>A small macOS menu bar app that shows how much of your Codex and Claude Code usage is left<br>and what your coding agents are doing right now.</b>
 </p>
 
+https://github.com/user-attachments/assets/46214406-0869-4078-9463-29192c8ed6ae
+
 <p align="center">
   <a href="https://github.com/Peter-Grishechkin/Limitwick/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Peter-Grishechkin/Limitwick?label=release&color=f0702e"></a>
   <img alt="macOS 13 or later" src="https://img.shields.io/badge/macOS-13%2B-1f2328?logo=apple">
