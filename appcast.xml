@@ -2,6 +2,24 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.5.0</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Sessions tiles of the Claude app show the session&amp;#x27;s title from the app, on up to two lines, instead of the project folder. The folder stays in the tooltip. Limitwick reads these titles from the Claude app&amp;#x27;s local session files and keeps them with the tiles.
+- The Codex cloud wears a terminal prompt `&amp;gt;_` for a face.
+- Tiles are animated. A working Claude figure steps in place and the Codex cursor blinks. A session that waits for your permission gets crawling orange stripes, a blinking corner light and a waving figure, and its caption gets hungrier as it waits: *feed me!*, *hungry · 3m*, *starving · 12m*. A finished turn plays a jump and a check, then the mascot falls asleep.
+- A green corner light marks a turn that finished since you last opened that session. Opening the session, a new prompt in it, or **Mark All as Seen** in the window&amp;#x27;s right-click menu turns it off.
+- Idle tiles stand still, with closed eyes and one to three z&amp;#x27;s depending on how long ago they finished. With Reduce Motion in the macOS Accessibility settings every tile keeps one still pose, and tiles stop moving while other windows cover the whole window.
+- Under the pointer a tile&amp;#x27;s frame lights up and the mascot looks up; a tile sinks while pressed and flashes when clicked.&lt;/div&gt;</description>
+      <sparkle:version>2.5.0</sparkle:version>
+      <sparkle:shortVersionString>2.5.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Wed, 11 Nov 2026 12:12:48 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.5.0/Limitwick-2.5.0-macOS-Apple-Silicon.zip" sparkle:edSignature="dwq5TaBm9psanF0Vr1uc8M6/0KrMbl4Jr6Om0s3JfjTxsfmGWsR2w3nHpIzjGUCaI72D92rjDNn23yFXGZlhCA==" length="3994462" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.5.0</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.4.0</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- New Sessions window (menu → Show Sessions): your Codex and Claude Code sessions of the last 24 hours as a grid of pixel mascots. Working sessions bob, a Claude Code session that waits for a permission prompt shows orange stripes, and finished sessions sleep. Click a tile to open a Claude app session or bring a terminal session&amp;#x27;s app to the front.
 - Settings → Sessions window: keep the window above all windows or on the desktop, and show 4, 8 or 16 sessions.
