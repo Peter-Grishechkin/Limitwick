@@ -2,6 +2,22 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.4.0</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- New Sessions window (menu → Show Sessions): your Codex and Claude Code sessions of the last 24 hours as a grid of pixel mascots. Working sessions bob, a Claude Code session that waits for a permission prompt shows orange stripes, and finished sessions sleep. Click a tile to open a Claude app session or bring a terminal session&amp;#x27;s app to the front.
+- Settings → Sessions window: keep the window above all windows or on the desktop, and show 4, 8 or 16 sessions.
+- The activity hooks now also send the project folder name (not its path) and the app that started the session, so tiles can be named and opened. Installed hooks are updated when Limitwick starts. Prompts, responses and commands are still never sent.
+- To show earlier sessions, Limitwick reads only session IDs, folder names, times and the archived flag from local Claude and Codex session files.&lt;/div&gt;</description>
+      <sparkle:version>2.4.0</sparkle:version>
+      <sparkle:shortVersionString>2.4.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Wed, 11 Nov 2026 01:35:52 +0000</pubDate>
+      <enclosure url="https://github.com/frankydzoro/Limitwick/releases/download/v2.4.0/Limitwick-2.4.0-macOS-Apple-Silicon.zip" sparkle:edSignature="N/W28r02/K9V7VKmU1OEyyK4JxxScX+Lq+wkY3bHud5z2+XUjxapRm44fV69A5i3WKd43I/gFQbZZNpGuGRbCA==" length="3957281" type="application/octet-stream" />
+      <link>https://github.com/frankydzoro/Limitwick/releases/tag/v2.4.0</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.3.1</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Desktop widgets stay readable when the desktop is not in focus. Before, macOS showed an inactive widget as a plain white block.
 - Low-quota and reset notifications no longer repeat when Codex or Claude reports a reset time that shifts by a few seconds or minutes.&lt;/div&gt;</description>
