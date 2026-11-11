@@ -24,6 +24,8 @@ import Lottie
         let monitor = ActivityMonitor(base: base)
         var displayed: ActivityDisplay?
         monitor.onChange = { displayed = $0 }
+        var forwarded: [SessionEvent] = []
+        monitor.onEvent = { forwarded.append($0) }
         monitor.start()
         defer { monitor.stop() }
         let directory = base.appendingPathComponent("listener-\(getpid())")
@@ -60,7 +62,10 @@ import Lottie
         monitor.start(); monitor.poll(now: now + 4)
         precondition(displayed == nil)
         try send("UserPromptSubmit", session1, turn1); precondition(displayed == .working)
+        precondition(forwarded.first?.provider == .codex && forwarded.first?.event == "UserPromptSubmit" && forwarded.first?.session == session1)
         flock(fd1, LOCK_UN); monitor.poll(now: now + 4.1); precondition(displayed == nil)
+        // The Sessions window learns that the writer exited instead of waiting for silence.
+        precondition(forwarded.last?.event == "Ended" && forwarded.last?.session == session1)
         precondition(monitor.lastEvent != nil)
         precondition(!ActivityMonitor.hooksInstalled(home: home))
         try #"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/usr/bin/python3 /Applications/Limitwick.app/Contents/Resources/useAnimations/claude-activity-hook.py"}]}]}}"#.write(to: home.appendingPathComponent("hooks.json"), atomically: true, encoding: .utf8)
@@ -89,6 +94,16 @@ import Lottie
         claude.poll(now: now + 5); precondition(claudeShown == nil)
         try claudeSend("UserPromptSubmit", "one"); try claudeSend("Idle", "one"); precondition(claudeShown == nil)
         try claudeSend("UserPromptSubmit", "one"); claude.poll(now: now + 1801); precondition(claudeShown == nil)
+        var claudeForwarded: [SessionEvent] = []
+        claude.onEvent = { claudeForwarded.append($0) }
+        seq += 1
+        let details: [String: Any] = ["event": "Permission", "session": "one", "tool": "", "time": now + Double(seq) / 100,
+                                      "name": "Limitwick", "app": "com.anthropic.claudefordesktop", "entry": "claude-desktop", "pid": 1456]
+        try JSONSerialization.data(withJSONObject: details).write(to: claudeDir.appendingPathComponent("event-\(seq)"))
+        claude.poll(now: now + Double(seq) / 100)
+        let permission = claudeForwarded.last
+        precondition(permission?.provider == .claude && permission?.event == "Permission" && permission?.name == "Limitwick")
+        precondition(permission?.pid == 1456 && permission?.entry == "claude-desktop" && claudeShown == nil, "the menu bar indicator ignores permission prompts")
         let config = root.appendingPathComponent("claude-config"); try FileManager.default.createDirectory(at: config, withIntermediateDirectories: true)
         precondition(!ClaudeActivityMonitor.hooksInstalled(config: config))
         try #"{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"/usr/bin/python3 /Applications/CodexBar.app/Contents/Resources/useAnimations/claude-activity-hook.py"}]}]}}"#.write(to: config.appendingPathComponent("settings.json"), atomically: true, encoding: .utf8)

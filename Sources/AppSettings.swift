@@ -37,6 +37,14 @@ final class AppSettings {
         set { defaults.set(newValue.rawValue, forKey: "providers") }
     }
     var desktopVisible: Bool { get { defaults.bool(forKey: "desktopVisible") } set { defaults.set(newValue, forKey: "desktopVisible") } }
+    var sessionsVisible: Bool { get { defaults.bool(forKey: "sessionsVisible") } set { defaults.set(newValue, forKey: "sessionsVisible") } }
+    /// The Sessions window sits on the desktop under other windows instead of above them.
+    var sessionsOnDesktop: Bool { get { defaults.bool(forKey: "sessionsOnDesktop") } set { defaults.set(newValue, forKey: "sessionsOnDesktop") } }
+    /// Tiles in the Sessions window: 4, 8 or 16.
+    var sessionsLimit: Int {
+        get { let value = defaults.integer(forKey: "sessionsLimit"); return [4, 8, 16].contains(value) ? value : 16 }
+        set { defaults.set(newValue, forKey: "sessionsLimit") }
+    }
     // Codex notice dates predate the Claude provider and keep their unsuffixed keys; renaming them would repeat delivered notices.
     private func noticeKey(_ base: String, for provider: String) -> String { provider == "codex" ? base : "\(base).\(provider)" }
     func noticeResets(for provider: String) -> [String: Double] { defaults.dictionary(forKey: noticeKey("noticeResets", for: provider)) as? [String: Double] ?? [:] }

@@ -118,6 +118,13 @@ extension AppDelegate {
                 ? NSButton(title: "Remove \(name) hooks", target: self, action: #selector(removeHooks))
                 : NSButton(title: "Install \(name) hooks", target: self, action: #selector(installHooks))
             items += [help, hookButton]
+            let placementPicker = NSPopUpButton(); placementPicker.addItems(withTitles: ["Above all windows", "On the desktop"])
+            placementPicker.selectItem(at: settings.sessionsOnDesktop ? 1 : 0)
+            placementPicker.target = self; placementPicker.action = #selector(sessionsPlacementChanged(_:)); placementPicker.setAccessibilityLabel("Sessions window position")
+            let limitPicker = NSPopUpButton(); limitPicker.addItems(withTitles: SessionGridLayout.limits.map(String.init))
+            limitPicker.selectItem(at: SessionGridLayout.limits.firstIndex(of: settings.sessionsLimit) ?? SessionGridLayout.limits.count - 1)
+            limitPicker.target = self; limitPicker.action = #selector(sessionsLimitChanged(_:)); limitPicker.setAccessibilityLabel("Sessions shown")
+            items += [heading("Sessions window"), row("Position", placementPicker), row("Sessions", limitPicker)]
             items += [heading("Low quota" + scope), row("Warn below", thresholdControl), thresholdHelp, heading("Notifications" + scope), low, reset, noticeStatus, openSettings]
             let content = stack(items, spacing: 12)
             content.setCustomSpacing(22, after: activityToggle)
@@ -285,6 +292,15 @@ extension AppDelegate {
         applyTheme()
         resizeWindowToContent(settingsWindow)
     }
+    @objc func sessionsPlacementChanged(_ sender: NSPopUpButton) {
+        settings.sessionsOnDesktop = sender.indexOfSelectedItem == 1
+        applySessionsPlacement()
+    }
+    @objc func sessionsLimitChanged(_ sender: NSPopUpButton) {
+        guard SessionGridLayout.limits.indices.contains(sender.indexOfSelectedItem) else { return }
+        settings.sessionsLimit = SessionGridLayout.limits[sender.indexOfSelectedItem]
+        syncSessions()
+    }
     var activityEnabled: Bool { settings.activityEnabled(for: "codex") }
     @objc func activitySettingChanged(_ sender: NSButton) {
         let enabled = sender.state == .on
@@ -293,11 +309,9 @@ extension AppDelegate {
             // Installing here means hooks exist before the next session starts.
             guard runHookSetup("install", for: settingsProvider) else { settings.setActivityEnabled(false, for: settingsProvider); reloadSettingsWindow(); return }
         }
-        if settingsProvider == "codex" {
-            if enabled { activity.start() } else { activity.stop(); showActivity(nil) }
-        } else {
-            if enabled { claudeActivity.start() } else { claudeActivity.stop(); showClaudeActivity(nil) }
-        }
+        // The Sessions window keeps the monitors running while it is open; the menu bar indicator follows the toggle.
+        updateMonitors()
+        if !enabled { if settingsProvider == "codex" { showActivity(nil) } else { showClaudeActivity(nil) } }
         hookStatus?.stringValue = hookStatusText
     }
     var noticeThreshold: Int {

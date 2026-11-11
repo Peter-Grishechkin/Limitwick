@@ -11,6 +11,7 @@ Limitwick is a small macOS menu bar app that shows how much of your **Codex** an
 - Click for a panel with percentages, reset times, and time remaining, in one of four themes.
 - Optional activity animation while Codex or Claude Code is working or using a tool.
 - Optional notifications for low quota and confirmed resets.
+- Sessions window: your recent Codex and Claude Code sessions as a grid of pixel mascots; click a tile to open the session.
 - Picture-in-Picture window and 16 macOS desktop widget variants.
 - Automatic refresh, refresh after wake, and built-in updates.
 
@@ -21,6 +22,7 @@ Limitwick is a small macOS menu bar app that shows how much of your **Codex** an
 - [Using Limitwick](#using-limitwick)
 - [Settings](#settings)
 - [Activity indicator](#activity-indicator)
+- [Sessions](#sessions)
 - [Notifications](#notifications)
 - [Picture-in-Picture and widget](#picture-in-picture-and-widget)
 - [Themes](#themes)
@@ -129,6 +131,7 @@ Click outside the panel or switch to another app to close it.
 |---|---|
 | **Refresh** (⌘R) | Fetches fresh usage data now. |
 | **Show / Hide Picture-in-Picture** | Opens or closes a movable window with the panel. |
+| **Show / Hide Sessions** | Opens or closes the [Sessions window](#sessions). |
 | **Settings…** (⌘,) | Opens Settings. |
 | **About Limitwick** | Shows the version and a link to GitHub. |
 | **Check for Updates…** | Checks for a new version. When one is available, this item shows its version number. |
@@ -136,7 +139,7 @@ Click outside the panel or switch to another app to close it.
 
 ## Settings
 
-Open **Settings…** from the menu. The window has four sections.
+Open **Settings…** from the menu. The window has five sections.
 
 ### AI services
 
@@ -153,6 +156,13 @@ Theme, appearance, activity, threshold, and notifications are set separately for
 - **Show … activity in menu bar:** shows an animation next to the bars while the selected service is working. See [Activity indicator](#activity-indicator).
 
 When **Both** is selected, each service's block in the panel uses that service's own theme and mode.
+
+### Sessions window
+
+- **Position:** **Above all windows** or **On the desktop**, under other windows and above the wallpaper.
+- **Sessions:** how many tiles the window shows: **4**, **8**, or **16**.
+
+See [Sessions](#sessions).
 
 ### Low quota
 
@@ -178,7 +188,7 @@ Limitwick can show a small animation to the left of a service's bars:
 
 The indicator takes up space in the menu bar only while it is active. With **Reduce motion** turned on in macOS accessibility settings, a still image is shown instead of an animation.
 
-The indicator uses *hooks*: small scripts that Codex or Claude Code runs on each event and that pass the event to Limitwick. They forward only the event type, session and tool-call IDs, and the time. Prompts, responses, commands, and tool output are never forwarded.
+The indicator uses *hooks*: small scripts that Codex or Claude Code runs on each event and that pass the event to Limitwick. They forward the event type, session and tool-call IDs, and the time. For the [Sessions window](#sessions) they also forward the name of the project folder (not its path), the bundle ID of the app that started the session and, for Claude Code, its entry point, process ID, and the Claude app's own session ID. Prompts, responses, commands, and tool output are never forwarded.
 
 ### Claude Code
 
@@ -209,6 +219,20 @@ To uninstall, click **Remove Codex hooks**. Only Limitwick's own entries are add
 ```
 
 See [how Limitwick works](docs/DETAILS.md) for the limits of activity detection.
+
+## Sessions
+
+**Show Sessions** in the menu opens a window with your Codex and Claude Code sessions of the last 24 hours, one tile each: a pixel mascot (a cloud for Codex, a little orange figure for Claude), the project folder, and the state. The cap colour tells apart sessions in the same folder.
+
+| Tile | Meaning |
+|---|---|
+| Coloured mascot that bobs, orange corner | The session is working. |
+| Orange stripes, *needs you* | Claude Code is waiting for your permission. |
+| Grey mascot, *z z*, *done · 6m ago* | The session is idle or finished. |
+
+Click a tile to open the session: a session of the Claude app opens there, and a session in a terminal brings that terminal to the front. Drag the window by the space between tiles; right-click it or use the menu to hide it. **Position** and the number of tiles are in [Settings](#sessions-window).
+
+Live states come from the [activity hooks](#activity-indicator), which the window uses even when the menu bar animation is off. Earlier sessions are read from disk when the window opens and every five minutes: the Claude app's list of Code sessions, the first lines of Claude Code transcripts, and Codex session files. Only session IDs, folder names, times, and whether a session is archived are read. A session shows *needs you* only when its hooks report a permission prompt.
 
 ## Notifications
 
@@ -283,6 +307,7 @@ Limitwick checks for new versions quietly at launch and once a day. When an upda
 - Codex usage comes from a local `codex app-server`. Claude usage comes from running `/usage` in Claude Code in a hidden terminal. While doing so, Claude Code runs with hooks and MCP servers turned off and with no tools allowed.
 - The app has no server of its own. Codex and Claude Code contact their own services, and update checks contact GitHub.
 - Widgets read local quota snapshots containing values, reset times, and update status. The snapshots contain no credentials or account IDs.
+- The Sessions window keeps its tiles in `~/Library/Application Support/Limitwick/sessions.json`: session IDs, folder names, states, and times. To fill in earlier sessions it reads only IDs, folders, times, and the archived flag from local Claude and Codex session files, never prompts or replies.
 
 ## Troubleshooting
 

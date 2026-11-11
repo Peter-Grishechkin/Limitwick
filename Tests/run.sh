@@ -10,6 +10,8 @@ swiftc -module-cache-path "$PWD/build/module-cache" Sources/QuotaClient.swift So
 build/refresh-tests
 swiftc -module-cache-path "$PWD/build/module-cache" Sources/QuotaClient.swift Sources/ClaudeClient.swift Sources/P1Support.swift Sources/AppSettings.swift Sources/NoticeService.swift Tests/NoticeServiceTests.swift -o build/notice-tests
 build/notice-tests
+swiftc -module-cache-path "$PWD/build/module-cache" Sources/Sessions.swift Tests/SessionTests.swift -o build/session-tests
+build/session-tests
 
 swiftc -target "$(uname -m)-apple-macosx13.0" -module-cache-path "$PWD/build/module-cache" -parse-as-library Sources/QuotaClient.swift Sources/P1Support.swift Sources/Themes.swift Sources/QuotaCard.swift Tests/CardTests.swift -o build/card-tests
 build/card-tests
@@ -25,6 +27,6 @@ fi
 swiftc -target "$(uname -m)-apple-macosx13.0" -module-cache-path "$PWD/build/module-cache" \
     -F build/Limitwick-Development.app/Contents/Frameworks -framework Lottie \
     -Xlinker -rpath -Xlinker "$PWD/build/Limitwick-Development.app/Contents/Frameworks" \
-    Sources/Activity.swift Tests/ActivityTests.swift -o build/activity-tests
+    Sources/Sessions.swift Sources/Activity.swift Tests/ActivityTests.swift -o build/activity-tests
 build/activity-tests
 /usr/bin/python3 Tests/activity-hooks-tests.py

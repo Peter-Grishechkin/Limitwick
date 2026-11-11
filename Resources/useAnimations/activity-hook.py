@@ -4,6 +4,7 @@ import glob
 import json
 import os
 import pathlib
+import re
 import sys
 import tempfile
 import time
@@ -19,8 +20,18 @@ try:
     tool = data.get('tool_use_id')
     if not isinstance(tool, str) or len(tool) > 200:
         tool = ''
-    payload = json.dumps({'event': event, 'session': session, 'turn': turn, 'tool': tool, 'time': time.time(),
-                          'home': os.environ.get('CODEX_HOME', os.path.expanduser('~/.codex'))})
+    message = {'event': event, 'session': session, 'turn': turn, 'tool': tool, 'time': time.time(),
+               'home': os.environ.get('CODEX_HOME', os.path.expanduser('~/.codex'))}
+    # Folder name and launching app for the Sessions window; never a full path.
+    cwd = data.get('cwd')
+    if isinstance(cwd, str) and cwd.startswith('/'):
+        name = os.path.basename(cwd.rstrip('/'))[:60]
+        if name and name.isprintable():
+            message['name'] = name
+    app = os.environ.get('__CFBundleIdentifier', '')
+    if re.fullmatch(r'[A-Za-z0-9.-]{1,100}', app):
+        message['app'] = app
+    payload = json.dumps(message)
     base = os.path.expanduser('~/Library/Caches/Limitwick/Activity')
     for directory in glob.glob(os.path.join(base, 'listener-*')):
         try:

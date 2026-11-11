@@ -116,6 +116,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
     var localClickMonitor: Any?
     var desktopWindow: NSWindow?
     let desktopContent = NSView()
+    let sessionStore = SessionStore(file: SessionStore.defaultFile)
+    let sessionsHost = SessionsHostingView(rootView: SessionGridView(sessions: []))
+    var sessionsWindow: NSWindow?
+    var sessionsTimer: Timer?
+    var sessionsHistoryScanned: TimeInterval = 0
     var settingsWindow: NSWindow?
     var aboutWindow: NSWindow?
     var menuPopover: NSPopover?
@@ -143,13 +148,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         claudeActivityIcon.isHidden = true
         claudeActivityIcon.autoresizingMask = [.minYMargin, .maxYMargin]
         button.addSubview(claudeActivityIcon)
-        claudeActivity.onChange = { [weak self] state in self?.showClaudeActivity(state) }
-        if settings.activityEnabled(for: "claude") { claudeActivity.start() }
+        // The monitors also run for the Sessions window, so the indicator checks its own toggle.
+        claudeActivity.onChange = { [weak self] state in
+            guard let self = self else { return }
+            self.showClaudeActivity(self.settings.activityEnabled(for: "claude") ? state : nil)
+        }
+        claudeActivity.onEvent = { [weak self] event in self?.sessionEvent(event) }
         refreshClaudeHooks()
         refreshCodexHooks()
         removeLegacyCopies()
-        activity.onChange = { [weak self] state in self?.showActivity(state) }
-        if activityEnabled { activity.start() }
+        activity.onChange = { [weak self] state in
+            guard let self = self else { return }
+            self.showActivity(self.activityEnabled ? state : nil)
+        }
+        activity.onEvent = { [weak self] event in self?.sessionEvent(event) }
+        sessionStore.load()
+        updateMonitors()
         updateBadge.frame = NSRect(x: button.bounds.width - 6, y: button.bounds.height - 6, width: 5, height: 5)
         updateBadge.autoresizingMask = [.minXMargin, .minYMargin]
         updateBadge.isHidden = true
@@ -202,6 +216,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         layoutPanel()
         NSWorkspace.shared.notificationCenter.addObserver(self, selector: #selector(didWake(_:)), name: NSWorkspace.didWakeNotification, object: nil)
         if settings.desktopVisible { showDesktopWindow() }
+        if settings.sessionsVisible { showSessionsWindow() }
         for source in WidgetSource.allCases {
             var snapshot = WidgetSnapshot.read(source) ?? WidgetSnapshot.migrate(source) ?? WidgetSnapshot()
             snapshot.state = snapshot.hasData ? .stale : .waiting
@@ -505,7 +520,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         NSWorkspace.shared.notificationCenter.removeObserver(self)
         terminating = true
         widgetDiscoveryTimer?.invalidate()
-        refreshCoordinator.stop(); claudeCoordinator.stop(); ageTimer?.invalidate(); updateCheckTimer?.invalidate()
+        refreshCoordinator.stop(); claudeCoordinator.stop(); ageTimer?.invalidate(); updateCheckTimer?.invalidate(); sessionsTimer?.invalidate()
         activity.stop(); claudeActivity.stop(); listener.cancel()
     }
     func updateAge() { updatePresentation() }
