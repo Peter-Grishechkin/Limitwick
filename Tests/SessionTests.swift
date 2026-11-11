@@ -96,6 +96,18 @@ import Foundation
         try Data("not json".utf8).write(to: file)
         let broken = SessionStore(file: file); broken.load(now: t0)
         precondition(broken.sessions.isEmpty)
+        // A file saved before titles existed still loads; a title with "/" survives saving.
+        try Data(#"[{"provider":"claude","id":"x","name":"City21","state":"idle","started":\#(t0),"turnStarted":\#(t0),"changed":\#(t0)}]"#.utf8).write(to: file)
+        let older = SessionStore(file: file); older.load(now: t0 + 60, booted: t0 - 100, alive: { _ in true })
+        precondition(older.sessions["claude:x"]?.name == "City21" && older.sessions["claude:x"]?.title == nil)
+        precondition(older.retitle("claude:x", "CI/CD настройка") && !older.retitle("claude:x", "CI/CD настройка") && !older.retitle("claude:none", "T"))
+        older.save()
+        let titled = SessionStore(file: file); titled.load(now: t0 + 60, booted: t0 - 100, alive: { _ in true })
+        precondition(titled.sessions["claude:x"]?.title == "CI/CD настройка")
+
+        // Titles keep "/", lose control and format characters and extra spaces.
+        precondition(SessionStore.cleanTitle("  Выбор\n статьи\u{202E} ") == "Выбор статьи" && SessionStore.cleanTitle(" \u{7} ") == nil && SessionStore.cleanTitle(nil) == nil)
+        precondition(SessionStore.cleanTitle(String(repeating: "я", count: 100))?.count == 80)
 
         // Clicks: the Claude app's continue link takes only its own local_ ID (it logs "invalid ?session" for the CLI ID).
         precondition(tile.host == nil && SessionStore.target(for: tile) == .app("com.anthropic.claudefordesktop"))
@@ -110,21 +122,25 @@ import Foundation
         terminal.app = nil
         precondition(SessionStore.target(for: terminal) == .none)
 
-        // Sessions found on disk become finished tiles; live tiles keep their state and gain the app session ID.
+        // Sessions found on disk become finished tiles; live tiles keep their state and folder, gain the app session ID and take the title.
         let merged = SessionStore()
         merged.apply(event("UserPromptSubmit", at: 0, folder: "Limitwick"), now: t0)
         var history = SessionHistory.Found()
         history.sessions = [
-            Session(provider: .claude, id: id, name: "Other", entry: "claude-desktop", host: "local_a", state: .idle, started: t0 - 50, turnStarted: t0 - 50, changed: t0 - 50),
+            Session(provider: .claude, id: id, name: "Other", title: "Плитки сессий", entry: "claude-desktop", host: "local_a", state: .idle, started: t0 - 50, turnStarted: t0 - 50, changed: t0 - 50),
             Session(provider: .codex, id: other, name: "SEOpars", state: .idle, started: t0 - 600, turnStarted: t0 - 600, changed: t0 - 600),
             Session(provider: .claude, id: "old", name: "Old", state: .idle, started: t0 - 90_000, turnStarted: t0 - 90_000, changed: t0 - 90_000),
             Session(provider: .claude, id: "gone", name: "Gone", state: .idle, started: t0 - 60, turnStarted: t0 - 60, changed: t0 - 60),
         ]
         precondition(merged.merge(history, now: t0))
         let live = merged.sessions["claude:\(id)"]!
-        precondition(live.state == .working && live.name == "Limitwick" && live.host == "local_a" && live.changed == t0)
+        precondition(live.state == .working && live.name == "Limitwick" && live.title == "Плитки сессий" && live.host == "local_a" && live.changed == t0)
         precondition(merged.sessions["codex:\(other)"]?.state == .idle && merged.sessions["claude:old"] == nil && merged.sessions.count == 3)
         precondition(!merged.merge(history, now: t0), "merging the same history twice changes nothing")
+        history.sessions[0].title = "Переименована"
+        precondition(merged.merge(history, now: t0) && merged.sessions["claude:\(id)"]?.title == "Переименована" && merged.sessions["claude:\(id)"]?.state == .working, "a renamed session takes the new title")
+        history.sessions[0].title = nil
+        precondition(!merged.merge(history, now: t0) && merged.sessions["claude:\(id)"]?.title == "Переименована", "a missing title does not erase the known one")
         var archived = SessionHistory.Found(); archived.archived = ["claude:gone", "claude:\(id)"]
         precondition(merged.merge(archived, now: t0) && merged.sessions["claude:gone"] == nil && merged.sessions["claude:\(id)"] != nil, "archived in the Claude app: idle tile goes, live tile stays")
 
@@ -140,7 +156,9 @@ import Foundation
         }
         let app = "home/Library/Application Support/Claude/claude-code-sessions/account/org"
         let ms = Int((now - 300) * 1000)
-        try write("\(app)/local_1111.json", #"{"sessionId":"local_1111","cliSessionId":"cli-1","originCwd":"/Users/x/Росэлторг","lastActivityAt":\#(ms),"createdAt":\#(ms - 60000),"isArchived":false,"title":"PRIVATE"}"#)
+        try write("\(app)/local_1111.json", #"{"sessionId":"local_1111","cliSessionId":"cli-1","originCwd":"/Users/x/Росэлторг","lastActivityAt":\#(ms),"createdAt":\#(ms - 60000),"isArchived":false,"title":"Выбор статьи"}"#)
+        try write("\(app)/local_4444.json", #"{"sessionId":"local_4444","cliSessionId":"cli-6","originCwd":"/Users/x/Росэлторг","lastActivityAt":\#(ms),"isArchived":false,"title":" "}"#)
+        try write("\(app)/local_5555.json", #"{"sessionId":"local_other","cliSessionId":"cli-7","originCwd":"/Users/x/Wrong","lastActivityAt":\#(ms),"isArchived":false,"title":"Wrong"}"#, age: 90_000)
         try write("\(app)/local_2222.json", #"{"sessionId":"local_2222","cliSessionId":"cli-2","originCwd":"/Users/x/Old","lastActivityAt":\#(ms),"isArchived":true}"#)
         try write("\(app)/local_3333.json", #"{"sessionId":"local_3333","cliSessionId":"cli-3","originCwd":"/Users/x/Stale","lastActivityAt":\#(ms),"isArchived":false}"#, age: 90_000)
         try write("claude/projects/-Users-x-Tool/cli-4.jsonl", #"{"type":"user","cwd":"/Users/x/Tool","entrypoint":"cli","message":"PRIVATE"}"# + "\n")
@@ -151,12 +169,22 @@ import Foundation
         try write("codex/sessions/2026/11/02/rollout-b.jsonl", #"{"type":"session_meta","payload":{"id":"\#(child)","session_id":"\#(thread)","cwd":"/Users/x/LoftTaxi"}}"# + "\n")
         let scanned = SessionHistory.scan(now: now, home: root.appendingPathComponent("home"), claudeConfig: root.appendingPathComponent("claude"), codexHome: root.appendingPathComponent("codex"))
         let keys = Set(scanned.sessions.map(\.key))
-        precondition(keys == ["claude:cli-1", "claude:cli-4", "codex:\(thread)"], "\(keys)")
+        precondition(keys == ["claude:cli-1", "claude:cli-4", "claude:cli-6", "codex:\(thread)"], "\(keys)")
         precondition(scanned.archived == ["claude:cli-2"])
         let appTile = scanned.sessions.first { $0.id == "cli-1" }!
-        precondition(appTile.name == "Росэлторг" && appTile.host == "local_1111" && appTile.entry == "claude-desktop" && abs(appTile.changed - (now - 300)) < 1)
+        precondition(appTile.name == "Росэлторг" && appTile.title == "Выбор статьи" && appTile.host == "local_1111" && appTile.entry == "claude-desktop" && abs(appTile.changed - (now - 300)) < 1)
+        let untitled = scanned.sessions.first { $0.id == "cli-6" }!
+        precondition(untitled.name == "Росэлторг" && untitled.title == nil, "an empty title falls back to the folder")
         precondition(scanned.sessions.first { $0.id == "cli-4" }!.entry == "cli" && scanned.sessions.first { $0.provider == .codex }!.name == "LoftTaxi")
-        precondition(!scanned.sessions.contains { $0.name.contains("PRIVATE") })
+        precondition(scanned.sessions.filter { $0.title != nil }.map(\.id) == ["cli-1"], "only Claude app sessions have titles")
+        precondition(!scanned.sessions.contains { $0.name.contains("PRIVATE") || ($0.title ?? "").contains("PRIVATE") }, "transcript messages are never read")
+
+        // A live tile rereads one session's title by its local_ ID; the file must belong to that session.
+        let home = root.appendingPathComponent("home")
+        precondition(SessionHistory.appTitle(host: "local_1111", home: home) == "Выбор статьи")
+        precondition(SessionHistory.appTitle(host: "local_4444", home: home) == nil && SessionHistory.appTitle(host: "local_9999", home: home) == nil)
+        precondition(SessionHistory.appTitle(host: "local_5555", home: home) == nil, "file of another session")
+        precondition(SessionHistory.appTitle(host: "../local_1111", home: home) == nil && SessionHistory.appTitle(host: "local_1111/..", home: home) == nil)
 
         // Hat colour depends only on the session ID.
         precondition(SessionStore.hat(for: id, count: 6) == SessionStore.hat(for: id, count: 6))

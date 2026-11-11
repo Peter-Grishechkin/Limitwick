@@ -22,7 +22,10 @@ struct SessionEvent {
 struct Session: Codable, Equatable {
     var provider: SessionProvider
     var id: String
+    /// Folder name; a tile shows the title instead when the Claude app has one.
     var name: String
+    /// Title the Claude app gives a Code session after its first turn.
+    var title: String? = nil
     var app: String?
     var entry: String?
     var pid: Int32?
@@ -149,6 +152,7 @@ final class SessionStore {
         sessions = [:]
         for var session in saved where !session.id.isEmpty && session.id.count <= 100 {
             session.name = Self.clean(session.name) ?? (session.provider == .claude ? "Claude" : "Codex")
+            session.title = Self.cleanTitle(session.title)
             if session.changed < booted { session.state = .idle }
             sessions[session.key] = session
         }
@@ -175,6 +179,23 @@ final class SessionStore {
               !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { return nil }
         return String(name.prefix(60))
     }
+    /// A session title may contain "/" ("CI/CD"); control and format characters and extra spaces go.
+    static func cleanTitle(_ title: String?) -> String? {
+        guard let title = title else { return nil }
+        let hidden = CharacterSet.controlCharacters.union(.illegalCharacters)
+        let words = String(String.UnicodeScalarView(title.unicodeScalars.map { hidden.contains($0) ? " " : $0 }))
+            .split(whereSeparator: \.isWhitespace)
+        guard !words.isEmpty else { return nil }
+        return String(words.joined(separator: " ").prefix(80))
+    }
+    /// Sets the title of a tile; returns true when it changed.
+    @discardableResult
+    func retitle(_ key: String, _ title: String?) -> Bool {
+        guard let title = Self.cleanTitle(title), var session = sessions[key], session.title != title else { return false }
+        session.title = title
+        sessions[key] = session
+        return true
+    }
     static func matches(_ value: String, _ pattern: String) -> Bool {
         value.range(of: "^\(pattern)$", options: .regularExpression) != nil
     }
@@ -189,7 +210,8 @@ final class SessionStore {
         return .none
     }
 
-    /// Adds sessions found on disk as finished tiles. Live tiles keep their state; tiles archived in the Claude app go away.
+    /// Adds sessions found on disk as finished tiles. Live tiles keep their state and take the current title;
+    /// tiles archived in the Claude app go away.
     @discardableResult
     func merge(_ found: SessionHistory.Found, now: TimeInterval = Date().timeIntervalSince1970) -> Bool {
         var changed = false
@@ -200,6 +222,8 @@ final class SessionStore {
             if updated.host == nil { updated.host = session.host }
             if updated.app == nil { updated.app = session.app }
             if updated.entry == nil { updated.entry = session.entry }
+            // The Claude app renames sessions (it keeps previousTitles), so a newer title replaces the old one.
+            if let title = session.title { updated.title = title }
             if updated.state == .idle && session.changed > updated.changed { updated.changed = session.changed }
             if updated != existing { sessions[session.key] = updated; changed = true }
         }
@@ -227,11 +251,12 @@ final class SessionStore {
 }
 
 /// Sessions of the last 24 hours read from disk, so the window is not empty until each session sends its next hook event.
-/// Reads only IDs, folders, times and the archived flag; never prompts or replies.
+/// Reads only IDs, folders, times, the archived flag and the titles of Claude app sessions; never prompts or replies.
 enum SessionHistory {
     struct Found { var sessions: [Session] = []; var archived: Set<String> = [] }
     /// Limitwick's own /usage probe runs claude in this folder.
     static let probeFolder = "/Library/Application Support/Limitwick/ClaudeProbe"
+    static let appIndex = "Library/Application Support/Claude/claude-code-sessions"
 
     static func scan(now: TimeInterval = Date().timeIntervalSince1970, home: URL = FileManager.default.homeDirectoryForCurrentUser,
                      claudeConfig: URL? = nil, codexHome: URL? = nil) -> Found {
@@ -239,14 +264,28 @@ enum SessionHistory {
         let claude = claudeConfig ?? environment["CLAUDE_CONFIG_DIR"].map { URL(fileURLWithPath: $0) } ?? home.appendingPathComponent(".claude")
         let codex = codexHome ?? environment["CODEX_HOME"].map { URL(fileURLWithPath: $0) } ?? home.appendingPathComponent(".codex")
         var found = Found()
-        appSessions(home.appendingPathComponent("Library/Application Support/Claude/claude-code-sessions"), now: now, into: &found)
+        appSessions(home.appendingPathComponent(appIndex), now: now, into: &found)
         transcripts(claude.appendingPathComponent("projects"), now: now, into: &found)
         codexSessions(codex.appendingPathComponent("sessions"), now: now, into: &found)
         return found
     }
 
+    /// The current title of one Claude app session, by its local_ ID. The app names a session after its first turn
+    /// and may rename it later, so a live tile rereads it when a turn starts or ends.
+    static func appTitle(host: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> String? {
+        guard SessionStore.matches(host, SessionStore.appSessionPattern) else { return nil }
+        for account in children(home.appendingPathComponent(appIndex)) { for organization in children(account) {
+            let file = organization.appendingPathComponent(host + ".json")
+            guard let size = (try? file.resourceValues(forKeys: [.fileSizeKey]))?.fileSize, size < 8_000_000,
+                  let data = try? Data(contentsOf: file), let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                  object["sessionId"] as? String == host else { continue }
+            return SessionStore.cleanTitle(object["title"] as? String)
+        }}
+        return nil
+    }
+
     // The Claude app keeps one JSON file per Code session: its own ID for the open link, the CLI session ID the hooks send,
-    // the folder, the last activity and the archived flag.
+    // the folder, the title, the last activity and the archived flag.
     private static func appSessions(_ root: URL, now: TimeInterval, into found: inout Found) {
         for account in children(root) { for organization in children(account) {
             for file in children(organization) where file.lastPathComponent.hasPrefix("local_") && file.pathExtension == "json" {
@@ -258,7 +297,7 @@ enum SessionHistory {
                 guard let last = (object["lastActivityAt"] as? NSNumber)?.doubleValue, now - last / 1000 < SessionStore.retention else { continue }
                 let changed = last / 1000, created = (object["createdAt"] as? NSNumber)?.doubleValue ?? last
                 found.sessions.append(Session(provider: .claude, id: cli, name: folder(object["originCwd"] ?? object["cwd"]) ?? "Claude",
-                                              app: "com.anthropic.claudefordesktop", entry: "claude-desktop", host: local,
+                                              title: SessionStore.cleanTitle(object["title"] as? String), app: "com.anthropic.claudefordesktop", entry: "claude-desktop", host: local,
                                               state: .idle, started: min(created / 1000, changed), turnStarted: changed, changed: changed))
             }
         }}

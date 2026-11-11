@@ -222,7 +222,7 @@ See [how Limitwick works](docs/DETAILS.md) for the limits of activity detection.
 
 ## Sessions
 
-**Show Sessions** in the menu opens a window with your Codex and Claude Code sessions of the last 24 hours, one tile each: a pixel mascot (a cloud for Codex, a little orange figure for Claude), the project folder, and the state. The cap colour tells apart sessions in the same folder.
+**Show Sessions** in the menu opens a window with your Codex and Claude Code sessions of the last 24 hours, one tile each: a pixel mascot (a cloud for Codex, a little orange figure for Claude), a name, and the state. Sessions in the Claude app show their title from the app on up to two lines, once the app has named the session after its first turn; other sessions show the project folder. The tooltip names the folder. The cap colour tells apart sessions in the same folder.
 
 | Tile | Meaning |
 |---|---|
@@ -232,7 +232,7 @@ See [how Limitwick works](docs/DETAILS.md) for the limits of activity detection.
 
 Click a tile to open the session: a session of the Claude app opens there, and a session in a terminal brings that terminal to the front. Drag the window by the space between tiles; right-click it or use the menu to hide it. **Position** and the number of tiles are in [Settings](#sessions-window).
 
-Live states come from the [activity hooks](#activity-indicator), which the window uses even when the menu bar animation is off. Earlier sessions are read from disk when the window opens and every five minutes: the Claude app's list of Code sessions, the first lines of Claude Code transcripts, and Codex session files. Only session IDs, folder names, times, and whether a session is archived are read. A session shows *needs you* only when its hooks report a permission prompt.
+Live states come from the [activity hooks](#activity-indicator), which the window uses even when the menu bar animation is off. Earlier sessions are read from disk when the window opens and every five minutes: the Claude app's list of Code sessions, the first lines of Claude Code transcripts, and Codex session files. Only session IDs, folder names, times, whether a session is archived, and the titles of Claude app sessions are read. A session shows *needs you* only when its hooks report a permission prompt.
 
 ## Notifications
 
@@ -307,7 +307,7 @@ Limitwick checks for new versions quietly at launch and once a day. When an upda
 - Codex usage comes from a local `codex app-server`. Claude usage comes from running `/usage` in Claude Code in a hidden terminal. While doing so, Claude Code runs with hooks and MCP servers turned off and with no tools allowed.
 - The app has no server of its own. Codex and Claude Code contact their own services, and update checks contact GitHub.
 - Widgets read local quota snapshots containing values, reset times, and update status. The snapshots contain no credentials or account IDs.
-- The Sessions window keeps its tiles in `~/Library/Application Support/Limitwick/sessions.json`: session IDs, folder names, states, and times. To fill in earlier sessions it reads only IDs, folders, times, and the archived flag from local Claude and Codex session files, never prompts or replies.
+- The Sessions window keeps its tiles in `~/Library/Application Support/Limitwick/sessions.json`: session IDs, folder names, Claude app session titles, states, and times. To fill in earlier sessions it reads only IDs, folders, times, the archived flag, and the session titles that the Claude app generates from your conversations, from local Claude and Codex session files; never prompts or replies.
 
 ## Troubleshooting
 
