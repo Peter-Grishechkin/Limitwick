@@ -31,7 +31,7 @@ https://github.com/user-attachments/assets/46214406-0869-4078-9463-29192c8ed6ae
 - **Alerts** for low quota and confirmed resets, both optional.
 - **No account of its own.** Limitwick uses the sign-in of your Codex CLI and Claude Code and has no server.
 
-All images in this README are rendered from the app's own views with demo data.
+All images in this README are rendered from the app's own views with demo data. Every setting, the files Limitwick keeps, how to uninstall it and how the code is organised are in the [wiki](https://github.com/Peter-Grishechkin/Limitwick/wiki).
 
 ## Install
 
@@ -237,7 +237,7 @@ open build/Limitwick-Development.app
 ./Tests/run.sh
 ```
 
-The development build has its own identifiers and widget storage, so it does not interfere with the installed app. To redraw the README images after a design change, run `./scripts/render-screenshots.sh`: it renders them from the app's views with fixed demo values into `docs/images`, builds the animated Sessions window with `ffmpeg` and compresses PNGs with `oxipng` if it is installed. Releases: [publishing updates](docs/RELEASING.md). Internals: [how Limitwick works](docs/DETAILS.md).
+The development build has its own identifiers and widget storage, so it does not interfere with the installed app. To redraw the README images after a design change, run `./scripts/render-screenshots.sh`: it renders them from the app's views with fixed demo values into `docs/images`, builds the animated Sessions window with `ffmpeg` and compresses PNGs with `oxipng` if it is installed. Releases: [publishing updates](docs/RELEASING.md). Internals: [how Limitwick works](docs/DETAILS.md) and the wiki's [Architecture](https://github.com/Peter-Grishechkin/Limitwick/wiki/Architecture) and [Building and contributing](https://github.com/Peter-Grishechkin/Limitwick/wiki/Building-and-Contributing).
 
 ## License
 
