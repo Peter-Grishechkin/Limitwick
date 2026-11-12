@@ -1,6 +1,26 @@
 #!/bin/bash
 # A CLI that dies on launch must not keep the client polling a hung-up PTY until the timeout.
 [[ "${FAKE_CLAUDE_SCENARIO:-}" == 'exit' ]] && exit 0
+# `-p /usage --output-format stream-json`: limits as data; other scenarios behave like a CLI without it.
+if [[ "${1:-}" == '-p' ]]; then
+  [[ -n "${FAKE_CLAUDE_LOG:-}" ]] && echo json >> "$FAKE_CLAUDE_LOG"
+  limits='[{"kind":"session","group":"session","percent":30,"resets_at":"2026-12-31T05:00:00.364550+00:00","scope":null,"severity":"normal","is_active":true},{"kind":"weekly_all","group":"weekly","percent":45,"resets_at":"2027-01-03T08:00:00.364570+00:00","scope":null,"severity":"normal","is_active":false},{"kind":"weekly_scoped","group":"weekly","percent":0,"resets_at":null,"scope":{"model":{"display_name":"Fable"},"surface":null},"severity":"normal","is_active":false}]'
+  case "${FAKE_CLAUDE_SCENARIO:-}" in
+    json) ;;
+    json-saved) limits=null ;;
+    json-none)
+      printf '%s\n' '{"type":"assistant","message":{"content":[]},"usage_report":{"session":{"total_cost_usd":0},"rate_limits":null}}' '{"type":"result","subtype":"success","is_error":false,"num_turns":0,"total_cost_usd":0}'
+      exit 0 ;;
+    json-model)
+      printf '%s\n' '{"type":"assistant","message":{"content":[{"type":"text","text":"Here is your usage."}]}}' '{"type":"result","subtype":"success","is_error":false,"num_turns":1,"total_cost_usd":0.01}'
+      exit 0 ;;
+    *) exit 1 ;;
+  esac
+  printf '%s\n' '{"type":"system","subtype":"init","claude_code_version":"2.1.318"}' \
+    '{"type":"assistant","message":{"content":[{"type":"text","text":"Current session: 30% used"}]},"usage_report":{"session":{"total_cost_usd":0},"rate_limits":{"limits":'"$limits"',"extra_usage":null}}}' \
+    '{"type":"result","subtype":"success","is_error":false,"num_turns":0,"total_cost_usd":0}'
+  exit 0
+fi
 printf 'Claude Code ready\r\n'
 if [[ "${FAKE_CLAUDE_SCENARIO:-}" == 'login' ]]; then
   printf 'Not authenticated. Run /login\r\n'
@@ -29,6 +49,14 @@ while IFS= read -r input; do
   if [[ "$input" == '/usage' ]]; then
     if [[ "${FAKE_CLAUDE_SCENARIO:-}" == 'error' ]]; then
       printf '\033[2J\033[HFailed to load usage\r\n'
+      continue
+    fi
+    if [[ "${FAKE_CLAUDE_SCENARIO:-}" == ratelimited* ]]; then
+      if [[ "${FAKE_CLAUDE_SCENARIO}" == 'ratelimited' ]]; then
+        printf '\033[2J\033[HError: Claude is temporarily limiting requests to the usage page (not your usage limit). Try again in a moment.\r\n'
+      else
+        printf '\033[2J\033[HError: Usage endpoint is rate limited until 3:15pm.\r\n'
+      fi
       continue
     fi
     bars='\033[2J\033[HCurrent session\r\n  23%% used\r\n  Resets 11:59pm (UTC)\r\n\r\nCurrent week (all models)\r\n  41%% used\r\n  Resets Dec 3, 11:59pm (UTC)\r\n'

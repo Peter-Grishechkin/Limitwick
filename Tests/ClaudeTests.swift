@@ -29,6 +29,7 @@ import Foundation
         precondition(ClaudeUsageParser.freshness("Showing last-known usage as of 45s ago (could not refresh)") == .lastKnown(age: 45))
         precondition(ClaudeUsageParser.freshness("Showing last-known usage (could not refresh)") == .lastKnown(age: nil))
         precondition(ClaudeUsageParser.freshness(text + "\nRefreshing\u{2026}") == .refreshing)
+        try jsonTests()
         var screen = ClaudeScreen()
         screen.append("Old 0% used\u{1b}[2J\u{1b}[HCurrent session\r\n23% used")
         precondition(!screen.text.contains("Old 0%") && screen.text.contains("23% used"))
@@ -42,6 +43,24 @@ import Foundation
         case .success(let parsed): precondition(parsed.fiveHour?.remaining == 77 && parsed.weekly?.remaining == 59)
         case .failure(let error): fatalError("Fake CLI failed: \(error)")
         }
+        // JSON first; saved limits (null) and a model reply fall back to the screen, and a model reply turns JSON off.
+        setenv("FAKE_CLAUDE_SCENARIO", "json", 1)
+        switch ClaudeClient(timeout: 12).fetch(path: path, directory: directory) {
+        case .success(let parsed): precondition(parsed.fiveHour?.remaining == 70 && parsed.weekly?.remaining == 55 && parsed.namedAdditional.first?.name == "Fable")
+        case .failure(let error): fatalError("JSON usage failed: \(error)")
+        }
+        setenv("FAKE_CLAUDE_SCENARIO", "json-saved", 1)
+        if case .success(let parsed) = ClaudeClient(timeout: 12).fetch(path: path, directory: directory) { precondition(parsed.fiveHour?.remaining == 77) } else { fatalError("Saved JSON limits did not fall back to the screen") }
+        setenv("FAKE_CLAUDE_SCENARIO", "json-none", 1)
+        if case .failure(ClaudeError.usageFailed) = ClaudeClient(timeout: 12).fetch(path: path, directory: directory) {} else { fatalError("JSON without limits went to the screen") }
+        let log = directory.appendingPathComponent("json-calls.log").path
+        setenv("FAKE_CLAUDE_SCENARIO", "json-model", 1); setenv("FAKE_CLAUDE_LOG", log, 1)
+        let answered = ClaudeClient(timeout: 12)
+        for _ in 0..<2 {
+            if case .success(let parsed) = answered.fetch(path: path, directory: directory) { precondition(parsed.fiveHour?.remaining == 77) } else { fatalError("Model reply did not fall back to the screen") }
+        }
+        precondition((try? String(contentsOfFile: log, encoding: .utf8))?.split(separator: "\n").count == 1, "JSON was asked again after a model reply")
+        unsetenv("FAKE_CLAUDE_LOG")
         setenv("FAKE_CLAUDE_SCENARIO", "trust", 1)
         switch ClaudeClient(timeout: 12).fetch(path: path, directory: directory) {
         case .success(let parsed): precondition(parsed.fiveHour?.remaining == 77)
@@ -49,8 +68,12 @@ import Foundation
         }
         setenv("FAKE_CLAUDE_SCENARIO", "login", 1)
         if case .failure(ClaudeError.notSignedIn) = ClaudeClient(timeout: 5).fetch(path: path, directory: directory) {} else { fatalError("Login error not detected") }
-        setenv("FAKE_CLAUDE_SCENARIO", "error", 1)
-        if case .failure(ClaudeError.usageFailed) = ClaudeClient(timeout: 8).fetch(path: path, directory: directory) {} else { fatalError("Usage failure not detected") }
+        for scenario in ["error", "ratelimited", "ratelimited-until"] {
+            setenv("FAKE_CLAUDE_SCENARIO", scenario, 1)
+            let started = Date()
+            if case .failure(ClaudeError.usageFailed) = ClaudeClient(timeout: 8).fetch(path: path, directory: directory) {} else { fatalError("Usage failure not detected: \(scenario)") }
+            precondition(Date().timeIntervalSince(started) < 7, "\(scenario) waited for the timeout")
+        }
         // Bars Claude Code kept from an earlier load are previous data, not an update.
         setenv("FAKE_CLAUDE_SCENARIO", "lastknown", 1)
         switch ClaudeClient(timeout: 12).fetch(path: path, directory: directory) {
@@ -78,6 +101,32 @@ import Foundation
         if case .failure(ClaudeError.timeout) = ClaudeClient(timeout: 0.2).fetch(path: path, directory: directory) {} else { fatalError("Timeout not detected") }
         try locatorTests(fake: path, directory: directory)
         print("Claude parser and PTY tests passed")
+    }
+
+    static func jsonTests() throws {
+        let fresh = """
+        {"type":"system","subtype":"init","claude_code_version":"2.1.318"}
+        not json
+        {"type":"assistant","message":{"content":[]},"usage_report":{"rate_limits":{"limits":[\
+        {"kind":"session","percent":30,"resets_at":"2026-12-31T05:00:00.364550+00:00"},\
+        {"kind":"weekly_all","percent":45.5,"resets_at":"2027-01-03T08:00:00+00:00"},\
+        {"kind":"weekly_scoped","percent":0,"resets_at":null,"scope":{"model":{"display_name":"Fable"}}},\
+        {"kind":"monthly","percent":10,"resets_at":null}]}}}
+        {"type":"result","num_turns":0,"total_cost_usd":0}
+        """
+        guard case .current(let quota) = ClaudeUsageJSON.parse(fresh) else { fatalError("Fresh JSON limits not read") }
+        precondition(quota.fiveHour?.remaining == 70 && quota.weekly?.remaining == 54.5 && quota.additional.isEmpty)
+        precondition(quota.namedAdditional == [NamedQuotaWindow(name: "Fable", remaining: 100, reset: nil)])
+        precondition(quota.fiveHour?.reset?.timeIntervalSince1970 == 1_798_693_200, "microsecond reset time")
+        precondition(quota.weekly?.reset?.timeIntervalSince1970 == 1_798_963_200)
+        precondition(ClaudeUsageJSON.date("2026-11-12T20:09:59.860463+00:00") == ClaudeUsageJSON.date("2026-11-12T20:10:00.364550+00:00"), "reset jitter")
+        func outcome(_ text: String) -> String {
+            switch ClaudeUsageJSON.parse(text) { case .current: return "current"; case .fallback: return "fallback"; case .failed: return "failed"; case .modelCalled: return "model" }
+        }
+        precondition(outcome(#"{"usage_report":{"rate_limits":{"limits":null,"extra_usage":null}}}"#) == "fallback", "saved limits")
+        precondition(outcome(#"{"usage_report":{"rate_limits":null}}"#) == "failed" && outcome("") == "fallback")
+        precondition(outcome(#"{"usage_report":{"rate_limits":{"limits":[{"kind":"weekly_scoped","percent":5}]}}}"#) == "fallback")
+        precondition(outcome(#"{"type":"result","num_turns":1,"total_cost_usd":0.02}"#) == "model")
     }
 
     static func locatorTests(fake: String, directory: URL) throws {

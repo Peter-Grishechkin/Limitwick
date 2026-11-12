@@ -190,7 +190,7 @@ Choose a theme and **Light**, **Dark** or **Auto** in **Settings → Appearance*
 ```mermaid
 flowchart LR
     openai(["OpenAI"]) <-. "your sign-in" .-> codex["Codex CLI<br>codex app-server"]
-    anthropic(["Anthropic"]) <-. "your sign-in" .-> claude["Claude Code<br>/usage, hidden terminal"]
+    anthropic(["Anthropic"]) <-. "your sign-in" .-> claude["Claude Code<br>/usage as JSON"]
     codex -- "limits" --> app{{"Limitwick"}}
     claude -- "limits" --> app
     hooks["Activity hooks"] -- "events, no prompts" --> app
@@ -201,7 +201,7 @@ flowchart LR
 ```
 
 - Limitwick does not ask for passwords and stores no credentials. It has no server; Codex and Claude Code talk to their own services.
-- Claude Code runs `/usage` with hooks and MCP servers turned off and no tools allowed.
+- Claude Code runs `/usage` with hooks and MCP servers turned off and no tools allowed. It answers from its own data without asking the model, so reading limits uses none of them.
 - Hooks never forward prompts, responses, commands, tool names, MCP server names, tool input or tool output.
 - Widget snapshots hold limit values, reset times and update status, with no credentials or account IDs.
 - The Sessions window keeps its tiles in `~/Library/Application Support/Limitwick/sessions.json`: session IDs, folder names, Claude app session titles, states, how the last turn ended and times. From local Claude and Codex session files it reads only IDs, folders, times, the archived flag and Claude app titles, never prompts or replies.
@@ -218,7 +218,7 @@ flowchart LR
 | **Codex CLI not found** | Apps opened from Finder can have a shorter PATH than Terminal. Install the Codex CLI in a standard location, such as through npm or Homebrew. |
 | **Codex login or network error** | Run `codex login status`, sign in if needed, check your connection and choose **Refresh**. |
 | **Claude Code not found or not signed in** | Install Claude Code, run `claude` in Terminal, sign in and choose **Refresh**. |
-| **Claude usage unavailable** | Run `/usage` in Claude Code to check the account and connection. Limitwick reads Claude Code's on-screen output, which can change with Claude Code updates. Reset times it cannot read are shown as unavailable. |
+| **Claude usage unavailable** | Run `/usage` in Claude Code to check the account and connection. Limitwick reads the limits Claude Code reports as JSON and falls back to its `/usage` screen, which can change with Claude Code updates. Reset times it cannot read are shown as unavailable. |
 | **Bars are dimmed** | The last refresh failed and the previous values are shown; the error is under the card in the panel. When Claude Code cannot refresh its own usage data (usually because its usage page is rate limited) and shows values it loaded earlier, Limitwick treats them as previous data too. |
 | **A limit is missing** | The service did not report that limit. Reset times appear only when the service provides them. |
 | **No activity animation** | Check the status text under the checkbox in **Settings**, install the hooks, trust them in Codex, and start a new session. |
