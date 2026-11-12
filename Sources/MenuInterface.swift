@@ -148,7 +148,7 @@ extension AppDelegate {
             // Finishes turns whose process exited, keeps the 24-hour limit current and rereads history every 5 minutes.
             sessionsTimer = Timer.scheduledTimer(withTimeInterval: 15, repeats: true) { [weak self] _ in
                 guard let self = self else { return }
-                if Date().timeIntervalSince1970 - self.sessionsHistoryScanned > 300 { self.refreshSessionHistory() }
+                if Date().timeIntervalSince1970 - self.sessionsHistoryScanned > 300 { self.refreshSessionHistory() } else { self.refreshSeenInApp() }
                 guard self.sessionStore.tick() else { return }
                 self.sessionStore.save(); self.syncSessions()
             }
@@ -202,6 +202,20 @@ extension AppDelegate {
             }
         }
     }
+    /// Rereads when the Claude app last focused each unseen app session, so switching to it there turns the light off within 15 seconds.
+    /// Reads only those few files, not the whole index.
+    func refreshSeenInApp() {
+        let unseen = sessionStore.unseenInApp
+        guard !unseen.isEmpty else { return }
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            var focused: [String: TimeInterval] = [:]
+            for (key, host) in unseen { if let time = SessionHistory.appSession(host: host)?.focused { focused[key] = time } }
+            DispatchQueue.main.async {
+                guard let self = self, self.sessionStore.markSeen(focused: focused) else { return }
+                self.sessionStore.save(); self.syncSessions()
+            }
+        }
+    }
     func sessionEvent(_ event: SessionEvent) {
         if sessionStore.apply(event) { sessionStore.save(); syncSessions() }
         // The Claude app names a session after its first turn and may rename it later: reread the title when a turn starts or ends.
@@ -212,7 +226,7 @@ extension AppDelegate {
     }
     private func readSessionTitle(key: String, host: String, retries: Int) {
         DispatchQueue.global(qos: .utility).async { [weak self] in
-            let title = SessionHistory.appTitle(host: host)
+            let title = SessionHistory.appSession(host: host)?.title
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 if self.sessionStore.retitle(key, title) { self.sessionStore.save(); self.syncSessions() }

@@ -43,9 +43,12 @@ struct Session: Codable, Equatable {
     var started: TimeInterval
     var turnStarted: TimeInterval
     var changed: TimeInterval
-    /// A turn finished while you were away: true until you open the session, start a new turn or mark all as seen.
+    /// A turn finished while you were away: true until you open the session (here or in the Claude app), start a new turn or mark all as seen.
     /// Saved with the tile; files without it read as seen.
     var unseen: Bool? = nil
+    /// When the last turn ended by Stop or StopFailure: the Claude app opening the session after this means you saw the result.
+    /// Kept apart from `changed`, which a history scan moves forward. Saved with the tile; files without it fall back to `changed`.
+    var finished: TimeInterval? = nil
     /// How the last turn ended when it did not simply stop. Saved with the tile; files without it read as a plain stop.
     var outcome: SessionOutcome? = nil
     var key: String { provider.rawValue + ":" + id }
@@ -161,6 +164,7 @@ final class SessionStore {
             switch event.event {
             case "Stop", "StopFailure":
                 session.unseen = true
+                session.finished = event.time
                 if live { moments[key] = SessionMoment(kind: event.event == "Stop" ? .finished : .failed, at: now) }
             case "Interrupt":
                 if live { moments[key] = SessionMoment(kind: .interrupted, at: now) }
@@ -189,7 +193,26 @@ final class SessionStore {
         for key in keys { sessions[key]?.unseen = nil }
         return !keys.isEmpty
     }
+    /// Clears the unseen mark of tiles the Claude app opened after their turn finished: you switched to the session there.
+    /// `focused` maps tile keys to the app's last focus time in seconds; returns true when a mark changed.
+    @discardableResult
+    func markSeen(focused: [String: TimeInterval]) -> Bool {
+        var changed = false
+        for (key, time) in focused {
+            guard let session = sessions[key], session.unseen != nil, time > (session.finished ?? session.changed) else { continue }
+            sessions[key]?.unseen = nil
+            changed = true
+        }
+        return changed
+    }
     var hasUnseen: Bool { sessions.values.contains { $0.unseen != nil } }
+    /// Claude app sessions whose unseen mark the app's focus time may clear: tile key and the app's own session ID.
+    var unseenInApp: [(key: String, host: String)] {
+        sessions.values.compactMap { session in
+            guard session.unseen != nil, session.entry == "claude-desktop", let host = session.host, Self.matches(host, Self.appSessionPattern) else { return nil }
+            return (session.key, host)
+        }
+    }
 
     /// Finishes turns whose process has exited or that went silent, and drops old tiles. Returns true when the tiles changed.
     @discardableResult
@@ -308,7 +331,9 @@ final class SessionStore {
             if updated.state == .idle && session.changed > updated.changed { updated.changed = session.changed }
             if updated != existing { sessions[session.key] = updated; changed = true }
         }
-        return prune(now: now) || changed
+        // A session you opened in the Claude app while Limitwick was closed or between checks has no new result.
+        let seen = markSeen(focused: found.focused)
+        return prune(now: now) || changed || seen
     }
 
     /// Stable across launches, unlike Hasher: FNV-1a of the session ID.
@@ -522,7 +547,18 @@ struct SessionLook: Equatable {
 /// Sessions of the last 24 hours read from disk, so the window is not empty until each session sends its next hook event.
 /// Reads only IDs, folders, times, the archived flag and the titles of Claude app sessions; never prompts or replies.
 enum SessionHistory {
-    struct Found { var sessions: [Session] = []; var archived: Set<String> = [] }
+    struct Found {
+        var sessions: [Session] = []
+        var archived: Set<String> = []
+        /// When the Claude app last focused each of its sessions, in seconds, by tile key.
+        var focused: [String: TimeInterval] = [:]
+    }
+    /// What Limitwick reads from one Claude app session file besides its IDs.
+    struct AppSession: Equatable {
+        var title: String?
+        /// When you last switched to the session in the app, in seconds.
+        var focused: TimeInterval?
+    }
     /// Limitwick's own /usage probe runs claude in this folder.
     static let probeFolder = "/Library/Application Support/Limitwick/ClaudeProbe"
     static let appIndex = "Library/Application Support/Claude/claude-code-sessions"
@@ -539,22 +575,27 @@ enum SessionHistory {
         return found
     }
 
-    /// The current title of one Claude app session, by its local_ ID. The app names a session after its first turn
-    /// and may rename it later, so a live tile rereads it when a turn starts or ends.
-    static func appTitle(host: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> String? {
+    /// The current title and last focus time of one Claude app session, by its local_ ID. The app names a session after its first turn
+    /// and may rename it later, so a live tile rereads it when a turn starts or ends; an unseen tile rereads the focus time.
+    static func appSession(host: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) -> AppSession? {
         guard SessionStore.matches(host, SessionStore.appSessionPattern) else { return nil }
         for account in children(home.appendingPathComponent(appIndex)) { for organization in children(account) {
             let file = organization.appendingPathComponent(host + ".json")
             guard let size = (try? file.resourceValues(forKeys: [.fileSizeKey]))?.fileSize, size < 8_000_000,
                   let data = try? Data(contentsOf: file), let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
                   object["sessionId"] as? String == host else { continue }
-            return SessionStore.cleanTitle(object["title"] as? String)
+            return AppSession(title: SessionStore.cleanTitle(object["title"] as? String), focused: focusTime(object))
         }}
         return nil
     }
+    /// lastFocusedAt is in milliseconds; a missing or odd value reads as never focused, so the mark stays.
+    private static func focusTime(_ object: [String: Any]) -> TimeInterval? {
+        guard let value = (object["lastFocusedAt"] as? NSNumber)?.doubleValue, value > 0 else { return nil }
+        return value / 1000
+    }
 
     // The Claude app keeps one JSON file per Code session: its own ID for the open link, the CLI session ID the hooks send,
-    // the folder, the title, the last activity and the archived flag.
+    // the folder, the title, the last activity, the last focus and the archived flag.
     private static func appSessions(_ root: URL, now: TimeInterval, into found: inout Found) {
         for account in children(root) { for organization in children(account) {
             for file in children(organization) where file.lastPathComponent.hasPrefix("local_") && file.pathExtension == "json" {
@@ -563,6 +604,7 @@ enum SessionHistory {
                       let local = object["sessionId"] as? String, SessionStore.matches(local, SessionStore.appSessionPattern),
                       let cli = object["cliSessionId"] as? String, !cli.isEmpty, cli.count <= 100 else { continue }
                 if object["isArchived"] as? Bool == true { found.archived.insert("claude:" + cli); continue }
+                if let focused = focusTime(object) { found.focused["claude:" + cli] = focused }
                 guard let last = (object["lastActivityAt"] as? NSNumber)?.doubleValue, now - last / 1000 < SessionStore.retention else { continue }
                 let changed = last / 1000, created = (object["createdAt"] as? NSNumber)?.doubleValue ?? last
                 found.sessions.append(Session(provider: .claude, id: cli, name: folder(object["originCwd"] ?? object["cwd"]) ?? "Claude",

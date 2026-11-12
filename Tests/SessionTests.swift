@@ -5,10 +5,10 @@ import Foundation
         let t0: TimeInterval = 1_800_000_000
         let id = "aa787cb0-d859-4a06-aeb1-ce873dbd2ea9"
         func event(_ name: String, _ session: String = id, at offset: TimeInterval, provider: SessionProvider = .claude,
-                   folder: String? = nil, app: String? = nil, entry: String? = nil, pid: Int32? = nil,
+                   folder: String? = nil, app: String? = nil, entry: String? = nil, pid: Int32? = nil, host: String? = nil,
                    tool: String? = nil, category: String? = nil) -> SessionEvent {
             SessionEvent(provider: provider, session: session, event: name, time: t0 + offset, name: folder, app: app, entry: entry, pid: pid,
-                         tool: tool, category: category)
+                         host: host, tool: tool, category: category)
         }
 
         // Only real work creates a tile: a lone Stop, SessionEnd or notification for an unknown session does not.
@@ -158,7 +158,7 @@ import Foundation
         }
         let app = "home/Library/Application Support/Claude/claude-code-sessions/account/org"
         let ms = Int((now - 300) * 1000)
-        try write("\(app)/local_1111.json", #"{"sessionId":"local_1111","cliSessionId":"cli-1","originCwd":"/Users/x/Росэлторг","lastActivityAt":\#(ms),"createdAt":\#(ms - 60000),"isArchived":false,"title":"Выбор статьи"}"#)
+        try write("\(app)/local_1111.json", #"{"sessionId":"local_1111","cliSessionId":"cli-1","originCwd":"/Users/x/Росэлторг","lastActivityAt":\#(ms),"createdAt":\#(ms - 60000),"lastFocusedAt":\#(ms + 120_000),"isArchived":false,"title":"Выбор статьи"}"#)
         try write("\(app)/local_4444.json", #"{"sessionId":"local_4444","cliSessionId":"cli-6","originCwd":"/Users/x/Росэлторг","lastActivityAt":\#(ms),"isArchived":false,"title":" "}"#)
         try write("\(app)/local_5555.json", #"{"sessionId":"local_other","cliSessionId":"cli-7","originCwd":"/Users/x/Wrong","lastActivityAt":\#(ms),"isArchived":false,"title":"Wrong"}"#, age: 90_000)
         try write("\(app)/local_2222.json", #"{"sessionId":"local_2222","cliSessionId":"cli-2","originCwd":"/Users/x/Old","lastActivityAt":\#(ms),"isArchived":true}"#)
@@ -173,6 +173,8 @@ import Foundation
         let keys = Set(scanned.sessions.map(\.key))
         precondition(keys == ["claude:cli-1", "claude:cli-4", "claude:cli-6", "codex:\(thread)"], "\(keys)")
         precondition(scanned.archived == ["claude:cli-2"])
+        precondition(scanned.focused.keys.sorted() == ["claude:cli-1"] && abs(scanned.focused["claude:cli-1"]! - (now - 180)) < 0.01,
+                     "the app's focus time is read in seconds; a file without it adds nothing")
         let appTile = scanned.sessions.first { $0.id == "cli-1" }!
         precondition(appTile.name == "Росэлторг" && appTile.title == "Выбор статьи" && appTile.host == "local_1111" && appTile.entry == "claude-desktop" && abs(appTile.changed - (now - 300)) < 1)
         let untitled = scanned.sessions.first { $0.id == "cli-6" }!
@@ -181,12 +183,14 @@ import Foundation
         precondition(scanned.sessions.filter { $0.title != nil }.map(\.id) == ["cli-1"], "only Claude app sessions have titles")
         precondition(!scanned.sessions.contains { $0.name.contains("PRIVATE") || ($0.title ?? "").contains("PRIVATE") }, "transcript messages are never read")
 
-        // A live tile rereads one session's title by its local_ ID; the file must belong to that session.
+        // A live tile rereads one session's title and focus time by its local_ ID; the file must belong to that session.
         let home = root.appendingPathComponent("home")
-        precondition(SessionHistory.appTitle(host: "local_1111", home: home) == "Выбор статьи")
-        precondition(SessionHistory.appTitle(host: "local_4444", home: home) == nil && SessionHistory.appTitle(host: "local_9999", home: home) == nil)
-        precondition(SessionHistory.appTitle(host: "local_5555", home: home) == nil, "file of another session")
-        precondition(SessionHistory.appTitle(host: "../local_1111", home: home) == nil && SessionHistory.appTitle(host: "local_1111/..", home: home) == nil)
+        let appRead = SessionHistory.appSession(host: "local_1111", home: home)
+        precondition(appRead?.title == "Выбор статьи" && abs((appRead?.focused ?? 0) - (now - 180)) < 0.01)
+        precondition(SessionHistory.appSession(host: "local_4444", home: home) == SessionHistory.AppSession(title: nil, focused: nil))
+        precondition(SessionHistory.appSession(host: "local_9999", home: home) == nil)
+        precondition(SessionHistory.appSession(host: "local_5555", home: home) == nil, "file of another session")
+        precondition(SessionHistory.appSession(host: "../local_1111", home: home) == nil && SessionHistory.appSession(host: "local_1111/..", home: home) == nil)
 
         // Waiting captions get hungrier with time and fit a tile; VoiceOver hears plain words and "new" for an unseen result.
         var hungry = Session(provider: .claude, id: "w", name: "W", state: .waiting, started: t0, turnStarted: t0, changed: t0)
@@ -230,6 +234,30 @@ import Foundation
         fromDisk.sessions = [Session(provider: .claude, id: "h1", name: "H", state: .idle, started: t0, turnStarted: t0, changed: t0 + 2000)]
         seen.merge(fromDisk, now: t0 + 2003)
         precondition(seen.sessions["claude:h1"]?.unseen == nil && seen.moments["claude:h1"] == nil, "history never marks or animates")
+
+        // Switching to a session in the Claude app after its turn ended is opening it; a focus from before the end is not.
+        let inApp = SessionStore()
+        for name in ["a1", "a2", "a3"] {
+            inApp.apply(event("UserPromptSubmit", name, at: 0, app: "com.anthropic.claudefordesktop", entry: "claude-desktop", host: "local_\(name)"), now: t0)
+            inApp.apply(event("Stop", name, at: 100), now: t0 + 100)
+        }
+        inApp.apply(event("UserPromptSubmit", "t1", at: 0, entry: "cli"), now: t0)
+        inApp.apply(event("Stop", "t1", at: 100), now: t0 + 100)
+        precondition(inApp.sessions["claude:a1"]?.finished == t0 + 100)
+        precondition(Set(inApp.unseenInApp.map(\.key)) == ["claude:a1", "claude:a2", "claude:a3"] && inApp.unseenInApp.contains { $0 == ("claude:a1", "local_a1") },
+                     "only Claude app sessions have a focus time to check")
+        // The app touches lastActivityAt after the turn, so the history scan moves changed past the focus; the finish time stays.
+        var focusedFound = SessionHistory.Found()
+        focusedFound.sessions = [Session(provider: .claude, id: "a2", name: "A", entry: "claude-desktop", host: "local_a2", state: .idle, started: t0, turnStarted: t0, changed: t0 + 130)]
+        focusedFound.focused = ["claude:a1": t0 + 50, "claude:a2": t0 + 120]
+        precondition(inApp.merge(focusedFound, now: t0 + 140))
+        precondition(inApp.sessions["claude:a2"]?.changed == t0 + 130 && inApp.sessions["claude:a2"]?.unseen == nil, "focus after the finish clears the mark")
+        precondition(inApp.sessions["claude:a1"]?.unseen == true, "focus before the finish keeps it")
+        precondition(!inApp.markSeen(focused: [:]) && !inApp.markSeen(focused: ["claude:a3": t0 + 100]) && inApp.sessions["claude:a3"]?.unseen == true)
+        precondition(inApp.markSeen(focused: ["claude:a3": t0 + 101]) && inApp.sessions["claude:a3"]?.unseen == nil && !inApp.markSeen(focused: ["claude:a3": t0 + 102]))
+        inApp.apply(event("UserPromptSubmit", "a3", at: 200), now: t0 + 200)
+        inApp.apply(event("Stop", "a3", at: 300), now: t0 + 300)
+        precondition(!inApp.markSeen(focused: ["claude:a3": t0 + 101]) && inApp.sessions["claude:a3"]?.unseen == true, "an old focus does not clear a new result")
 
         // Moments play only for fresh events and expire; a late stop still marks the result.
         let fresh = SessionStore()
@@ -378,6 +406,8 @@ import Foundation
         try Data(#"[{"provider":"codex","id":"y","name":"Old","state":"idle","started":\#(t0),"turnStarted":\#(t0),"changed":\#(t0),"unseen":true}]"#.utf8).write(to: endFile)
         let endOlder = SessionStore(file: endFile); endOlder.load(now: t0 + 60, booted: t0 - 100, alive: { _ in true })
         precondition(endOlder.sessions["codex:y"]?.outcome == nil && endOlder.sessions["codex:y"]?.unseen == true)
+        precondition(endOlder.sessions["codex:y"]?.finished == nil && !endOlder.markSeen(focused: ["codex:y": t0]) && endOlder.markSeen(focused: ["codex:y": t0 + 1]),
+                     "a tile saved without a finish time compares the focus with its last change")
 
         // A running tool: Claude types with alternating hands every 0.16 s and does not bob; Codex runs its cursor; the icon stays.
         let edit = SessionTool(id: "a", kind: .edit)
