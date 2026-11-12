@@ -445,7 +445,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
         var result: [ProviderPresentation] = []
         func info(_ name: String, _ quota: Quota?, _ stale: Bool, _ failure: String?, _ date: Date?, _ running: Bool) -> ProviderPresentation {
             let status: String
-            if let failure = failure { status = failure + (quota != nil ? " · Previous data · " + ageDescription(date) : "") }
+            if let failure = failure { status = failure + (quota != nil ? " · Previous data" + (date.map { " · " + ageDescription($0) } ?? "") : "") }
             else if running { status = quota == nil ? "Loading…" : "Updating… · " + ageDescription(date) }
             else { status = ageDescription(date) }
             return ProviderPresentation(name: name, quota: quota, stale: stale, status: status, updated: date, failure: failure, running: running)
@@ -472,6 +472,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
             claudeQuota = quota; claudeUpdate = Date(); claudeStale = false; claudeFailure = nil
             if settings.providers.includesClaude { claudeNotices.process(quota) }
         case .failure(let error):
+            // Claude Code's own earlier bars are kept like previous data; they fill in only when the app has none yet.
+            if claudeQuota == nil, let lastKnown = error as? ClaudeLastKnownUsage {
+                claudeQuota = lastKnown.quota; claudeUpdate = lastKnown.age.map { Date().addingTimeInterval(-$0) }
+            }
             claudeStale = claudeQuota != nil; claudeFailure = error.localizedDescription
         }
         publishWidgetSnapshot(.claude)

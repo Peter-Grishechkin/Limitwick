@@ -25,7 +25,7 @@
 	<key>SUEnableAutomaticChecks</key>
 	<false/>
 	<key>SUFeedURL</key>
-	<string>https://raw.githubusercontent.com/frankydzoro/Limitwick/main/appcast.xml</string>
+	<string>https://raw.githubusercontent.com/Peter-Grishechkin/Limitwick/main/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>SkjN9IKj2Gl8YQ260FPHZanZbKxCsCIxnIrmrLbeQNQ=</string>
 	<key>SUVerifyUpdateBeforeExtraction</key>

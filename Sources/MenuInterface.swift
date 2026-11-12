@@ -17,7 +17,7 @@ extension AppDelegate {
         }
         NSApp.activate(ignoringOtherApps: true); aboutWindow?.makeKeyAndOrderFront(nil)
     }
-    @objc func openGitHub() { NSWorkspace.shared.open(URL(string: "https://github.com/frankydzoro/Limitwick")!) }
+    @objc func openGitHub() { NSWorkspace.shared.open(URL(string: "https://github.com/Peter-Grishechkin/Limitwick")!) }
     @objc func openTelegram() { NSWorkspace.shared.open(URL(string: "https://t.me/seo_and_sem")!) }
     @objc func closeAbout() { aboutWindow?.performClose(nil) }
 

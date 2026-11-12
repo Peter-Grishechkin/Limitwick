@@ -219,7 +219,7 @@ flowchart LR
 | **Codex login or network error** | Run `codex login status`, sign in if needed, check your connection and choose **Refresh**. |
 | **Claude Code not found or not signed in** | Install Claude Code, run `claude` in Terminal, sign in and choose **Refresh**. |
 | **Claude usage unavailable** | Run `/usage` in Claude Code to check the account and connection. Limitwick reads Claude Code's on-screen output, which can change with Claude Code updates. Reset times it cannot read are shown as unavailable. |
-| **Bars are dimmed** | The last refresh failed and the previous values are shown; the error is under the card in the panel. |
+| **Bars are dimmed** | The last refresh failed and the previous values are shown; the error is under the card in the panel. When Claude Code cannot refresh its own usage data (usually because its usage page is rate limited) and shows values it loaded earlier, Limitwick treats them as previous data too. |
 | **A limit is missing** | The service did not report that limit. Reset times appear only when the service provides them. |
 | **No activity animation** | Check the status text under the checkbox in **Settings**, install the hooks, trust them in Codex, and start a new session. |
 | **Old widgets in the gallery** | Another copy of the app, such as a second **Limitwick.app** or **CodexBar.app**, can supply its widgets. **Settings** lists them under **Other copies**. Keep one copy in Applications, trash the rest, empty the Trash, log out and back in, then add the widget again. |
