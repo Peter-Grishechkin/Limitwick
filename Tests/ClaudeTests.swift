@@ -23,6 +23,11 @@ import Foundation
         precondition((try? ClaudeUsageParser.parse("Current week (Sonnet only): 10% used")) == nil)
         precondition((try? ClaudeUsageParser.parse("Current session 101% used")) == nil)
         precondition(ClaudeUsageParser.parseReset("Jan 3 11pm (Not/AZone)", now: now) == nil)
+        precondition(ClaudeUsageParser.freshness(text) == .current)
+        precondition(ClaudeUsageParser.freshness(text + "\nShowing last-known usage as of 12m ago (rate limited until 3:15pm)") == .lastKnown(age: 720))
+        precondition(ClaudeUsageParser.freshness("Showing last-known usage as of 45s ago (could not refresh)") == .lastKnown(age: 45))
+        precondition(ClaudeUsageParser.freshness("Showing last-known usage (could not refresh)") == .lastKnown(age: nil))
+        precondition(ClaudeUsageParser.freshness(text + "\nRefreshing\u{2026}") == .refreshing)
         var screen = ClaudeScreen()
         screen.append("Old 0% used\u{1b}[2J\u{1b}[HCurrent session\r\n23% used")
         precondition(!screen.text.contains("Old 0%") && screen.text.contains("23% used"))
@@ -45,6 +50,18 @@ import Foundation
         if case .failure(ClaudeError.notSignedIn) = ClaudeClient(timeout: 5).fetch(path: path, directory: directory) {} else { fatalError("Login error not detected") }
         setenv("FAKE_CLAUDE_SCENARIO", "error", 1)
         if case .failure(ClaudeError.usageFailed) = ClaudeClient(timeout: 8).fetch(path: path, directory: directory) {} else { fatalError("Usage failure not detected") }
+        // Bars Claude Code kept from an earlier load are previous data, not an update.
+        setenv("FAKE_CLAUDE_SCENARIO", "lastknown", 1)
+        switch ClaudeClient(timeout: 12).fetch(path: path, directory: directory) {
+        case .failure(let error as ClaudeLastKnownUsage): precondition(error.quota.fiveHour?.remaining == 77 && error.age == 720)
+        case let other: fatalError("Last-known usage taken as \(other)")
+        }
+        // Saved bars shown while the request runs must wait for its result: here the note arrives after 2 s of silence.
+        setenv("FAKE_CLAUDE_SCENARIO", "slow", 1)
+        switch ClaudeClient(timeout: 12).fetch(path: path, directory: directory) {
+        case .failure(let error as ClaudeLastKnownUsage): precondition(error.quota.fiveHour?.remaining == 77 && error.age == 120)
+        case let other: fatalError("Bars under Refreshing… taken as \(other)")
+        }
         setenv("FAKE_CLAUDE_SCENARIO", "exit", 1)
         func cpuSeconds() -> Double {
             var usage = rusage(); getrusage(RUSAGE_SELF, &usage)

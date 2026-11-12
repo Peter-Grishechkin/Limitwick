@@ -33,6 +33,8 @@ func vibrantCoverage(_ image: CGImage) -> Double {
         check(!normal.five.resetTime.isEmpty && normal.footer == "Codex · Updated 2 min ago", "footer \(normal.footer)")
         let previous = QuotaCardModel.make(provider: "Codex", five: 72, week: 41, fiveReset: five, weekReset: week, stale: true, updated: old, threshold: 20, now: now)
         check(previous.footer == "Codex · Previous data · Updated 12 min ago", "previous footer \(previous.footer)")
+        let ageless = QuotaCardModel.make(provider: "Claude", five: 72, week: 41, fiveReset: five, weekReset: week, stale: true, updated: nil, threshold: 20, now: now)
+        check(ageless.footer == "Claude · Previous data", "previous footer without age \(ageless.footer)")
         let empty = QuotaCardModel.make(provider: "Claude", five: nil, week: nil, fiveReset: nil, weekReset: nil, stale: false, loading: true, updated: nil, threshold: 20, now: now)
         check(empty.footer == "Claude · Loading…" && empty.five.resetLine == "Reset unavailable" && empty.five.remaining == nil, "empty model")
         let none = QuotaCardModel.make(provider: "Claude", five: nil, week: nil, fiveReset: nil, weekReset: nil, stale: false, updated: nil, threshold: 20, now: now)

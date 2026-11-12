@@ -23,6 +23,17 @@ enum ClaudeError: Error, LocalizedError {
     }
 }
 
+// Claude Code could not refresh usage and showed bars it had loaded earlier; age is how old they are, when it says.
+struct ClaudeLastKnownUsage: Error, LocalizedError {
+    let quota: Quota
+    let age: TimeInterval?
+    var errorDescription: String? { "Claude Code could not refresh usage. Try again later." }
+}
+
+enum UsageFreshness: Equatable {
+    case current, refreshing, lastKnown(age: TimeInterval?)
+}
+
 // A small terminal screen, not a transcript: redraws and erased values must not become quotas.
 struct ClaudeScreen {
     private let columns = 160, rows = 200
@@ -119,6 +130,16 @@ enum ClaudeUsageParser {
         guard !windows.isEmpty else { throw ClaudeError.invalidResponse }
         return Quota(windows: windows.sorted { $0.durationMinutes < $1.durationMinutes }, conflictingDurations: [], namedAdditional: additional)
     }
+    // When the usage request fails, /usage keeps the bars it loaded on this machine in the past hour and adds
+    // "Showing last-known usage as of 12m ago (rate limited until 3:15pm)"; until the request ends it shows "Refreshing…".
+    static func freshness(_ text: String) -> UsageFreshness {
+        if let note = match(#"showing last-known usage(?:\s+as of\s+(\d+)\s*(s|m|h|d)\s+ago)?"#, text) {
+            let seconds: [String: TimeInterval] = ["s": 1, "m": 60, "h": 3600, "d": 86400]
+            let age = Double(note[1]).flatMap { value in seconds[note[2].lowercased()].map { value * $0 } }
+            return .lastKnown(age: age)
+        }
+        return text.lowercased().contains("refreshing\u{2026}") ? .refreshing : .current
+    }
     static func parseReset(_ raw: String, now: Date) -> Date? {
         var value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         var timeZone = TimeZone.current
@@ -177,6 +198,13 @@ final class ClaudeClient {
         var trustReadyAt: TimeInterval?, trustKeySentAt: TimeInterval?
         var best: Quota?
         var bytes = 0
+        func finish(_ quota: Quota) -> Result<Quota, Error> {
+            switch ClaudeUsageParser.freshness(screen.text) {
+            case .current: return .success(quota)
+            case .refreshing: return .failure(ClaudeLastKnownUsage(quota: quota, age: nil))
+            case .lastKnown(let age): return .failure(ClaudeLastKnownUsage(quota: quota, age: age))
+            }
+        }
         while ProcessInfo.processInfo.systemUptime < deadline {
             lock.lock(); let stopped = cancelled; lock.unlock(); if stopped { return .failure(ClaudeError.cancelled) }
             var fd = pollfd(fd: master, events: Int16(POLLIN | POLLHUP), revents: 0)
@@ -218,12 +246,13 @@ final class ClaudeClient {
                 screen = ClaudeScreen(); trustVisible = false; trustOnNo = false; lastData = ProcessInfo.processInfo.systemUptime
             }
             if !sent && !trustVisible && elapsed > 3 && (ProcessInfo.processInfo.systemUptime - lastData > 0.5 || elapsed > 10) { _ = write(master, "/usage\r", 7); sent = true }
-            if let quota = best, ProcessInfo.processInfo.systemUptime - lastData > 1.2 { return .success(quota) }
+            // Bars drawn under "Refreshing…" are the saved ones; wait for the request to replace them or add its note.
+            if let quota = best, ProcessInfo.processInfo.systemUptime - lastData > 1.2, ClaudeUsageParser.freshness(screen.text) != .refreshing { return finish(quota) }
             if !process.isRunning && (ready <= 0 || hungUp) { break }
             // The exit status can lag behind the hang-up for a moment; wait instead of spinning.
             if hungUp { usleep(50_000) }
         }
-        if let quota = best { return .success(quota) }
+        if let quota = best { return finish(quota) }
         return .failure(process.isRunning ? ClaudeError.timeout : ClaudeError.invalidResponse)
     }
 }

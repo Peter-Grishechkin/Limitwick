@@ -27,14 +27,14 @@ struct QuotaCardModel: Equatable {
         return minutes == 0 ? "Updated just now" : "Updated \(minutes) min ago"
     }
 
-    /// "Codex · Updated 2 min ago"; with old values "Codex · Previous data · Updated 12 min ago".
+    /// "Codex · Updated 2 min ago"; with old values "Codex · Previous data · Updated 12 min ago", or without the age when it is unknown.
     static func footer(provider: String, hasData: Bool, stale: Bool, loading: Bool, updated: Date?, now: Date = Date()) -> String {
         var parts = [provider]
         if !hasData && loading { parts.append("Loading…") }
-        else {
-            if stale && hasData { parts.append("Previous data") }
-            parts.append(age(updated, now: now))
-        }
+        else if stale && hasData {
+            parts.append("Previous data")
+            if updated != nil { parts.append(age(updated, now: now)) }
+        } else { parts.append(age(updated, now: now)) }
         return parts.joined(separator: " · ")
     }
 

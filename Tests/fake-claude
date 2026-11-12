@@ -31,6 +31,18 @@ while IFS= read -r input; do
       printf '\033[2J\033[HFailed to load usage\r\n'
       continue
     fi
-    printf '\033[2J\033[HCurrent session\r\n  23%% used\r\n  Resets 11:59pm (UTC)\r\n\r\nCurrent week (all models)\r\n  41%% used\r\n  Resets Dec 3, 11:59pm (UTC)\r\n'
+    bars='\033[2J\033[HCurrent session\r\n  23%% used\r\n  Resets 11:59pm (UTC)\r\n\r\nCurrent week (all models)\r\n  41%% used\r\n  Resets Dec 3, 11:59pm (UTC)\r\n'
+    if [[ "${FAKE_CLAUDE_SCENARIO:-}" == 'lastknown' ]]; then
+      printf "$bars"'\r\nShowing last-known usage as of 12m ago (rate limited until 3:15pm)\r\n'
+      continue
+    fi
+    if [[ "${FAKE_CLAUDE_SCENARIO:-}" == 'slow' ]]; then
+      # Claude Code draws the saved bars with "Refreshing…" at once and replaces that line when the request ends.
+      printf "$bars"'\r\nRefreshing\xe2\x80\xa6'
+      sleep 2
+      printf '\r\033[2KShowing last-known usage as of 2m ago (could not refresh)\r\n'
+      continue
+    fi
+    printf "$bars"
   fi
 done
