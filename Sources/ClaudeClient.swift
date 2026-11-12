@@ -143,9 +143,9 @@ enum ClaudeUsageParser {
     static func parseReset(_ raw: String, now: Date) -> Date? {
         var value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         var timeZone = TimeZone.current
+        // Claude Code names the Mac's own zone, so a name Foundation does not know falls back to the current zone.
         if let zone = match(#"\(([^)]+)\)"#, value) {
-            guard let parsed = TimeZone(identifier: zone[1]) else { return nil }
-            timeZone = parsed
+            timeZone = TimeZone(identifier: zone[1]) ?? .current
             value = value.replacingOccurrences(of: zone[0], with: "")
         }
         value = value.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: " at ", with: " ").replacingOccurrences(of: ",", with: "")
