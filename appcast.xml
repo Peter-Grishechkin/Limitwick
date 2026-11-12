@@ -2,6 +2,19 @@
 <rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <item>
+      <title>Limitwick 2.8.1</title>
+      <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- The green or red light on a Sessions tile turns off when you switch to that session in the Claude app after the turn ends, not only when you click the tile, send a new prompt or choose Mark All as Seen. While the Sessions window is open, the light goes off within 15 seconds. Limitwick reads only when the app last focused the session (`lastFocusedAt` in the app&amp;#x27;s session file), never prompts or replies.&lt;/div&gt;</description>
+      <sparkle:version>2.8.1</sparkle:version>
+      <sparkle:shortVersionString>2.8.1</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+      <pubDate>Thu, 12 Nov 2026 20:54:36 +0000</pubDate>
+      <enclosure url="https://github.com/Peter-Grishechkin/Limitwick/releases/download/v2.8.1/Limitwick-2.8.1-macOS-Apple-Silicon.zip" sparkle:edSignature="9p31BxPPaLFVGwf64bNKx8be4Dj/NpYCcDIzZhDjGGRjDGpzyWRzKPadDAr5fmS5AaE1kxltvb4qRSh6ylubDQ==" length="4035704" type="application/octet-stream" />
+      <link>https://github.com/Peter-Grishechkin/Limitwick/releases/tag/v2.8.1</link>
+      <sparkle:informationalUpdate>
+        <sparkle:belowVersion>2.0.0</sparkle:belowVersion>
+      </sparkle:informationalUpdate>
+    </item>
+    <item>
       <title>Limitwick 2.8.0</title>
       <description>&lt;h2&gt;Changes&lt;/h2&gt;&lt;div style="white-space: pre-wrap"&gt;- Claude limits are read from Claude Code&amp;#x27;s own data: Limitwick runs `claude -p /usage` and reads the limits from its JSON output in about two seconds, instead of opening the usage screen in a hidden terminal. Claude Code answers from its own data without asking the model, so checking limits uses none of them. Older Claude Code versions still work through the usage screen.
 - When Claude Code cannot refresh usage, usually because its usage page is rate limited, and shows the values it loaded earlier, Limitwick shows them dimmed as previous data instead of &amp;quot;Updated just now&amp;quot;.
