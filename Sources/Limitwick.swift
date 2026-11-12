@@ -21,7 +21,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, SPU
     let content = NSView(frame: NSRect(x: 0, y: 0, width: 340, height: 170))
     // The panel and the Picture-in-Picture window show the same SwiftUI cards.
     let panelHost = NSHostingView(rootView: QuotaPanelView(entries: []))
-    let desktopHost = NSHostingView(rootView: QuotaPanelView(entries: []))
+    let desktopHost = PiPHostingView(rootView: QuotaPanelView(entries: []))
     let contextMenu = NSMenu()
     let refresh = NSMenuItem(title: "Refresh", action: #selector(refreshNow), keyEquivalent: "r")
     let client = QuotaClient()

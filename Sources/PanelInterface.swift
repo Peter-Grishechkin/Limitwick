@@ -13,6 +13,15 @@ extension AppearanceMode {
     }
 }
 
+/// The Picture-in-Picture card. The hosting view keeps clicks to itself, so isMovableByWindowBackground alone
+/// does not move the borderless window; drag it explicitly, like the Sessions window.
+final class PiPHostingView: NSHostingView<QuotaPanelView> {
+    override var mouseDownCanMoveWindow: Bool { true }
+    // Limitwick is a menu bar app and the window is usually not key: the first click must start the drag.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func mouseDown(with event: NSEvent) { window?.performDrag(with: event) }
+}
+
 extension AppDelegate {
     /// One entry per tracked provider: its card, its own theme and mode, and the refresh failure shown under the card.
     var panelEntries: [QuotaPanelEntry] {
