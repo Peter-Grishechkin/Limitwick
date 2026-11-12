@@ -2,10 +2,10 @@ import Foundation
 
 @main struct SnapshotTests {
     static func main() throws {
-        let suite = "Limitwick.WidgetTests.\(UUID().uuidString)"
+        let suite = testSuite("widget")
         let defaults = UserDefaults(suiteName: suite)!
         let directory = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("widget-snapshot-test-\(UUID().uuidString)")
-        defer { defaults.removePersistentDomain(forName: suite); try? FileManager.default.removeItem(at: directory) }
+        defer { removeTestDefaults(suite); try? FileManager.default.removeItem(at: directory) }
 
         let variants = WidgetVariant.all
         precondition(variants.count == 16 && Set(variants.map(\.kind)).count == 16)

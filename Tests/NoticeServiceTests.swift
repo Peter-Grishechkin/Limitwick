@@ -2,9 +2,9 @@ import Foundation
 
 @main struct NoticeServiceTests {
     static func main() {
-        let suite = "limitwick-tests-\(UUID().uuidString)"
+        let suite = testSuite("notice")
         let defaults = UserDefaults(suiteName: suite)!
-        defer { defaults.removePersistentDomain(forName: suite) }
+        defer { removeTestDefaults(suite) }
         let settings = AppSettings(defaults)
         let date = Date(timeIntervalSince1970: 1_800_000_000)
         let reset = date.addingTimeInterval(3600)
@@ -49,11 +49,11 @@ import Foundation
         precondition(settings.threshold(for: "codex") == 10 && settings.threshold(for: "claude") == 45)
         precondition(settings.theme(for: "codex") == "paper" && settings.theme(for: "claude") == "terminal")
         precondition(settings.appearance(for: "codex") == "light" && settings.appearance(for: "claude") == "dark")
-        let fresh = "fresh-\(UUID().uuidString)"; let freshDefaults = UserDefaults(suiteName: fresh)!
-        defer { freshDefaults.removePersistentDomain(forName: fresh) }
+        let fresh = testSuite("fresh"); let freshDefaults = UserDefaults(suiteName: fresh)!
+        defer { removeTestDefaults(fresh) }
         precondition(AppSettings(freshDefaults).activityEnabled(for: "codex") && AppSettings(freshDefaults).activityEnabled(for: "claude"))
-        let legacySuite = "legacy-\(UUID().uuidString)"; let legacy = UserDefaults(suiteName: legacySuite)!
-        defer { legacy.removePersistentDomain(forName: legacySuite) }
+        let legacySuite = testSuite("legacy"); let legacy = UserDefaults(suiteName: legacySuite)!
+        defer { removeTestDefaults(legacySuite) }
         legacy.set("dots", forKey: "panelTheme"); legacy.set("dark", forKey: "appearanceMode")
         legacy.set(35, forKey: "noticeThreshold"); legacy.set(true, forKey: "noticeLow"); legacy.set(false, forKey: "activityEnabled")
         let migrated = AppSettings(legacy)
@@ -62,15 +62,15 @@ import Foundation
             precondition(migrated.threshold(for: name) == 35 && migrated.enabled("low", for: name) && !migrated.activityEnabled(for: name))
         }
         migrated.setThreshold(12, for: "claude"); precondition(AppSettings(legacy).threshold(for: "claude") == 12)
-        let renamedSuite = "renamed-\(UUID().uuidString)"; let renamed = UserDefaults(suiteName: renamedSuite)!
-        defer { renamed.removePersistentDomain(forName: renamedSuite) }
+        let renamedSuite = testSuite("renamed"); let renamed = UserDefaults(suiteName: renamedSuite)!
+        defer { removeTestDefaults(renamedSuite) }
         renamed.set("paper", forKey: "panelTheme.codex")
         AppSettings.importLegacy(["panelTheme.codex": "dots", "providers": "both"], into: renamed)
         AppSettings.importLegacy(["providers": "claude"], into: renamed)
         precondition(AppSettings(renamed).theme(for: "codex") == "paper" && AppSettings(renamed).providers == .both)
         // A reset notice refused by authorization or by the system must be offered again on the next poll, and delivered once.
-        let resetSuite = "reset-\(UUID().uuidString)"; let resetDefaults = UserDefaults(suiteName: resetSuite)!
-        defer { resetDefaults.removePersistentDomain(forName: resetSuite) }
+        let resetSuite = testSuite("reset"); let resetDefaults = UserDefaults(suiteName: resetSuite)!
+        defer { removeTestDefaults(resetSuite) }
         let resetSettings = AppSettings(resetDefaults); resetSettings.setEnabled(true, kind: "reset", for: "codex")
         var clock = date, resetQuota = Quota(windows: [QuotaWindow(durationMinutes: 300, remaining: 40, reset: date.addingTimeInterval(60))], conflictingDurations: [])
         var resetAuthorization: [(Bool) -> Void] = [], resetDeliveries: [(Bool) -> Void] = [], resetDelivered = 0
@@ -93,8 +93,8 @@ import Foundation
         resets.process(resetQuota); precondition(resetAuthorization.isEmpty && resetDelivered == 1)
         resetService().process(resetQuota); precondition(resetAuthorization.isEmpty && resetDelivered == 1)
         // An unused window reports a new reset date on every poll; the delivered reset must not repeat.
-        let slideSuite = "slide-\(UUID().uuidString)"; let slideDefaults = UserDefaults(suiteName: slideSuite)!
-        defer { slideDefaults.removePersistentDomain(forName: slideSuite) }
+        let slideSuite = testSuite("slide"); let slideDefaults = UserDefaults(suiteName: slideSuite)!
+        defer { removeTestDefaults(slideSuite) }
         let slideSettings = AppSettings(slideDefaults); slideSettings.setEnabled(true, kind: "reset", for: "codex")
         var slideClock = date, slideDelivered = 0
         func sliding(_ remaining: Double) -> Quota { Quota(windows: [QuotaWindow(durationMinutes: 300, remaining: remaining, reset: slideClock.addingTimeInterval(slideClock == date ? 60 : 18_000))], conflictingDurations: []) }
