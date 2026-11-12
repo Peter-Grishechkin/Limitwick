@@ -51,6 +51,8 @@ import Foundation
         }
         setenv("FAKE_CLAUDE_SCENARIO", "json-saved", 1)
         if case .success(let parsed) = ClaudeClient(timeout: 12).fetch(path: path, directory: directory) { precondition(parsed.fiveHour?.remaining == 77) } else { fatalError("Saved JSON limits did not fall back to the screen") }
+        setenv("FAKE_CLAUDE_SCENARIO", "json-none", 1)
+        if case .failure(ClaudeError.usageFailed) = ClaudeClient(timeout: 12).fetch(path: path, directory: directory) {} else { fatalError("JSON without limits went to the screen") }
         let log = directory.appendingPathComponent("json-calls.log").path
         setenv("FAKE_CLAUDE_SCENARIO", "json-model", 1); setenv("FAKE_CLAUDE_LOG", log, 1)
         let answered = ClaudeClient(timeout: 12)
@@ -66,8 +68,12 @@ import Foundation
         }
         setenv("FAKE_CLAUDE_SCENARIO", "login", 1)
         if case .failure(ClaudeError.notSignedIn) = ClaudeClient(timeout: 5).fetch(path: path, directory: directory) {} else { fatalError("Login error not detected") }
-        setenv("FAKE_CLAUDE_SCENARIO", "error", 1)
-        if case .failure(ClaudeError.usageFailed) = ClaudeClient(timeout: 8).fetch(path: path, directory: directory) {} else { fatalError("Usage failure not detected") }
+        for scenario in ["error", "ratelimited", "ratelimited-until"] {
+            setenv("FAKE_CLAUDE_SCENARIO", scenario, 1)
+            let started = Date()
+            if case .failure(ClaudeError.usageFailed) = ClaudeClient(timeout: 8).fetch(path: path, directory: directory) {} else { fatalError("Usage failure not detected: \(scenario)") }
+            precondition(Date().timeIntervalSince(started) < 7, "\(scenario) waited for the timeout")
+        }
         // Bars Claude Code kept from an earlier load are previous data, not an update.
         setenv("FAKE_CLAUDE_SCENARIO", "lastknown", 1)
         switch ClaudeClient(timeout: 12).fetch(path: path, directory: directory) {
@@ -111,13 +117,14 @@ import Foundation
         guard case .current(let quota) = ClaudeUsageJSON.parse(fresh) else { fatalError("Fresh JSON limits not read") }
         precondition(quota.fiveHour?.remaining == 70 && quota.weekly?.remaining == 54.5 && quota.additional.isEmpty)
         precondition(quota.namedAdditional == [NamedQuotaWindow(name: "Fable", remaining: 100, reset: nil)])
-        precondition(abs(quota.fiveHour!.reset!.timeIntervalSince1970 - 1_798_693_200) < 1, "microsecond reset time")
-        precondition(abs(quota.weekly!.reset!.timeIntervalSince1970 - 1_798_963_200) < 1)
+        precondition(quota.fiveHour?.reset?.timeIntervalSince1970 == 1_798_693_200, "microsecond reset time")
+        precondition(quota.weekly?.reset?.timeIntervalSince1970 == 1_798_963_200)
+        precondition(ClaudeUsageJSON.date("2026-11-12T20:09:59.860463+00:00") == ClaudeUsageJSON.date("2026-11-12T20:10:00.364550+00:00"), "reset jitter")
         func outcome(_ text: String) -> String {
-            switch ClaudeUsageJSON.parse(text) { case .current: return "current"; case .fallback: return "fallback"; case .modelCalled: return "model" }
+            switch ClaudeUsageJSON.parse(text) { case .current: return "current"; case .fallback: return "fallback"; case .failed: return "failed"; case .modelCalled: return "model" }
         }
         precondition(outcome(#"{"usage_report":{"rate_limits":{"limits":null,"extra_usage":null}}}"#) == "fallback", "saved limits")
-        precondition(outcome(#"{"usage_report":{"rate_limits":null}}"#) == "fallback" && outcome("") == "fallback")
+        precondition(outcome(#"{"usage_report":{"rate_limits":null}}"#) == "failed" && outcome("") == "fallback")
         precondition(outcome(#"{"usage_report":{"rate_limits":{"limits":[{"kind":"weekly_scoped","percent":5}]}}}"#) == "fallback")
         precondition(outcome(#"{"type":"result","num_turns":1,"total_cost_usd":0.02}"#) == "model")
     }
