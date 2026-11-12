@@ -162,11 +162,67 @@ enum ClaudeUsageParser {
     }
 }
 
+// `claude -p /usage --output-format stream-json` (Claude Code 2.1.x) puts the plan limits as data on the message that
+// carries the /usage text: usage_report.rate_limits.limits[] with kind, percent used and resets_at.
+enum ClaudeUsageJSON {
+    enum Outcome {
+        case current(Quota)
+        // No fresh limits: older Claude Code, an error, or saved data (limits is null then). The screen tells which.
+        case fallback
+        // The model answered "/usage" as a prompt instead of running the command: stop using this path.
+        case modelCalled
+    }
+    static func parse(_ output: String) -> Outcome {
+        var limits: [[String: Any]]?, modelCalled = false
+        for line in output.split(whereSeparator: \.isNewline) {
+            guard let record = (try? JSONSerialization.jsonObject(with: Data(line.utf8))) as? [String: Any] else { continue }
+            if let report = record["usage_report"] as? [String: Any], let rate = report["rate_limits"] as? [String: Any] {
+                limits = rate["limits"] as? [[String: Any]]
+            }
+            if record["type"] as? String == "result" {
+                modelCalled = ((record["num_turns"] as? NSNumber)?.intValue ?? 0) > 0 || ((record["total_cost_usd"] as? NSNumber)?.doubleValue ?? 0) > 0
+            }
+        }
+        if modelCalled { return .modelCalled }
+        var windows: [QuotaWindow] = [], additional: [NamedQuotaWindow] = []
+        for limit in limits ?? [] {
+            guard let used = (limit["percent"] as? NSNumber)?.doubleValue, used.isFinite else { continue }
+            let remaining = min(100, max(0, 100 - used)), reset = date(limit["resets_at"])
+            func window(_ minutes: Int) {
+                windows.removeAll { $0.durationMinutes == minutes }
+                windows.append(QuotaWindow(durationMinutes: minutes, remaining: remaining, reset: reset))
+            }
+            switch limit["kind"] as? String {
+            case "session": window(300)
+            case "weekly_all": window(10080)
+            case "weekly_scoped":
+                if let name = ((limit["scope"] as? [String: Any])?["model"] as? [String: Any])?["display_name"] as? String, !name.isEmpty {
+                    additional.append(NamedQuotaWindow(name: name, remaining: remaining, reset: reset))
+                }
+            default: continue
+            }
+        }
+        guard !windows.isEmpty else { return .fallback }
+        return .current(Quota(windows: windows.sorted { $0.durationMinutes < $1.durationMinutes }, conflictingDurations: [], namedAdditional: additional))
+    }
+    static func date(_ raw: Any?) -> Date? {
+        guard let text = raw as? String else { return nil }
+        let formatter = ISO8601DateFormatter(); formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: text) { return date }
+        // Claude Code writes microseconds ("08:00:00.364570+00:00"); read the time without the fraction if they are refused.
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: text.replacingOccurrences(of: #"\.\d+"#, with: "", options: .regularExpression))
+    }
+}
+
 final class ClaudeClient {
     let timeout: TimeInterval
     private let lock = NSLock()
     private var active: Process?
     private var cancelled = false
+    private var modelAnswered = false
+    // Hooks (including Limitwick's own activity hooks), MCP servers and remote control stay off for every probe.
+    private static let settings = #"{"remoteControlAtStartup":false,"disableAllHooks":true}"#
     init(timeout: TimeInterval = 30) { self.timeout = timeout }
     static func findCLI(environment: [String: String] = ProcessInfo.processInfo.environment, home: String = NSHomeDirectory(),
                         system: [String] = CLILocator.systemFolders) -> String? {
@@ -179,12 +235,54 @@ final class ClaudeClient {
         let folder = directory ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Limitwick/ClaudeProbe", isDirectory: true)
         do { try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true) } catch { return .failure(ClaudeError.launchFailed) }
         if directory == nil && folder.standardizedFileURL != folder.resolvingSymlinksInPath().standardizedFileURL { return .failure(ClaudeError.launchFailed) }
+        lock.lock(); let useJSON = !modelAnswered; lock.unlock()
+        if useJSON {
+            switch fetchJSON(path: path, folder: folder) {
+            case .current(let quota): return .success(quota)
+            case .modelCalled: lock.lock(); modelAnswered = true; lock.unlock()
+            case .fallback: break
+            }
+        }
+        // The /usage screen in a pseudo-terminal is the fallback, and the only place that says whether bars are saved ones.
+        return fetchScreen(path: path, folder: folder)
+    }
+
+    // About 2 s and no model call: Claude Code runs /usage as a local command and exits.
+    private func fetchJSON(path: String, folder: URL) -> ClaudeUsageJSON.Outcome {
+        let process = Process(); process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = ["-p", "/usage", "--output-format", "stream-json", "--verbose", "--no-session-persistence",
+                             "--strict-mcp-config", "--allowedTools", "", "--settings", Self.settings]
+        process.currentDirectoryURL = folder
+        var env = CLILocator.environment(for: path); env["NO_COLOR"] = "1"; env["LANG"] = "en_US.UTF-8"; env["LC_ALL"] = "en_US.UTF-8"
+        process.environment = env
+        let pipe = Pipe()
+        process.standardInput = FileHandle.nullDevice; process.standardOutput = pipe; process.standardError = FileHandle.nullDevice
+        lock.lock()
+        guard !cancelled && active == nil else { lock.unlock(); return .fallback }
+        do { try process.run(); active = process; lock.unlock() } catch { lock.unlock(); return .fallback }
+        defer { lock.lock(); if process.isRunning { kill(process.processIdentifier, SIGKILL) }; lock.unlock(); process.waitUntilExit(); lock.lock(); active = nil; lock.unlock() }
+        let reader = pipe.fileHandleForReading, deadline = ProcessInfo.processInfo.systemUptime + min(timeout, 20)
+        var output = Data()
+        while ProcessInfo.processInfo.systemUptime < deadline {
+            lock.lock(); let stopped = cancelled; lock.unlock(); if stopped { return .fallback }
+            var fd = pollfd(fd: reader.fileDescriptor, events: Int16(POLLIN | POLLHUP), revents: 0)
+            guard poll(&fd, 1, 100) > 0 else { continue }
+            var buffer = [UInt8](repeating: 0, count: 65536)
+            let count = read(reader.fileDescriptor, &buffer, buffer.count)
+            if count < 0 && (errno == EINTR || errno == EAGAIN) { continue }
+            if count <= 0 { return ClaudeUsageJSON.parse(String(decoding: output, as: UTF8.self)) }
+            output.append(contentsOf: buffer[0..<count]); if output.count > 2_000_000 { return .fallback }
+        }
+        return .fallback
+    }
+
+    private func fetchScreen(path: String, folder: URL) -> Result<Quota, Error> {
         var master: Int32 = -1, slave: Int32 = -1
         var size = winsize(ws_row: 200, ws_col: 160, ws_xpixel: 0, ws_ypixel: 0)
         guard openpty(&master, &slave, nil, nil, &size) == 0 else { return .failure(ClaudeError.launchFailed) }
         let tty = FileHandle(fileDescriptor: slave, closeOnDealloc: true)
         let process = Process(); process.executableURL = URL(fileURLWithPath: path)
-        process.arguments = ["--strict-mcp-config", "--allowedTools", "", "--settings", #"{"remoteControlAtStartup":false,"disableAllHooks":true}"#]
+        process.arguments = ["--strict-mcp-config", "--allowedTools", "", "--settings", Self.settings]
         process.currentDirectoryURL = folder
         var env = CLILocator.environment(for: path); env["TERM"] = "xterm-256color"; env["NO_COLOR"] = "1"; env["LANG"] = "en_US.UTF-8"; env["LC_ALL"] = "en_US.UTF-8"
         process.environment = env; process.standardInput = tty; process.standardOutput = tty; process.standardError = tty
